@@ -1,0 +1,138 @@
+<?php
+use MageOS\GoogleTagManager\Block\TagManager;
+use MageOS\GoogleTagManager\Service\EventQueue;
+use Hyva\Theme\ViewModel\HyvaCsp;
+use Magento\Framework\Escaper;
+
+/** @var TagManager $block */
+/** @var Escaper $escaper */
+/** @var HyvaCsp $hyvaCsp */
+?>
+
+<?php if ($block->isEnabled()): ?>
+<!-- Google Tag Manager (noscript) -->
+<noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=<?= $escaper->escapeHtml($block->getTagId()) ?>"
+            height="0" width="0" style="display:none;visibility:hidden"></iframe>
+</noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div
+    x-data="initGtmDatalayer()"
+    x-init="checkLogoutCookie()"
+    x-bind="eventListeners"
+></div>
+
+<script>
+    function initGtmDatalayer() {
+        let ECOMMERCE_EVENTS = [
+            'add_to_cart',
+            'remove_from_cart',
+            'update_cart',
+            'add_to_wishlist',
+            'remove_from_wishlist',
+            'add_to_compare'
+        ];
+
+        function pushEcommerceEvent(eventData) {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+                event: eventData.event,
+                ga4_event: eventData.event,
+                ecommerce: eventData.ecommerce || {}
+            });
+        }
+
+        function pushUserEvent(eventData) {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+                ecommerce: null
+            });
+            window.dataLayer.push({
+                event:   eventData.event,
+                ga4_event: eventData.event,
+                user_id: eventData.user_id || '',
+                method:  eventData.method  || ''
+            });
+        }
+
+        function handleEvent(eventData) {
+            if (!eventData || !eventData.event) {
+                return;
+            }
+
+            if (ECOMMERCE_EVENTS.indexOf(eventData.event) !== -1) {
+                pushEcommerceEvent(eventData);
+                return;
+            }
+
+            switch (eventData.event) {
+                case 'login':
+                case 'sign_up':
+                case 'logout':
+                    pushUserEvent(eventData);
+                    break;
+            }
+        }
+
+        function clearDatalayerSection() {
+            try {
+                let cache = JSON.parse(localStorage.getItem('mage-cache-storage') || '{}');
+                if (cache.gtm) {
+                    cache.gtm.datalayer = JSON.stringify([]);
+                    localStorage.setItem('mage-cache-storage', JSON.stringify(cache));
+                }
+            } catch (e) {
+                console.error('GTM: failed to clear datalayer cache', e);
+            }
+        }
+
+        function processEvents(rawDatalayer) {
+            try {
+                let events = JSON.parse(rawDatalayer);
+                if (!Array.isArray(events) || events.length === 0) {
+                    return;
+                }
+                for (let i = 0; i < events.length; i++) {
+                    handleEvent(events[i]);
+                }
+                clearDatalayerSection();
+            } catch (e) {
+                console.error('GTM: failed to parse datalayer', e);
+            }
+        }
+
+        return {
+            checkLogoutCookie: function () {
+                window.dataLayer = window.dataLayer || [];
+                let cookieName = '<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>=';
+                let pairs = document.cookie.split(';');
+                for (let i = 0; i < pairs.length; i++) {
+                    let pair = pairs[i].trim();
+                    if (pair.indexOf(cookieName) !== 0) {
+                        continue;
+                    }
+                    let raw = pair.substring(cookieName.length);
+                    try {
+                        let eventData = JSON.parse(decodeURIComponent(raw));
+                        handleEvent(eventData);
+                    } catch (e) {
+                        console.error('GTM: failed to parse logout cookie', e);
+                    }
+                    document.cookie = '<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    break;
+                }
+            },
+            eventListeners: {
+                ['@private-content-loaded.window'](event) {
+                    let datalayer = event?.detail?.data?.gtm?.datalayer;
+                    if (!datalayer) {
+                        return;
+                    }
+                    processEvents(datalayer);
+                }
+            }
+        };
+    }
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

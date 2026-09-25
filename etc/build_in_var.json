@@ -1,0 +1,32 @@
+[
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "type": "PAGE_URL",
+    "name": "Page URL"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "type": "PAGE_HOSTNAME",
+    "name": "Page Hostname"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "type": "PAGE_PATH",
+    "name": "Page Path"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "type": "REFERRER",
+    "name": "Referrer"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "type": "EVENT",
+    "name": "Event"
+  }
+]

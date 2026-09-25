@@ -1,0 +1,340 @@
+[
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "269",
+    "name": "Ga4-Event",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ga4_event"
+      }
+    ],
+    "fingerprint": "1656036857087",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "270",
+    "name": "Ga4-Ecommerce-Items",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.items"
+      }
+    ],
+    "fingerprint": "1656036937739",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "271",
+    "name": "Ga4-Ecommerce-Discount",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.discount"
+      }
+    ],
+    "fingerprint": "1656036989203",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "272",
+    "name": "Ga4-Ecommerce-Coupon",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.coupon"
+      }
+    ],
+    "fingerprint": "1656037016301",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "273",
+    "name": "Ga4-Ecommerce-Currency",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.currency"
+      }
+    ],
+    "fingerprint": "1656037042662",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "274",
+    "name": "Ga4-Ecommerce-Shipping",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.shipping"
+      }
+    ],
+    "fingerprint": "1656037086909",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "275",
+    "name": "Ga4-Ecommerce-Tax",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.tax"
+      }
+    ],
+    "fingerprint": "1656037116560",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "276",
+    "name": "Ga4-Ecommerce-TransactionID",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.transaction_id"
+      }
+    ],
+    "fingerprint": "1656037143680",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "277",
+    "name": "Ga4-Ecommerce-Value",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.value"
+      }
+    ],
+    "fingerprint": "1656037166450",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "278",
+    "name": "Ga4-Ecommerce-ItemsViewCart",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.itemsviewcart"
+      }
+    ],
+    "fingerprint": "1656037166450",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "279",
+    "name": "Ga4-Ecommerce-ItemsViewItem",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.itemsviewitem"
+      }
+    ],
+    "fingerprint": "1656037166450",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "280",
+    "name": "Ga4-Ecommerce-Method",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.method"
+      }
+    ],
+    "fingerprint": "1656037166450",
+    "formatValue": {}
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "variableId": "281",
+    "name": "Ga4-Ecommerce-SearchTerm",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.searchterm"
+      }
+    ],
+    "fingerprint": "1656037166450",
+    "formatValue": {}
+  }
+]

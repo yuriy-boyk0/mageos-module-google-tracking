@@ -1,0 +1,21 @@
+<?php
+use MageOS\GoogleTagManager\Block\Adminhtml\System\Config\Button;
+
+/** @var Button $block */
+?>
+<div class="actions actions-export">
+    <button class="actions-export primary" type="button" id="<?= $block->getHtmlId() ?>">
+        <span><?= $block->escapeHtml($block->getButtonLabel()) ?></span>
+    </button>
+    <div class="error message message-error" style="display: none"></div>
+</div>
+<script type="text/x-magento-init">
+    {
+        "#googletagmanager_export_export_button": {
+            "mage-os/export": {
+                "xhrUrl": "<?= /** @noEscape */ $block->getButtonUrl() ?>",
+                "downloadUrl": "<?= /** @noEscape */ $block->getDownloadUrl() ?>"
+            }
+        }
+    }
+</script>

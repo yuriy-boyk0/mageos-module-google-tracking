@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="mage-os" translate="label" sortOrder="500">
+            <label>MageOS</label>
+        </tab>
+        <section id="googletagmanager" translate="label" type="text" sortOrder="550" showInDefault="1" showInWebsite="1" showInStore="1">
+            <class>separator-top</class>
+            <label>Google Tag Manager</label>
+            <tab>mage-os</tab>
+            <resource>MageOS_GoogleTagManager::configuration</resource>
+            <group id="general" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>General</label>
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Enable</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="tag_id" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Google Tag ID</label>
+                    <comment><![CDATA[Register <a href="https://tagmanager.google.com" target='_blank'>here</a> and get the tag ID. E.g: GTM-XXXXXX]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="ga4_measurement_id" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>GA4 Measurement ID</label>
+                    <comment><![CDATA[Register <a href="https://analytics.google.com/analytics/web/?pagename=admin" target='_blank'>here</a> and get the tag Measurement ID inside data stream section. E.g: G-XXXXXXXXXX]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+            <group id="export" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Configuration Export</label>
+                <field id="export_button" translate="label" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label></label>
+                    <button_label>Export JSON file for GoogleTagManager generating tags, triggers and variables</button_label>
+                    <button_url>gtm/export</button_url>
+                    <frontend_model>MageOS\GoogleTagManager\Block\Adminhtml\System\Config\Button</frontend_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

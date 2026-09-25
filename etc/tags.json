@@ -1,0 +1,958 @@
+[
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "268",
+    "name": "GA4 Configuration",
+    "type": "gaawc",
+    "parameter": [
+      {
+        "type": "BOOLEAN",
+        "key": "sendPageView",
+        "value": "true"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "enableSendToServerContainer",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "measurementId",
+        "value": "{{config.ga4.measurementId}}"
+      }
+    ],
+    "fingerprint": "1656036759163",
+    "firingTriggerId": [
+      "13"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "279",
+    "name": "GA4 Category",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "view_item_list"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037322837",
+    "firingTriggerId": [
+      "278"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "281",
+    "name": "GA4 Product",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "view_item"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-ItemsViewItem\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037395106",
+    "firingTriggerId": [
+      "280"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "283",
+    "name": "GA4 Addtocart",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "add_to_cart"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037497200",
+    "firingTriggerId": [
+      "282"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "285",
+    "name": "Ga4 Removefromcart",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "remove_from_cart"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037602541",
+    "firingTriggerId": [
+      "284"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "275",
+    "name": "Ga4 Updatecart",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "update_cart"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037602540",
+    "firingTriggerId": [
+      "283"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "232",
+    "name": "Ga4 Viewcart",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "view_cart"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037602540",
+    "firingTriggerId": [
+      "239"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "287",
+    "name": "GA4 Checkout",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "begin_checkout"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037690465",
+    "firingTriggerId": [
+      "286"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "288",
+    "name": "GA4 Purchase",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "purchase"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "transaction_id"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-TransactionID\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "value"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Value\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "tax"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Tax\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "discount"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Discount\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "shipping"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Shipping\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "currency"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Currency\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "coupon"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{Ga4-Ecommerce-Coupon\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037853306",
+    "firingTriggerId": [
+      "11"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "tagId": "289",
+    "name": "GA4 Addpaymentinfo",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "add_payment_info"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1656037853306",
+    "firingTriggerId": [
+      "289"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "34",
+    "name": "GA4 Addshippinginfo",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "add_shipping_info"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1697014716408",
+    "firingTriggerId": [
+      "288"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "36",
+    "name": "GA4 Login",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "login"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "method"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1697097031690",
+    "firingTriggerId": [
+      "291"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "39",
+    "name": "GA4 Sign Up",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "sign_up"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "method"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1697097998629",
+    "firingTriggerId": [
+      "292"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "27",
+    "name": "GA4 Logout",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "logout"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "method"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1697097998628",
+    "firingTriggerId": [
+      "273"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "44",
+    "name": "GA4 Search",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "search"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "search_term"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-SearchTerm\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1701761919135",
+    "firingTriggerId": [
+      "293"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "45",
+    "name": "GA4 Addtowishlist",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "add_to_wishlist"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1701761919135",
+    "firingTriggerId": [
+      "290"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "accountId": "6197872872",
+    "containerId": "166833513",
+    "tagId": "46",
+    "name": "GA4 Removefromwishlist",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "remove_from_wishlist"
+      },
+      {
+        "type": "LIST",
+        "key": "eventSettingsTable",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "parameter",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "parameterValue",
+                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1701761919133",
+    "firingTriggerId": [
+      "294"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  }
+]

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceBlock name="head.additional">
+            <block class="MageOS\GoogleTagManager\Block\TagManager"
+                   name="mage-os-gtm-head"
+                   as="gtm.head"
+                   template="MageOS_GoogleTagManager::head.phtml"
+                   before="-"/>
+        </referenceBlock>
+        <referenceContainer name="after.body.start">
+            <block class="MageOS\GoogleTagManager\Block\TagManager"
+                   name="mage-os-gtm-body"
+                   as="gtm.body"
+                   template="MageOS_GoogleTagManager::body.phtml"
+                   before="-"/>
+        </referenceContainer>
+    </body>
+</page>

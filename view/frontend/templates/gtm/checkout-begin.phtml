@@ -1,0 +1,16 @@
+<?php
+use MageOS\GoogleTagManager\Block\TagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+use Magento\Framework\Escaper;
+
+/** @var TagManager $block */
+/** @var Escaper $escaper */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled()): ?>
+<?php $checkoutEvent = $block->getJsonCheckoutBeginEvent(); ?>
+<script>
+    window.dataLayer.push(<?= $checkoutEvent; ?>);
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

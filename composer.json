@@ -1,0 +1,22 @@
+{
+    "name": "mage-os/module-google-tag-manager",
+    "description": "Google Tag Manager integration module",
+    "type": "magento2-module",
+    "require": {
+        "magento/framework": "*",
+        "liquid/liquid": "^1.4.40",
+        "mage-os/module-cookie-consent": "^1.0",
+        "hyva-themes/magento2-theme-module": "*"
+    },
+    "license": [
+        "GNU General Public License (GPL)"
+    ],
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "MageOS\\GoogleTagManager\\": ""
+        }
+    }
+}

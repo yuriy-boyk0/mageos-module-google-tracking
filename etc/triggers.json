@@ -1,0 +1,410 @@
+[
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "11",
+    "name": "Purchase",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "CONTAINS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Page URL\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "checkout/onepage/success"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037708819"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "13",
+    "name": "Window Loaded",
+    "type": "WINDOW_LOADED",
+    "fingerprint": "1633418601113"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "278",
+    "name": "Category",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "view_item_list"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037291597"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "280",
+    "name": "Product",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "view_item"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037390224"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "282",
+    "name": "Add To Cart",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "add_to_cart"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037488669"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "284",
+    "name": "Remove From Cart",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "remove_from_cart"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037573969"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "283",
+    "name": "Update Cart",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "update_cart"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037573962"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "286",
+    "name": "Begin Checkout",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "begin_checkout"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "239",
+    "name": "View Cart",
+    "type": "CUSTOM_EVENT",
+    "customEventFilter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{_event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "view_cart"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "288",
+    "name": "Add Shipping Info",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "CONTAINS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Page URL\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "checkout/onepage/success"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "289",
+    "name": "Add Payment Info",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "CONTAINS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Page URL\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "checkout/onepage/success"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "290",
+    "name": "Add To Wishlist",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "add_to_wishlist"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "294",
+    "name": "Remove From Wishlist",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "remove_from_wishlist"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676390"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "291",
+    "name": "Login",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "login"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "292",
+    "name": "Sign Up",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "sign_up"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "273",
+    "name": "Log out",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "logout"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676291"
+  },
+  {
+    "accountId": "6347675553",
+    "containerId": "248200730",
+    "triggerId": "293",
+    "name": "Search",
+    "type": "WINDOW_LOADED",
+    "filter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{Ga4-Event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "search"
+          }
+        ]
+      }
+    ],
+    "fingerprint": "1656037676391"
+  }
+]
