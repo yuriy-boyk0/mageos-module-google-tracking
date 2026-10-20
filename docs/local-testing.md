@@ -128,7 +128,7 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 | Full credit memo on a sent order | row `refund` (reference = credit memo id) `pending` → `sent`; `refund_server` in GA4 with value, items, `refund_type=full` |
 | Two partial credit memos | two refund rows, `refund_type=partial` |
 | Re-save of an existing credit memo (API or code, with a changed field) | no new row (unique key); a memo whose event was lost gets its row. A comment in the admin is **not** a re-save: Magento saves only the comment and fires no save event (it also skips the event when nothing changed) |
-| Credit memo for an order whose purchase was `skipped` | refund row `skipped` with the purchase status in `last_error` |
+| Credit memo / cancel for an order whose purchase was `skipped`, `failed` or `expired` | refund / cancel row `skipped`, `last_error` "skipped: server-side purchase was not sent (<status>)" ("no server-side purchase recorded" when there is no row). These skipped rows are not re-queued by a later re-send of the purchase |
 | Cancel an order (admin) | `cancel_server` with the order value; same `client_id` as the purchase payload |
 | Order grid | column *GA4 Server-side Purchase* shows statuses; filter by it, combine with the grid's status/date filters and sort: no "ambiguous column" SQL error |
 | Mass action on failed/expired orders | "queued" message; rows `pending` without `timestamp_micros`; sent by cron |
@@ -196,3 +196,6 @@ Results in `docs/STATUS.md` ("Verified locally, run 6"). Methods that worked, an
 - Admin order actions by script of clicks: `#order_invoice`, the *Submit Invoice* button, `#order_creditmemo`, the quantity inputs `creditmemo[items][<id>][qty]` plus *Update Qty's*, *Refund Offline*, `#order-view-cancel-button` and its modal. The credit memo list and view URLs have their own secret key (read it from the menu link).
 - Mass action from a script: set the selection with `uiRegistry` (`...sales_order_columns.ids` `.selected([id])`) and call `...listing_massaction` `.applyAction('mageos_gtm_resend')`, then confirm the modal.
 - Browser-tool note: after logging in with a password the tool's clicks and typing stopped reaching the page for a while; setting values and clicking through JS kept working.
+
+### 2026-10-20: seventh local run (default retry schedule, follow-ups after a failed purchase)
+Results in `docs/STATUS.md` ("Verified locally, run 7"). Method: block `www.google-analytics.com` in the container (`/etc/hosts`, as root, remove with `grep -v ... > tmp && cat tmp > /etc/hosts`), place orders, then run the sender (`MageOS\GoogleTagManager\Cron\SendPurchases` from a small script in the `crontab` area) eight times; after each run read `next_attempt_at - updated_at` for the pending rows (that is the computed delay) and set `next_attempt_at = 1` to make them due. With the defaults the delays are 60, 120, 240, 480, 960, 1920 and 3840 s and the 8th failure ends in `failed`. Then invoice + credit memo one order and cancel the other, and finally unblock the host and use the mass re-send action.
