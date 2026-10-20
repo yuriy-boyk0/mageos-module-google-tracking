@@ -8,6 +8,9 @@ use MageOS\GoogleTagManager\Service\MeasurementProtocol\HttpTransportInterface;
 
 /**
  * Plain PHP cURL transport (the curl extension is a Magento requirement).
+ *
+ * No curl_close(): it has had no effect since PHP 8.0 (the handle is freed when it goes out of scope) and is
+ * deprecated in 8.5, where Magento's developer-mode error handler turns the deprecation into an exception.
  */
 class CurlTransport implements HttpTransportInterface
 {
@@ -29,11 +32,9 @@ class CurlTransport implements HttpTransportInterface
         $body = curl_exec($ch);
         if ($body === false) {
             $error = curl_error($ch);
-            curl_close($ch);
             throw new \RuntimeException($error !== '' ? $error : 'cURL request failed');
         }
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
 
         return new HttpResponse($status, (string) $body);
     }
