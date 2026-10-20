@@ -159,3 +159,43 @@ test('events without a method code are ignored', () => {
     win.fire('checkout:validation:success', {step: 'shipping'});
     assert.strictEqual(win.dataLayer, undefined);
 });
+
+// body.phtml: delivers queued events from the customer-data "gtm" section to the dataLayer.
+function bodyComponent(storage = new Map()) {
+    const src = fs.readFileSync(path.join(__dirname, '../../view/frontend/templates/body.phtml'), 'utf8');
+    const js = /<script>([\s\S]*?)<\/script>/.exec(src)[1]
+        .replace('<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>', 'gtm_logout_event');
+    const window = {dataLayer: []};
+    const localStorage = {getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, v)};
+    const context = {window, localStorage, JSON, document: {cookie: ''}, console};
+    vm.runInNewContext(js + '\nthis.component = initGtmDatalayer();', context);
+    return {window, handler: context.component.eventListeners['@private-content-loaded.window']};
+}
+
+const ADD_TO_CART = {event: 'add_to_cart', ecommerce: {currency: 'USD', value: 34, items: [{item_id: 'A'}]}};
+
+test('body: queued add_to_cart is pushed once and cleared from the dispatched section data', () => {
+    const storage = new Map();
+    const {window, handler} = bodyComponent(storage);
+    const data = {gtm: {datalayer: JSON.stringify([ADD_TO_CART])}};
+    handler({detail: {data}});
+    assert.deepStrictEqual(window.dataLayer.map((e) => e.event), ['add_to_cart']);
+    // Hyvä stores this same object to localStorage right after dispatching: it must not hold the event any more,
+    // otherwise the next page load replays add_to_cart.
+    assert.strictEqual(data.gtm.datalayer, '[]');
+});
+
+test('body: events already stored in localStorage are cleared there too', () => {
+    const storage = new Map([['mage-cache-storage', JSON.stringify({gtm: {datalayer: JSON.stringify([ADD_TO_CART])}})]]);
+    const {window, handler} = bodyComponent(storage);
+    handler({detail: {data: {gtm: {datalayer: JSON.stringify([ADD_TO_CART])}}}});
+    assert.strictEqual(window.dataLayer.length, 1);
+    assert.strictEqual(JSON.parse(storage.get('mage-cache-storage')).gtm.datalayer, '[]');
+});
+
+test('body: an empty section pushes nothing', () => {
+    const {window, handler} = bodyComponent();
+    handler({detail: {data: {gtm: {datalayer: '[]'}}}});
+    handler({detail: {data: {}}});
+    assert.deepStrictEqual(window.dataLayer, []);
+});

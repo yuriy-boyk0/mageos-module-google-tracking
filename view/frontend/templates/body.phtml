@@ -129,6 +129,9 @@ use Magento\Framework\Escaper;
                         return;
                     }
                     processEvents(datalayer);
+                    // Hyvä persists this very object to localStorage right after dispatching the event, which
+                    // would undo clearDatalayerSection() and replay the events on the next page load.
+                    event.detail.data.gtm.datalayer = JSON.stringify([]);
                 }
             }
         };
