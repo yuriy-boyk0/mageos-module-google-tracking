@@ -27,8 +27,13 @@ class OrderLink extends Column
 
     public function prepareDataSource(array $dataSource)
     {
+        if (!isset($dataSource['data']['items'])) {
+            return $dataSource;
+        }
+
         $name = $this->getData('name');
-        foreach ($dataSource['data']['items'] ?? [] as &$item) {
+        // By reference on the real array: `?? []` would iterate a temporary copy and the links would be lost.
+        foreach ($dataSource['data']['items'] as &$item) {
             if (empty($item['order_id'])) {
                 continue;
             }
@@ -38,6 +43,7 @@ class OrderLink extends Column
                 $this->escaper->escapeHtml((string) ($item[$name] ?? ''))
             );
         }
+        unset($item);
 
         return $dataSource;
     }
