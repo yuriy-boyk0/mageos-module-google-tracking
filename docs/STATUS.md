@@ -15,7 +15,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
 | 2 Server-side purchase event | ✅ core + tests · 🟢 guest order end to end (after the `curl_close()` fix) · 🧪 other order types, consent, retries · reporting-currency option is a future improvement ⏳ |
 | 3 Refunds / cancellations / mass re-send | ✅ core + tests + static checks · 🧪 Magento wiring |
-| 4 Admin visibility (grid column, report, DebugView flag, retention) | ✅ core + tests + static checks · 🟢 grid column and report render with correct numbers · 🧪 filters, ACL, cleanup, DebugView |
+| 4 Admin visibility (grid column, event log, DebugView flag, retention) | ✅ core + tests + static checks · 🟢 order grid column · 🧪 new event log grid (replaced the summary report), filters, ACL, cleanup, DebugView |
 | Client-side fixes (former "known issues") | ✅ code + XSD/PHPStan · 🧪 GTM Preview / DebugView; containers must be re-imported |
 | 5 Documentation | ✅ README, `google-setup.md`, `local-testing.md`, this file · 👤 docs acceptance (see below) |
 
@@ -59,8 +59,8 @@ Magento layer (written, 🧪 untested against Magento):
 - Config: Track Refunds / Refund Event Name (`refund_server`), Track Cancellations / Cancellation Event Name (`cancel_server`), default on.
 
 ### Phase 4: admin visibility (2026-10-20)
-- ✅ Pure + tests: `ReportSummary`; `debug_mode` added at send time when *Show in GA4 DebugView* is on (`QueueProcessor`).
-- 🧪 Magento: order grid column *GA4 Server-side Purchase* (`ui_component/sales_order_grid.xml`, `Plugin/OrderGridDeliveryStatus` on `UiComponent\DataProvider\CollectionFactory::getReport`, derived-table join), report page Reports > Marketing > *GA4 Server-side Events* (`menu.xml`, ACL `MageOS_GoogleTagManager::report`, `Controller/Adminhtml/Report/Index`, `Block/Adminhtml/Report`, `Model/ReportDataProvider`), daily cleanup cron `mageos_gtm_cleanup` (`Cron/Cleanup`, *Keep Sent/Skipped Rows*, default 90 days).
+- ✅ Pure + tests: `debug_mode` added at send time when *Show in GA4 DebugView* is on (`QueueProcessor`).
+- 🧪 Magento: order grid column *GA4 Server-side Purchase* (`ui_component/sales_order_grid.xml`, `Plugin/OrderGridDeliveryStatus` on `UiComponent\DataProvider\CollectionFactory::getReport`, derived-table join), event log Reports > Marketing > *GA4 Server-side Events* (`menu.xml`, ACL `MageOS_GoogleTagManager::report`, `Controller/Adminhtml/Report/Index`, UI listing `mageos_gtm_server_event_listing` with `Model/ResourceModel/ServerEvent/Grid/Collection` and `Ui/Component/Listing/Column/OrderLink`; replaced the per-day summary on user request, 2026-10-20: columns order date, order #, event, status, error/reason; intro text spaced away from the grid), daily cleanup cron `mageos_gtm_cleanup` (`Cron/Cleanup`, *Keep Sent/Skipped Rows*, default 90 days).
 - Schema: new column `reference_id`, unique key now (order_id, event_type, reference_id), index on `created_at`; whitelist updated by hand (keeps the old unique key name so it is dropped on upgrade).
 
 ### Verified against the real Magento 2.4.9 source (✅, cloud)
@@ -118,7 +118,7 @@ Everything under "Magento layer" above, in particular the risky items:
 12. Client-side fixes: flat `items`, purchase currency, single `page_view`, custom-event triggers after re-importing the container, `view_item` / `view_item_list` / `search` on product, category and search pages (also with FPC/Varnish on, second visitor gets the same events). 🟡 partly: `view_item_list`, `view_item`, `view_cart`, `begin_checkout` seen in `dataLayer`; GTM Preview, search page, FPC/Varnish still open
 13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired.
 14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open
-15. Report page (menu, ACL, numbers match the grid); cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. 🟢 report numbers match the grid; ACL, cleanup cron and DebugView flag still open
+15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
 
 ## Needs user testing (👤)
@@ -128,7 +128,7 @@ Everything under "Magento layer" above, in particular the risky items:
 
 ## Not started (⏳)
 - **Future improvement, noted by the user:** an admin-configured *reporting currency* for purchase events (e.g. an EU+US store that wants everything tracked in EUR instead of EUR + USD). Today the order's currency (or the store base currency) is used. Needs a conversion step (Magento currency rates or a fixed rate) for value/tax/shipping/item prices/discounts, and a decision whether the client-side events follow the same rule. Replaces the earlier "fixed conversion rate" idea.
-- Report filters (store view, date range) and CSV export; per-row detail view of a queue row (payload, last error) in the admin.
+- Event log: CSV export, store-view filter, per-row detail view of the payload.
 - `select_item` / `add_to_compare` client-side events (tags not in the export yet).
 
 ## Blocked / questions (❓)
@@ -147,6 +147,7 @@ Everything under "Magento layer" above, in particular the risky items:
 | Events older than 72 h | Keep in the table as `expired` (unrecoverable), skip in cron | 2026-10-20 |
 | Tax in totals / item ID | Admin config: including or excluding tax; parent or child SKU for configurables | 2026-10-20 |
 | Consent unknown | Confirmed again: send anonymously (default) | 2026-10-20 |
+| Admin report | Simple event log grid (order date, order #, event, status, error) instead of the per-day summary; intro text spaced from the grid | 2026-10-20 |
 
 ## Known risks / notes
 - GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h. Such rows are closed as `expired` (never sent automatically). With the defaults (8 attempts, delays 1, 2, 4 … 64 min, about 2 h total) this only happens after cron was down for ~3 days. The re-send action sends them again without the old timestamp (dated at re-send).

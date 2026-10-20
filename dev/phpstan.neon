@@ -10,6 +10,7 @@ parameters:
         - ../Controller
         - ../Plugin
         - ../Service
+        - ../Ui
     bootstrapFiles:
         - phpstan-magento-bootstrap.php
     reportUnmatchedIgnoredErrors: false

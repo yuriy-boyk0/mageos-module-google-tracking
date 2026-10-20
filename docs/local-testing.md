@@ -114,7 +114,7 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 | Mass action on an order from before the feature was enabled | new row, anonymous client id, real order date kept if < ~70 h old |
 | Mass action on sent / skipped orders | notice "not queued: already sent / skipped on purpose …" |
 | Admin user without the new ACL resources | mass action and report hidden / denied |
-| Reports > Marketing > GA4 Server-side Events | numbers per order day match the grid; "Not tracked" counts orders without rows |
+| Reports > Marketing > GA4 Server-side Events | intro text with clear spacing above a standard admin grid; one row per event (order date, order # linking to the order, event, status, error/reason), newest first; filters (date range, status, event, order #, error text), sorting and paging work without SQL errors |
 | *Show in GA4 DebugView* = Yes | server events visible in DebugView (and recorded) |
 | Cleanup cron (`bin/magento cron:run`, or call `MageOS\GoogleTagManager\Cron\Cleanup`) | deletes only sent/skipped rows older than the retention; failed/expired kept |
 

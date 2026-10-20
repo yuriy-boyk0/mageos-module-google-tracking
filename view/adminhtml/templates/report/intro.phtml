@@ -1,0 +1,8 @@
+<?php
+use Magento\Framework\Escaper;
+
+/** @var Escaper $escaper */
+?>
+<div class="message message-info" style="margin-bottom: 3rem;">
+    <?= $escaper->escapeHtml(__('Every GA4 server-side event (purchase_server, refund_server, cancel_server) and whether it was sent. Errors are retried automatically; failed or too-old purchases can be queued again from Sales > Orders with the action "Re-send GA4 server-side purchase".')) ?>
+</div>

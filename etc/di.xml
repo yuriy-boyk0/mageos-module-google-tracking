@@ -5,4 +5,17 @@
     <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettingsProviderInterface" type="MageOS\GoogleTagManager\Model\Config"/>
     <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\HttpTransportInterface" type="MageOS\GoogleTagManager\Model\CurlTransport"/>
     <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\LogInterface" type="MageOS\GoogleTagManager\Model\Log"/>
+    <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
+        <arguments>
+            <argument name="collections" xsi:type="array">
+                <item name="mageos_gtm_server_event_listing_data_source" xsi:type="string">MageOS\GoogleTagManager\Model\ResourceModel\ServerEvent\Grid\Collection</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="MageOS\GoogleTagManager\Model\ResourceModel\ServerEvent\Grid\Collection">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">mageos_gtm_server_event</argument>
+            <argument name="identifierName" xsi:type="string">entity_id</argument>
+        </arguments>
+    </type>
 </config>

@@ -2,7 +2,8 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="content">
-            <block class="MageOS\GoogleTagManager\Block\Adminhtml\Report" name="mageos.gtm.report" template="MageOS_GoogleTagManager::report/summary.phtml"/>
+            <block class="Magento\Backend\Block\Template" name="mageos.gtm.report.intro" template="MageOS_GoogleTagManager::report/intro.phtml"/>
+            <uiComponent name="mageos_gtm_server_event_listing"/>
         </referenceContainer>
     </body>
 </page>
