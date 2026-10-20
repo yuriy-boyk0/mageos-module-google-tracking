@@ -14,6 +14,8 @@ This also means the "cached page can't be observed by PHP" problem that motivate
 
 ### Purchase is tracked twice, deliberately, with two different event names
 
+**Decision (confirmed):** `purchase_server` is a **comparison/diagnostic signal only**. It is intentionally not a standard GA4 `purchase`, so it does not feed monetization reports or Ads conversions. Its purpose is to show how many orders the client-side `purchase` misses (ad blockers, abandoned tabs, redirects). Whoever manages the GTM/GA4 account decides manually whether to use it (for example in explorations or a custom tag); the module does not try to merge or deduplicate it. This must be documented clearly (Phase 5, "Server-side purchase").
+
 Purchase is the one event that gets **both** a client-side and a server-side implementation, on purpose:
 
 1. **Client-side** (existing, kept as-is other than a naming fix): fires immediately when the success page renders, pushed to the dataLayer under its own event name — e.g. `purchase` — so GTM tags, real-time Google Ads conversion tags, and any live debugging/DebugView usage keep working exactly as they do today, with no dependency on server round-trips.
@@ -139,7 +141,7 @@ Basic documentation, written for someone who has a fresh Magento 2.4.9 + Hyvä +
 | **GTM container setup** | Use the admin **Configuration Export** button to download the generated JSON; in GTM go to Admin > Import Container, choose the file, pick a workspace, select *Merge* (not overwrite) on a fresh container; review the imported tags/triggers/variables; **Preview** and then **Submit/Publish** |
 | **Verifying it works** | GTM Preview mode, GA4 Admin > DebugView and Reports > Realtime; what to expect for each event, including `purchase` and `purchase_server`; how to compare the two for the same `transaction_id` |
 | **Consent behavior** | What the `MageOS_CookieConsent` banner gates, and why events do not appear until consent is accepted |
-| **Server-side purchase** | What it is, why it has a separate event name, the config fields, the delivery status in the order grid, retrying via mass action, debug mode, and the reporting caveat that unique revenue is the union of both events' `transaction_id`s |
+| **Server-side purchase** | State up front that `purchase_server` is a comparison-only event, not counted as revenue in standard GA4 reports, and that the GTM/GA4 admin decides manually whether to use it. Then: what it is, why it has a separate event name, the config fields, the delivery status in the order grid, retrying via mass action, debug mode, and the reporting caveat that unique revenue is the union of both events' `transaction_id`s |
 | **Troubleshooting** | No GTM snippet (module disabled / wrong store scope / full page cache), no events (consent not given, ad blocker), `purchase_server` stuck pending (cron or consumer not running), MP 2xx but nothing in reports (wrong Measurement ID or API secret; use debug endpoint), revenue shown as 0 (currency) |
 
 ### IDs to copy from Google into Magento
