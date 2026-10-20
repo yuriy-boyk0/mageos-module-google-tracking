@@ -10,20 +10,30 @@ use Magento\Framework\Escaper;
 <?php if ($block->isEnabled()): ?>
 <script>
     /*
-     * add_shipping_info / add_payment_info for Hyvä Checkout.
+     * add_shipping_info / add_payment_info for Hyvä Checkout (written against Hyvä Checkout 1.3.15 sources).
      *
-     * BASE LAYER, NOT ACTIVE YET. window.mageosGtmCheckout.push() is ready and tested, but nothing calls it:
-     * the Hyvä Checkout events that mean "shipping method submitted" / "payment method submitted" have not been
-     * verified against a real Hyvä Checkout install. Fill HYVA_EVENTS and the extractors below once they are known
-     * (see docs/local-testing.md, section "Hyvä Checkout shipping/payment events").
+     * Hyvä dispatches these window events (see docs/hyva-checkout-notes.md):
+     *  - checkout:shipping:method-activate  detail.method = shipping method code (e.g. "flatrate_flatrate"); fires when
+     *                                       the customer picks a method AND when the component loads with a method already selected
+     *  - checkout:payment:method-activate   detail.method = payment method code (e.g. "checkmo"); same two cases
+     *  - checkout:validation:success         detail.step, detail.options; fires when a step passed validation, i.e. when the
+     *                                       customer moves to the next step or places the order
+     *
+     * The activate events only tell us the CURRENT selection (they also fire on load for a preselected default), so they
+     * are not pushed to the dataLayer themselves. The selection is pushed when the customer submits: on a successful
+     * validation. That covers multi-step checkouts (leaving the shipping step) and one-page checkouts (placing the order),
+     * and a customer who never touched the preselected default method. Identical consecutive pushes are dropped.
+     *
+     * NEEDS LOCAL VERIFICATION on a real Hyvä Checkout (docs/local-testing.md, section 5).
      */
     (function () {
         var base = <?= /* @noEscape */ $block->getJsonCheckoutStepBase() ?>;
         var lastPushed = {};
+        var selected = {shipping: '', payment: ''};
 
         function push(eventName, extra) {
             var value = extra ? JSON.stringify(extra) : '';
-            // Same event with the same value twice in a row (e.g. a component re-render): count it once.
+            // Same event with the same value twice in a row (e.g. a second validation of the same step): count it once.
             if (lastPushed[eventName] === value) {
                 return false;
             }
@@ -39,35 +49,32 @@ use Magento\Framework\Escaper;
             return true;
         }
 
+        function methodOf(event) {
+            return event && event.detail && event.detail.method ? String(event.detail.method) : '';
+        }
+
         window.mageosGtmCheckout = window.mageosGtmCheckout || {};
         window.mageosGtmCheckout.push = push;
 
-        // TODO(local test): browser event names dispatched by Hyvä Checkout on window. null = not wired.
-        var HYVA_EVENTS = {
-            add_shipping_info: null,
-            add_payment_info: null
-        };
+        window.addEventListener('checkout:shipping:method-activate', function (event) {
+            selected.shipping = methodOf(event);
+        });
 
-        // TODO(local test): read the selected method from the event detail. Return '' to skip the push.
-        var EXTRACTORS = {
-            add_shipping_info: function (detail) { return detail && detail.method ? String(detail.method) : ''; },
-            add_payment_info: function (detail) { return detail && detail.method ? String(detail.method) : ''; }
-        };
-        var PARAM = {add_shipping_info: 'shipping_tier', add_payment_info: 'payment_type'};
+        window.addEventListener('checkout:payment:method-activate', function (event) {
+            selected.payment = methodOf(event);
+        });
 
-        Object.keys(HYVA_EVENTS).forEach(function (eventName) {
-            if (!HYVA_EVENTS[eventName]) {
+        window.addEventListener('checkout:validation:success', function (event) {
+            // Hyvä also validates after the order was placed (options.executeAfter); the data was pushed by then.
+            if (event && event.detail && event.detail.options && event.detail.options.executeAfter) {
                 return;
             }
-            window.addEventListener(HYVA_EVENTS[eventName], function (e) {
-                var method = EXTRACTORS[eventName](e.detail);
-                if (!method) {
-                    return;
-                }
-                var extra = {};
-                extra[PARAM[eventName]] = method;
-                push(eventName, extra);
-            });
+            if (selected.shipping) {
+                push('add_shipping_info', {shipping_tier: selected.shipping});
+            }
+            if (selected.payment) {
+                push('add_payment_info', {payment_type: selected.payment});
+            }
         });
     })();
 </script>

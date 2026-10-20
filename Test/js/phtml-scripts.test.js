@@ -20,7 +20,8 @@ function run(js, storage = new Map(), opts = {}) {
     const localStorage = opts.brokenStorage
         ? {getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }}
         : {getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, v)};
-    window.addEventListener = (name, fn) => { (window.listeners ||= {})[name] = fn; };
+    window.addEventListener = (name, fn) => { ((window.listeners ||= {})[name] ||= []).push(fn); };
+    window.fire = (name, detail) => (window.listeners?.[name] || []).forEach((fn) => fn({detail}));
     vm.runInNewContext(js, {window, localStorage, JSON});
     // Objects created inside the vm context have foreign prototypes; normalise for deepStrictEqual.
     if (window.dataLayer) {
@@ -91,8 +92,70 @@ test('checkout step helper skips an identical consecutive push but allows a chan
     assert.strictEqual(win.dataLayer.filter((e) => e.event).length, 2);
 });
 
-test('checkout step listeners are not attached until the Hyva event names are filled in', () => {
+// --- Hyvä Checkout wiring (event names and payloads taken from the Hyvä Checkout 1.3.15 sources)
+const events = (win) => JSON.parse(JSON.stringify(win.dataLayer || [])).filter((e) => e.event);
+
+test('nothing is pushed when a method is only activated (page load with a preselected default)', () => {
     const win = run(stepsJs());
-    assert.strictEqual(win.listeners, undefined);
+    win.fire('checkout:shipping:method-activate', {method: 'flatrate_flatrate'});
+    win.fire('checkout:payment:method-activate', {method: 'checkmo'});
+    assert.strictEqual(win.dataLayer, undefined);
+});
+
+test('multi-step: shipping info is pushed when the shipping step validates, payment info only later', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:shipping:method-activate', {method: 'flatrate_flatrate'});
+    win.fire('checkout:validation:success', {step: 'shipping', options: {executeAfter: false}});
+    assert.deepStrictEqual(events(win).map((e) => e.event), ['add_shipping_info']);
+    assert.strictEqual(events(win)[0].ecommerce.shipping_tier, 'flatrate_flatrate');
+
+    // payment step: method gets activated, then the order is placed (validation passes again)
+    win.fire('checkout:payment:method-activate', {method: 'checkmo'});
+    win.fire('checkout:validation:success', {step: 'payment', options: {executeAfter: false}});
+    assert.deepStrictEqual(events(win).map((e) => e.event), ['add_shipping_info', 'add_payment_info']);
+    assert.strictEqual(events(win)[1].ecommerce.payment_type, 'checkmo');
+    assert.strictEqual(events(win)[1].ecommerce.currency, 'EUR');
+});
+
+test('one-page: both events are pushed when the order is placed', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:shipping:method-activate', {method: 'tablerate_bestway'});
+    win.fire('checkout:payment:method-activate', {method: 'banktransfer'});
+    win.fire('checkout:validation:success', {step: 'onepage', options: {executeAfter: false}});
+    assert.deepStrictEqual(events(win).map((e) => e.event), ['add_shipping_info', 'add_payment_info']);
+});
+
+test('validating the same selection again does not push again, a changed method does', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:shipping:method-activate', {method: 'flatrate_flatrate'});
+    win.fire('checkout:validation:success', {step: 'shipping', options: {}});
+    win.fire('checkout:validation:success', {step: 'shipping', options: {}});
+    assert.strictEqual(events(win).length, 1);
+
+    win.fire('checkout:shipping:method-activate', {method: 'tablerate_bestway'});
+    win.fire('checkout:validation:success', {step: 'shipping', options: {}});
+    assert.strictEqual(events(win).length, 2);
+    assert.strictEqual(events(win)[1].ecommerce.shipping_tier, 'tablerate_bestway');
+});
+
+test('the validation that Hyva runs after the order was placed is ignored', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:shipping:method-activate', {method: 'flatrate_flatrate'});
+    win.fire('checkout:validation:success', {step: 'payment', options: {executeAfter: true}});
+    assert.strictEqual(win.dataLayer, undefined);
+});
+
+test('virtual cart: no shipping method is ever activated, so only payment info is pushed', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:payment:method-activate', {method: 'checkmo'});
+    win.fire('checkout:validation:success', {step: 'payment', options: {}});
+    assert.deepStrictEqual(events(win).map((e) => e.event), ['add_payment_info']);
+});
+
+test('events without a method code are ignored', () => {
+    const win = run(stepsJs());
+    win.fire('checkout:shipping:method-activate', {});
+    win.fire('checkout:payment:method-activate', undefined);
+    win.fire('checkout:validation:success', {step: 'shipping'});
     assert.strictEqual(win.dataLayer, undefined);
 });

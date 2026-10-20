@@ -5,13 +5,14 @@ Guidance for Claude Code sessions working on `MageOS_GoogleTagManager` (Composer
 ## Read these first
 - `docs/STATUS.md`: what is done, what still needs local testing, user testing, or a decision. **Keep it updated in every session.**
 - `docs/ga4-gtm-plan.md`: the design and phases.
+- `docs/hyva-checkout-notes.md`: Hyvä Checkout events/structure facts used by the tracking.
 - `docs/local-testing.md`: how to test on a real Magento 2.4.9 + Hyvä + Hyvä Checkout install (this is the target environment).
 - `docs/google-setup.md`: end-user guide (GA4/GTM accounts, which ID goes where). Keep it in sync with config changes.
 
 ## Two environments, different capabilities
 | | Claude cloud session | Local session (real Magento + Hyvä + Hyvä Checkout) |
 |---|---|---|
-| Magento / Hyvä installed | **No install**, but the Magento **source** can be cloned read-only: `add_repo` for `magento/magento2` says it is available, then `GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --branch 2.4.9 https://github.com/magento/magento2 /home/user/magento/magento2` (about 1 min). Use it to check real class/method names and XSDs; grep it before relying on any Magento API. PHPStan: `git clone --depth 1 --branch 1.12.34 https://github.com/phpstan/phpstan /home/user/tools/phpstan` (Composer cannot download from GitHub in the sandbox). Hyvä Checkout source is not available unless the user uploads it; docs.hyva.io and the Mage-OS/Magento Composer repos are blocked | Yes |
+| Magento / Hyvä installed | **No install**, but the Magento **source** can be cloned read-only: `add_repo` for `magento/magento2` says it is available, then `GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --branch 2.4.9 https://github.com/magento/magento2 /home/user/magento/magento2` (about 1 min). Use it to check real class/method names and XSDs; grep it before relying on any Magento API. PHPStan: `git clone --depth 1 --branch 1.12.34 https://github.com/phpstan/phpstan /home/user/tools/phpstan` (Composer cannot download from GitHub in the sandbox). Hyvä Checkout 1.3.15 + Hyvä theme sources were provided by the user as a zip (extracted to `/home/user/hyva/src/hyva-themes/` in that session; commercial, never commit; ask the user to re-upload in a new session); findings are in `docs/hyva-checkout-notes.md`; docs.hyva.io and the Mage-OS/Magento Composer repos are blocked | Yes |
 | Outbound to Google | Blocked | Yes |
 | Can verify | PHP syntax, XML, JSON, Magento-free unit tests, inline JS | Everything: DI compile, setup:upgrade, admin config, real orders, cron, GA4 DebugView |
 
@@ -48,7 +49,8 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 ## Decisions already made (do not re-ask)
 - Queue = own DB table + cron, not Magento MQ.
 - When consent cannot be determined (admin orders, gateway callbacks) the default is **send anonymously** (no client_id link, no user_id); configurable. Visitors who declined are never sent.
-- `add_shipping_info` / `add_payment_info` on Hyvä Checkout: base layer only until real Hyvä Checkout events are verified locally (`view/frontend/templates/gtm/checkout-steps.phtml`).
+- `add_shipping_info` / `add_payment_info` on Hyvä Checkout: pushed on `checkout:validation:success` from the remembered selection (`view/frontend/templates/gtm/checkout-steps.phtml`, `docs/hyva-checkout-notes.md`); needs local verification.
+- Purchase currency = the order's currency for now; an admin-configured reporting currency is a noted future improvement (see `docs/STATUS.md`).
 - `purchase_server` stays comparison-only and is documented as such.
 
 ## Open questions

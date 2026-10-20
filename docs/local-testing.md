@@ -60,26 +60,23 @@ Scenarios (place each, run cron, query the table):
 | Tax in Totals = Excluding / Item ID = Child | `value` = grand total − tax, item prices/shipping without tax; configurable `item_id` is the variant SKU. Compare with Including / Parent |
 Also verify:
 - The payload's `client_id` equals the browser's `_ga` cookie value (`GA1.1.<this part>`) and `session_id` the `_ga_<ID>` session, so the event lands in the visitor's session. Both cookie formats `GS1` and `GS2`.
-- The consent cookie really is `user_allowed_save_cookie` with a `websiteId → 1` map after accepting tracking in `MageOS_CookieConsent` (`document.cookie`), and the session cookie is `PHPSESSID`. If not, adjust `Model/RequestContextProvider` and `ConsentEvaluator` (+ tests).
+- The consent cookie is `user_allowed_save_cookie` with a `{"<websiteId>":1}` map (confirmed in the Hyvä banner source, which exists only when Magento's *cookie restriction mode* is enabled). Check whether `MageOS_CookieConsent`'s tracking category changes anything the server can read, and that the session cookie is `PHPSESSID`. If not, adjust `Model/RequestContextProvider` / `ConsentEvaluator` (+ tests).
 - Values in the payload equal the client-side `purchase` for the same order (multi-currency store: switch display currency, compare).
 - Order placed through a redirect payment method, and multishipping (the observer receives `orders` there).
 - `bin/magento cron:run` logs one line per run with sent/retried/failed counts; a crash mid-run is recovered after 10 minutes (row stuck in `processing`).
 
-## 5. Hyvä Checkout shipping/payment events (open item)
-Goal: push `add_shipping_info` (`shipping_tier`) and `add_payment_info` (`payment_type`) once per submitted choice. The base is ready: `view/frontend/templates/gtm/checkout-steps.phtml` exposes `window.mageosGtmCheckout.push(eventName, extra)` with the checkout's items/value/currency; listeners are disabled (`HYVA_EVENTS` are `null`).
-
-Discover the events. In the browser console on the checkout page, before interacting:
+## 5. Hyvä Checkout shipping/payment events
+Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä Checkout 1.3.15 sources (see `docs/hyva-checkout-notes.md`); it has **not** been run in a browser. Verify with GTM Preview / DebugView and the console (`dataLayer`):
+- Default checkout (login → shipping → payment): nothing is pushed when the shipping step loads with a preselected method; `add_shipping_info` (`shipping_tier` = e.g. `flatrate_flatrate`) is pushed once when you continue to the payment step; `add_payment_info` (`payment_type` = e.g. `checkmo`) once when you place the order.
+- Change the shipping method before continuing: only the final method is pushed (or, if you go back and change it, a second push with the new value).
+- Mobile checkout (with the summary step) and the one-page checkout (both events at order placement).
+- Virtual-only cart: only `add_payment_info`.
+- Failed validation (e.g. missing address): no push. Rejected navigation after a passing validation is a known edge (docs/hyva-checkout-notes.md).
+- Confirm `window.dispatchEvent` logging still shows the events as documented, in case the installed Hyvä Checkout is newer than 1.3.15:
 ```js
 (() => { const o = window.dispatchEvent.bind(window); window.dispatchEvent = e => { console.log('[evt]', e.type, e.detail); return o(e); }; })();
 ```
-Select a shipping method, continue, select a payment method, continue; note which event names fire and what `detail` contains. Also search the Hyvä Checkout package:
-```bash
-grep -rn "dispatchEvent\|\$dispatch\|dispatch(" vendor/hyva-themes/magento2-hyva-checkout/src/view | head -50
-```
-Docs worth reading (not reachable from cloud): Hyvä Checkout "Frontend API Events" (`https://docs.hyva.io/hyva-checkout/devdocs/frontend-api/events.html`) and "Checkout Magento Events". Known: `checkout:step:loaded` (`detail.route`, `detail.subsequent`) and `checkout:navigation:success`.
-
-Then: fill `HYVA_EVENTS` and `EXTRACTORS` in the template, make sure the push happens on *submit/continue* and not on every toggle, add a case to `Test/js/phtml-scripts.test.js`, verify in GTM Preview/DebugView, and update `docs/STATUS.md`, `README.md`, `docs/google-setup.md`.
-If a Magento-side approach turns out to be better (a plugin on shipping/payment save feeding `Service/EventQueue`), prefer it only if the JS events prove unreliable.
+- Also check the same GA4 tags fire (`GA4 Addshippinginfo`, `GA4 Addpaymentinfo`) and the success page no longer triggers them.
 
 ## 6. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).

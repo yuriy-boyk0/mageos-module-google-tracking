@@ -91,15 +91,14 @@ Small, focused fix to the existing client-side push so it plays correctly with t
 | Duplicate-push prevention on reload | Guard against the success page firing `purchase` more than once per order on a page reload/back-navigation (e.g. a client-side flag keyed to `transaction_id` in session/local storage) — this was already a known gap and is unrelated to the new server-side event, but is the natural place to fix it while touching this code |
 | No other changes | This event otherwise keeps its existing client-side-only behavior (fires on success page render, depends on the browser reaching that page) — it remains the fast, real-time signal; it is not merged with or replaced by the server-side event |
 
-## Phase 1b: Hyvä Checkout `add_shipping_info` / `add_payment_info` (client-side, pending)
+## Phase 1b: Hyvä Checkout `add_shipping_info` / `add_payment_info` (client-side)
 
-**Status:** the GTM side is fixed (the exported `Add Shipping Info` and `Add Payment Info` triggers now fire on `ga4_event` = `add_shipping_info` / `add_payment_info` instead of the order success URL, where they used to send bogus events on every order). The **module does not push these two events yet**, so those tags currently never fire.
+**Status:** implemented against the Hyvä Checkout 1.3.15 source, awaiting local verification. The exported `Add Shipping Info` / `Add Payment Info` triggers fire on `ga4_event` (they used to fire on the order success URL).
 
-**Work needed (adapt to Hyvä Checkout):**
-- Push `add_shipping_info` (with `shipping_tier` = selected shipping method, plus `currency`, `value`, `coupon`, `items`) when the customer's shipping method is submitted, and `add_payment_info` (with `payment_type` = selected payment method, same ecommerce fields) when the payment method is submitted.
-- Hyvä Checkout is built on Magewire and dispatches its frontend events on `window` as `CustomEvent`s (payload in `event.detail`). Known so far from Hyvä's public docs: `checkout:step:loaded` (`detail.route`, `detail.subsequent`) and `checkout:navigation:success`. **The exact events for "shipping method saved" and "payment method saved" were not confirmed** (the Hyvä docs site was not reachable from the cloud environment). Before implementing, check the Hyvä Checkout "Frontend API Events" and "Checkout Magento Events" doc pages, or inspect the events dispatched in the browser on the local test install.
-- Implementation options, to be decided once the events are known: (a) a small inline script in `hyva_checkout.xml` (CSP-registered) listening to the Hyvä events and building the payload from the quote; or (b) a server-side hook on shipping/payment being saved, feeding the existing `EventQueue` session-to-customer-data pipeline.
-- Test on the local 2.4.9 + Hyvä Checkout install: events fire once per submission, not on step load or on every method toggle without submit, and carry the right `shipping_tier` / `payment_type`.
+**How it works** (details and event reference: `docs/hyva-checkout-notes.md`; code: `view/frontend/templates/gtm/checkout-steps.phtml`):
+- Hyvä dispatches `checkout:shipping:method-activate` and `checkout:payment:method-activate` (`detail.method`) both when the customer picks a method and when the component loads with a preselected one. They are therefore only used to remember the current selection.
+- The events are pushed on `checkout:validation:success` (fires when the customer moves to the next step or places the order): `add_shipping_info` with `shipping_tier` = shipping method code, `add_payment_info` with `payment_type` = payment method code, plus the checkout's currency/value/items. This covers multi-step, mobile and one-page checkouts and customers who keep the preselected default. Identical consecutive pushes are dropped.
+- Local test: events fire once per submission (not on load or on every toggle), carry the right method codes, and work for guest/logged-in, virtual carts (payment only), and the `default`, `mobile` and `onepage` checkouts.
 
 ---
 
@@ -110,7 +109,7 @@ The core new work: firing `purchase_server` (configurable name) via MP from the 
 | Feature | Work |
 |---|---|
 | **Server-side purchase event** | Observer on `sales_order_place_after` (or `checkout_submit_all_after`) builds the payload via `PurchaseEventBuilder` and enqueues it via `PurchaseQueue` — never calls the MP client synchronously in the observer, so a slow/unreachable Google API cannot delay order placement or the checkout response |
-| Currency handling | `PurchaseEventBuilder` resolves base vs. display currency per a config setting, with an optional fixed-conversion-rate override — a missing/wrong currency makes GA4 show revenue as 0, so this is always sent correctly |
+| Currency handling | **Current implementation:** the purchase is tracked in the currency of the order (or optionally the store's base currency), always paired with matching totals. **Future improvement:** let the admin configure one *reporting currency* for all server-side purchases. Example: a store selling in EU and US whose main market is the EU wants every order tracked in EUR instead of a EUR + USD mix. That needs a conversion step (Magento's currency rates for the order date, or a fixed rate set in the backend) applied to `value`, `tax`, `shipping`, item prices and discounts, and the same choice should be considered for the client-side events so the two signals stay comparable. Not started. |
 | Tax/shipping handling in totals | Reads order tax/shipping/grand total with a config option for inclusive vs. exclusive totals |
 | Exclude zero-value orders | Config flag checked before enqueueing |
 | Exclude orders by status | Config multiselect of order statuses to skip (e.g. suspected-fraud) |

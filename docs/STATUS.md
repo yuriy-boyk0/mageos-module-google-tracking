@@ -11,7 +11,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | Phase | State |
 |---|---|
 | 1 Client-side purchase fix | ✅ code + tests · 🧪 verify on real success page |
-| 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | base layer only · ❓ Hyvä event names unknown · 🧪 |
+| 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ implemented from Hyvä Checkout 1.3.15 source + JS tests · 🧪 verify in a real checkout |
 | 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
 | 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · only the fixed-conversion-rate option ⏳ |
 | 3 Refunds / cancellations / mass re-send | ⏳ not started |
@@ -70,7 +70,7 @@ Everything under "Magento layer" above, in particular the risky items:
 8. Cron picks up pending rows; retry/backoff against a blocked network; permanent-error path with a wrong API secret.
 9. Debug mode: validation messages are logged to `var/log`.
 10. `purchase_server` visible in GA4 Realtime / DebugView with correct value, currency, items.
-11. Hyvä Checkout shipping/payment events (see Phase 1b).
+11. Hyvä Checkout shipping/payment events (`local-testing.md` section 5): once per submission, right method codes, default/mobile/onepage checkouts, virtual cart.
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
@@ -80,12 +80,12 @@ Everything under "Magento layer" above, in particular the risky items:
 ## Not started (⏳)
 - Phase 3: refund (`sales_order_creditmemo_save_after`), cancellation, admin mass action "re-send server-side purchase".
 - Phase 4: order grid column with delivery status, reconciliation report, `debug_mode` event param so server events show in DebugView.
-- Phase 2 option not built: fixed currency conversion rate override (ask the user if still wanted).
+- **Future improvement, noted by the user:** an admin-configured *reporting currency* for purchase events (e.g. an EU+US store that wants everything tracked in EUR instead of EUR + USD). Today the order's currency (or the store base currency) is used. Needs a conversion step (Magento currency rates or a fixed rate) for value/tax/shipping/item prices/discounts, and a decision whether the client-side events follow the same rule. Replaces the earlier "fixed conversion rate" idea.
 - Admin action to re-send an `expired` order (needs the `timestamp_micros` dropped or refreshed; Google would reject the original). Part of Phase 3 mass re-send.
 - Cleanup of old `sent`/`skipped` rows from the queue table.
 
 ## Blocked / questions (❓)
-1. **Hyvä Checkout `add_shipping_info` / `add_payment_info`**: the exact Hyvä Checkout events for "shipping method submitted" and "payment method submitted" are unknown (docs.hyva.io unreachable from cloud). Base layer is in `view/frontend/templates/gtm/checkout-steps.phtml` (`window.mageosGtmCheckout.push(...)`, listeners disabled). **The user offered to provide a zip of Hyvä Checkout + Hyvä theme**: once uploaded to the session (keep it outside the repository, it is commercial code; extract to e.g. `/home/user/hyva/`), read its frontend events (`grep -rn "dispatchEvent\|\$dispatch" .../view`), fill `HYVA_EVENTS` / `EXTRACTORS`, extend `Test/js/phtml-scripts.test.js`, then still confirm locally.
+1. ~~Hyvä Checkout events~~ resolved: the user provided the Hyvä zip; events documented in `docs/hyva-checkout-notes.md` and wired in `checkout-steps.phtml`. Remaining: local verification (🧪 item 11).
 2. `system.xml` tab id `mage-os` vs Magento 2.4.9 XSD (see above).
 
 ## Decisions made
@@ -93,7 +93,8 @@ Everything under "Magento layer" above, in particular the risky items:
 |---|---|---|
 | Queue mechanism | Own DB table + cron (no Magento MQ) | 2026-10-20 |
 | Consent unknown (admin / webhook orders) | Send anonymously by default; configurable to skip. Declined visitors never sent | 2026-10-20 |
-| Hyvä shipping/payment events | Base layer + disabled stub now; real wiring after local verification | 2026-10-20 |
+| Hyvä shipping/payment events | Base layer first; wired to the real Hyvä Checkout 1.3.15 events once the user supplied the source (push on `checkout:validation:success`) | 2026-10-20 |
+| Currency | For now the currency of the purchase; admin-selectable reporting currency is a future improvement | 2026-10-20 |
 | `purchase_server` semantics | Comparison-only signal, not revenue; document it | earlier |
 | Unit tests | Written alongside code (earlier "defer tests" instruction superseded) | 2026-10-20 |
 | Events older than 72 h | Keep in the table as `expired` (unrecoverable), skip in cron | 2026-10-20 |
