@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="MageOS_GoogleTagManager::report" title="GA4 Server-side Events" translate="title" module="MageOS_GoogleTagManager" sortOrder="100" parent="Magento_Reports::report_marketing" action="gtm/report/index" resource="MageOS_GoogleTagManager::report"/>
+    </menu>
+</config>

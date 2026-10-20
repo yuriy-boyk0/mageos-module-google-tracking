@@ -76,7 +76,10 @@ class PayloadBuilder
         return self::DEFAULT_EVENT_NAME;
     }
 
-    private function buildItems(array $items): array
+    /**
+     * GA4 item objects from snapshot items (also used for refunds).
+     */
+    public function buildItems(array $items): array
     {
         $result = [];
         foreach (array_slice(array_values($items), 0, self::MAX_ITEMS) as $item) {

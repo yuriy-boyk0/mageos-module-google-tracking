@@ -122,23 +122,25 @@ The core new work: firing `purchase_server` (configurable name) via MP from the 
 
 ## Phase 3: Order-lifecycle follow-ups (refunds, cancellations)
 
-Optional extension of the same server-side pipeline for the other two events that share the same "only observable server-side" property as purchase — both hook the same order lifecycle and reuse the Phase 0 queue/client, so they're a small addition once Phase 2 is stable.
+**Status: implemented (2026-10-20), awaiting local verification.** Reuses the Phase 0 queue, client and cron.
 
-| Feature | Work |
+| Feature | Implementation |
 |---|---|
-| Refund tracking | Observer on `sales_order_creditmemo_save_after` enqueues an MP `refund_server` event (transaction_id + refunded value) via the same queue |
-| Cancelled order / reverse transaction | Observer on order cancellation enqueues an MP reversal event, same mechanism |
-| Manual/mass-action re-send | Admin mass action on the order grid that re-enqueues the server-side purchase send for selected orders — for backfilling orders placed before this feature was enabled, or recovering from a period where the queue/API was down |
+| Refund tracking | `Observer/EnqueueServerSideRefund` on `sales_order_creditmemo_save_after` → `Model/FollowUpEnqueuer::enqueueRefund`. One row per credit memo (`reference_id` = credit memo id, part of the unique key, so re-saves do not duplicate). Event `refund_server` (configurable) with `transaction_id`, refunded `value` (same currency and tax settings as the purchase), refunded `items`, `refund_type` = `full` / `partial`. |
+| Cancellation | `Observer/EnqueueServerSideCancellation` on `order_cancel_after` → event `cancel_server` (configurable) with the order value. |
+| Attribution and consent | Follow-ups copy `client_id` / `user_id` from the stored purchase payload, so they belong to the same visitor (or the same anonymous id), and are only queued when the purchase row is `pending`, `processing` or `sent` (`Service/MeasurementProtocol/FollowUpPolicy`); otherwise a `skipped` row records why. No `timestamp_micros`: they happen now. |
+| Manual / mass re-send | Order grid mass action *Re-send GA4 server-side purchase* (`Controller/Adminhtml/Serverside/MassResend`, ACL `MageOS_GoogleTagManager::server_side_resend`, `Model/PurchaseResender`, `Service/MeasurementProtocol/ResendPolicy`). `failed` / `expired` rows are reset with the stored payload minus `timestamp_micros` (Google would reject old timestamps; the event is dated at sending). Orders without a row (placed before the feature was enabled) get one built now, with consent *unknown* (configured action applies) and the real order date if Google still accepts it. `sent`, queued and `skipped` rows are left alone. |
 
 ## Phase 4: Admin visibility and reconciliation
 
-Since purchase now has two independently-named signals by design, giving admins visibility into both is what makes the split event-name approach actually useful rather than confusing.
+**Status: implemented (2026-10-20), awaiting local verification.**
 
-| Feature | Work |
+| Feature | Implementation |
 |---|---|
-| Order grid column | Shows the server-side delivery status per order (pending / sent / failed) from Phase 0's persisted delivery status |
-| Reconciliation report | Simple report/query comparing orders with a successful server-side send against orders where the client-side `purchase` event is known to have fired (if determinable), to surface the real-world size of the ad-blocker/client-loss gap this feature exists to close |
-| MP debug mode | Config toggle; when enabled, sends to GA4's validation/debug endpoint and logs the request/response for troubleshooting delivery issues |
+| Order grid column | *GA4 Server-side Purchase* in Sales > Orders (`view/adminhtml/ui_component/sales_order_grid.xml`, filterable select). `Plugin/OrderGridDeliveryStatus` joins the queue table as a derived table exposing only `mageos_gtm_order_id` / `mageos_gtm_status`, so the grid's own unqualified columns (status, created_at, ...) never become ambiguous. |
+| Reconciliation report | Reports > Marketing > *GA4 Server-side Events* (`Controller/Adminhtml/Report/Index`, `Block/Adminhtml/Report`, `Service/MeasurementProtocol/ReportSummary`): last 30 days by order date (UTC) with orders placed, purchase rows by status, orders never tracked, sent %, refunds and cancellations sent. Whether the *client-side* `purchase` fired cannot be known by Magento; the report explains how to compare transaction ids in a GA4 Exploration instead. |
+| MP debug mode | Done in Phase 0 (validation endpoint + log). Added **Show in GA4 DebugView**: adds `debug_mode=1` at send time so recorded server events appear in DebugView. |
+| Retention | Daily cron `mageos_gtm_cleanup` deletes `sent` / `skipped` rows older than *Keep Sent/Skipped Rows* days (default 90, 0 = forever). `failed` / `expired` rows are kept for review. |
 
 ## Phase 5: Module documentation (install, configure, set up Google accounts)
 
@@ -177,6 +179,15 @@ A person who has never set up GA4/GTM follows only the docs on the clean local i
 
 ---
 
+## Client-side fixes outside the original phases (2026-10-20)
+
+Found while reviewing the existing module; fixed because they distort the data the comparison relies on:
+- `items` was keyed by SKU and nested one level too deep; it is now a flat GA4 list, one entry per visible cart/order row with the row price (child rows skipped). The purchase used `getQty()` on order items (does not exist) and now uses the ordered quantity.
+- Client-side `purchase` used the store's current display currency with the order's totals; it now uses the order currency.
+- Double `page_view`: `head.phtml` no longer calls `gtag('config')`; GA4 is configured only by the container's GA4 Configuration tag.
+- Exported GTM triggers were *Window Loaded* + `ga4_event` filters, which miss events pushed after load; every event trigger is now a *Custom Event* on the event name, and the GA4 Configuration tag fires on *All Pages*. Containers must be re-imported.
+- `view_item` (product page), `view_item_list` (category and search results) and `search` are now pushed (`Block/CatalogTagManager`, `Service/CatalogService`), so the tags already in the export are no longer idle. Still client-side only, per the architecture rule.
+
 ## Explicit non-goals of this plan
 
 - **No server-side tracking for any event other than purchase** (and optionally refunds/cancellations in Phase 3, which are order-lifecycle siblings of purchase). `view_item`, `view_item_list`, `select_item`, `search`, `add_shipping_info`, `add_payment_info`, cart events, login, sign_up, and wishlist all remain client-side only, unchanged from how the module already implements them.
@@ -192,4 +203,4 @@ A person who has never set up GA4/GTM follows only the docs on the clean local i
 3. **Phase 2** — Server-side purchase event itself. The core deliverable of this plan.
 4. **Phase 4** — Admin visibility (order grid column, MP debug mode) — needed early enough to validate Phase 2 is actually delivering in production, not after the fact.
 5. **Phase 3** — Refunds/cancellations, as a natural follow-on once the purchase pipeline is proven reliable.
-6. **Phase 5** — Documentation is drafted incrementally with each phase above (install and Google-account setup guides can be written immediately, in parallel with Phase 0/1), and finalized before the local Magento 2.4.9 + Hyvä acceptance run described in "Target test environment and acceptance testing". Unit tests are deferred: they are skipped in the initial implementation phases and added later, so early validation relies on XML/syntax checks and the manual local acceptance run.
+6. **Phase 5** — Documentation is drafted incrementally with each phase above (install and Google-account setup guides can be written immediately, in parallel with Phase 0/1), and finalized before the local Magento 2.4.9 + Hyvä acceptance run described in "Target test environment and acceptance testing". Unit tests are written alongside the code for everything Magento-free (the earlier "defer tests" note was superseded).

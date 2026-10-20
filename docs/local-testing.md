@@ -78,5 +78,29 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 ```
 - Also check the same GA4 tags fire (`GA4 Addshippinginfo`, `GA4 Addpaymentinfo`) and the success page no longer triggers them.
 
-## 6. After testing
+## 6. Client-side fixes and catalog events
+- Re-export and re-import the GTM container (Merge, overwrite conflicts) and publish.
+- GTM Preview: every GA4 event tag fires on its *Custom Event* trigger, including events pushed after load (add to cart via AJAX, checkout steps). `page_view` once per page.
+- Product page → `view_item`; category page → `view_item_list` with the products of the current page (change sort/page and check the items follow); search → `search` (`search_term`) and `view_item_list` (`search_results`).
+- With full page cache on: second (logged-out) visitor to the same category gets the same events; logged-in customer group pricing shows its own prices.
+- Cart / checkout / purchase: `items` is a flat list, quantities correct (purchase used to send 0), configurable products appear once with the price paid; purchase `currency` = order currency on a multi-currency store.
+
+## 7. Refunds, cancellations, re-send, grid, report
+| Scenario | Expected |
+|---|---|
+| Full credit memo on a sent order | row `refund` (reference = credit memo id) `pending` → `sent`; `refund_server` in GA4 with value, items, `refund_type=full` |
+| Two partial credit memos | two refund rows, `refund_type=partial` |
+| Re-save / comment on an existing credit memo | no new row |
+| Credit memo for an order whose purchase was `skipped` | refund row `skipped` with the purchase status in `last_error` |
+| Cancel an order (admin) | `cancel_server` with the order value; same `client_id` as the purchase payload |
+| Order grid | column *GA4 Server-side Purchase* shows statuses; filter by it, combine with the grid's status/date filters and sort: no "ambiguous column" SQL error |
+| Mass action on failed/expired orders | "queued" message; rows `pending` without `timestamp_micros`; sent by cron |
+| Mass action on an order from before the feature was enabled | new row, anonymous client id, real order date kept if < ~70 h old |
+| Mass action on sent / skipped orders | notice "not queued: already sent / skipped on purpose …" |
+| Admin user without the new ACL resources | mass action and report hidden / denied |
+| Reports > Marketing > GA4 Server-side Events | numbers per order day match the grid; "Not tracked" counts orders without rows |
+| *Show in GA4 DebugView* = Yes | server events visible in DebugView (and recorded) |
+| Cleanup cron (`bin/magento cron:run`, or call `MageOS\GoogleTagManager\Cron\Cleanup`) | deletes only sent/skipped rows older than the retention; failed/expired kept |
+
+## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).

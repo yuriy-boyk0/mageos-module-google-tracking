@@ -1,0 +1,56 @@
+<?php
+use MageOS\GoogleTagManager\Block\Adminhtml\Report;
+use Magento\Framework\Escaper;
+
+/** @var Report $block */
+/** @var Escaper $escaper */
+$rows = $block->getRows();
+?>
+<div class="admin__data-grid-wrap">
+    <p>
+        <?= $escaper->escapeHtml(__('Orders placed per day (UTC, last %1 days) and what happened to their GA4 server-side purchase event (purchase_server). Refunds and cancellations are counted on the day the order was placed.', Report::DAYS)) ?>
+    </p>
+    <p>
+        <?= $escaper->escapeHtml(__('To measure the client-side gap, compare these transaction IDs with the client-side "purchase" event in a GA4 Exploration (dimension: Transaction ID, events: purchase and purchase_server). Orders that only appear on purchase_server were missed by the browser (ad blockers, closed tabs).')) ?>
+    </p>
+    <table class="data-grid">
+        <thead>
+        <tr>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Order date')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Orders')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Sent')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Sent %')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Pending')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Failed')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Expired')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Skipped')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Not tracked')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Refunds sent')) ?></th>
+            <th class="data-grid-th"><?= $escaper->escapeHtml(__('Cancellations sent')) ?></th>
+        </tr>
+        </thead>
+        <tbody>
+        <?php if ($rows === []): ?>
+            <tr class="data-row"><td colspan="11"><?= $escaper->escapeHtml(__('No orders in this period.')) ?></td></tr>
+        <?php endif; ?>
+        <?php foreach ($rows as $day => $row): ?>
+            <tr class="data-row">
+                <td><?= $escaper->escapeHtml($day) ?></td>
+                <td><?= (int) $row['orders'] ?></td>
+                <td><?= (int) $row['purchase']['sent'] ?></td>
+                <td><?= $row['sent_rate'] === null ? '-' : $escaper->escapeHtml($row['sent_rate'] . ' %') ?></td>
+                <td><?= (int) ($row['purchase']['pending'] + $row['purchase']['processing']) ?></td>
+                <td><?= (int) $row['purchase']['failed'] ?></td>
+                <td><?= (int) $row['purchase']['expired'] ?></td>
+                <td><?= (int) $row['purchase']['skipped'] ?></td>
+                <td><?= (int) $row['untracked'] ?></td>
+                <td><?= (int) $row['refund_sent'] ?></td>
+                <td><?= (int) $row['cancel_sent'] ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <p>
+        <?= $escaper->escapeHtml(__('"Not tracked" are orders without any server-side row, for example placed while the feature was disabled. Use Sales > Orders > Actions > "Re-send GA4 server-side purchase" to queue them, or failed/expired ones, again.')) ?>
+    </p>
+</div>

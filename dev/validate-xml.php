@@ -44,7 +44,7 @@ $tmp = sys_get_temp_dir() . '/mageos-xsd-' . getmypid();
 mkdir($tmp);
 $done = [];
 $failures = 0;
-$files = array_merge(glob($module . '/etc/*.xml'), glob($module . '/etc/*/*.xml'), glob($module . '/view/*/layout/*.xml'));
+$files = array_merge(glob($module . '/etc/*.xml'), glob($module . '/etc/*/*.xml'), glob($module . '/view/*/layout/*.xml'), glob($module . '/view/*/ui_component/*.xml'));
 foreach ($files as $file) {
     $dom = new DOMDocument();
     $dom->load($file);

@@ -6,6 +6,7 @@ namespace MageOS\GoogleTagManager\Model;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\FollowUpPayloadBuilder;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\PayloadBuilder;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettings;
@@ -68,6 +69,38 @@ class Config implements SendSettingsProviderInterface
         return $name === '' ? PayloadBuilder::DEFAULT_EVENT_NAME : $name;
     }
 
+    public function isRefundTrackingEnabled(int $storeId): bool
+    {
+        return $this->isEnabled($storeId) && $this->flag('track_refunds', $storeId);
+    }
+
+    public function isCancellationTrackingEnabled(int $storeId): bool
+    {
+        return $this->isEnabled($storeId) && $this->flag('track_cancellations', $storeId);
+    }
+
+    public function getRefundEventName(int $storeId): string
+    {
+        $name = trim((string) $this->value('refund_event_name', $storeId));
+
+        return $name === '' ? FollowUpPayloadBuilder::DEFAULT_REFUND_EVENT : $name;
+    }
+
+    public function getCancelEventName(int $storeId): string
+    {
+        $name = trim((string) $this->value('cancel_event_name', $storeId));
+
+        return $name === '' ? FollowUpPayloadBuilder::DEFAULT_CANCEL_EVENT : $name;
+    }
+
+    /**
+     * Days to keep sent and skipped rows (0 = forever). Read at default scope: the cleanup is global.
+     */
+    public function getRetentionDays(): int
+    {
+        return max(0, (int) $this->scopeConfig->getValue(self::PATH . 'retention_days'));
+    }
+
     public function getCurrencyBasis(int $storeId): string
     {
         return $this->value('currency_basis', $storeId) === self::CURRENCY_BASE
@@ -125,7 +158,8 @@ class Config implements SendSettingsProviderInterface
             $measurementId,
             $apiSecret,
             $attempts > 0 ? $attempts : self::DEFAULT_MAX_ATTEMPTS,
-            $this->flag('debug', $storeId)
+            $this->flag('debug', $storeId),
+            $this->flag('debug_view', $storeId)
         );
     }
 

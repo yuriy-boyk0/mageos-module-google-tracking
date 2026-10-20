@@ -12,6 +12,8 @@ use Magento\Framework\Serialize\Serializer\Json;
 
 class Download extends Action
 {
+    public const ADMIN_RESOURCE = 'MageOS_GoogleTagManager::configuration';
+
     public function __construct(
         private readonly FileFactory $fileFactory,
         private readonly Json $serializer,

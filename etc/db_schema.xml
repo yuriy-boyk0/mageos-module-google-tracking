@@ -6,7 +6,8 @@
         <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity ID"/>
         <column xsi:type="varchar" name="increment_id" nullable="false" length="32" comment="Order increment ID (GA4 transaction_id)"/>
         <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store ID"/>
-        <column xsi:type="varchar" name="event_type" nullable="false" length="32" comment="purchase"/>
+        <column xsi:type="varchar" name="event_type" nullable="false" length="32" comment="purchase, refund, cancel"/>
+        <column xsi:type="varchar" name="reference_id" nullable="false" length="64" default="" comment="Credit memo ID for refunds, empty otherwise"/>
         <column xsi:type="mediumtext" name="payload" nullable="true" comment="Measurement Protocol JSON payload"/>
         <column xsi:type="varchar" name="status" nullable="false" length="16" default="pending" comment="pending, processing, sent, failed, skipped"/>
         <column xsi:type="smallint" name="attempts" unsigned="true" nullable="false" default="0" comment="Send attempts made"/>
@@ -18,14 +19,18 @@
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="entity_id"/>
         </constraint>
-        <constraint xsi:type="unique" referenceId="MAGEOS_GTM_SERVER_EVENT_ORDER_ID_EVENT_TYPE">
+        <constraint xsi:type="unique" referenceId="MAGEOS_GTM_SERVER_EVENT_ORDER_ID_EVENT_TYPE_REFERENCE_ID">
             <column name="order_id"/>
             <column name="event_type"/>
+            <column name="reference_id"/>
         </constraint>
         <constraint xsi:type="foreign" referenceId="MAGEOS_GTM_SERVER_EVENT_ORDER_ID_SALES_ORDER_ENTITY_ID" table="mageos_gtm_server_event" column="order_id" referenceTable="sales_order" referenceColumn="entity_id" onDelete="CASCADE"/>
         <index referenceId="MAGEOS_GTM_SERVER_EVENT_STATUS_NEXT_ATTEMPT_AT" indexType="btree">
             <column name="status"/>
             <column name="next_attempt_at"/>
+        </index>
+        <index referenceId="MAGEOS_GTM_SERVER_EVENT_CREATED_AT" indexType="btree">
+            <column name="created_at"/>
         </index>
     </table>
 </schema>

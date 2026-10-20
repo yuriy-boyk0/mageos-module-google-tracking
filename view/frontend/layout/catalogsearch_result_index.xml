@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <!-- after="-": must render after the product list so the listing's collection is already loaded -->
+        <referenceContainer name="content">
+            <block class="MageOS\GoogleTagManager\Block\CatalogTagManager" name="gtm.catalog.search" template="MageOS_GoogleTagManager::gtm/catalog-events.phtml" after="-">
+                <arguments>
+                    <argument name="event_type" xsi:type="string">search</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

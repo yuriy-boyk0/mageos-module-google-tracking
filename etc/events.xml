@@ -28,4 +28,10 @@
     <event name="checkout_submit_all_after">
         <observer name="gtm_server_side_purchase" instance="MageOS\GoogleTagManager\Observer\EnqueueServerSidePurchase"/>
     </event>
+    <event name="sales_order_creditmemo_save_after">
+        <observer name="gtm_server_side_refund" instance="MageOS\GoogleTagManager\Observer\EnqueueServerSideRefund"/>
+    </event>
+    <event name="order_cancel_after">
+        <observer name="gtm_server_side_cancellation" instance="MageOS\GoogleTagManager\Observer\EnqueueServerSideCancellation"/>
+    </event>
 </config>

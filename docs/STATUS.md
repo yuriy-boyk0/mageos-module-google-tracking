@@ -14,8 +14,9 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ implemented from Hyvä Checkout 1.3.15 source + JS tests · 🧪 verify in a real checkout |
 | 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
 | 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · reporting-currency option is a future improvement ⏳ |
-| 3 Refunds / cancellations / mass re-send | ⏳ not started |
-| 4 Admin visibility (grid column, reconciliation report) | ⏳ not started (debug mode is done as part of Phase 0) |
+| 3 Refunds / cancellations / mass re-send | ✅ core + tests + static checks · 🧪 Magento wiring |
+| 4 Admin visibility (grid column, report, DebugView flag, retention) | ✅ core + tests + static checks · 🧪 Magento wiring |
+| Client-side fixes (former "known issues") | ✅ code + XSD/PHPStan · 🧪 GTM Preview / DebugView; containers must be re-imported |
 | 5 Documentation | ✅ README, `google-setup.md`, `local-testing.md`, this file · 👤 docs acceptance (see below) |
 
 ## Done
@@ -29,7 +30,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 - 🧪 Check on a real order: one `purchase` per order, none on reload, GTM import accepts the JSON without those IDs.
 
 ### Phase 0 + 2: server-side `purchase_server`
-Pure core (✅ 102 PHPUnit tests): `Service/MeasurementProtocol/` `PayloadBuilder`, `Client`, `QueueProcessor`, `RetryPolicy`, `ConsentEvaluator`, `GaCookieParser`, `ExclusionPolicy`, `ConfigIdValidator`, `TotalsResolver`, `ItemIdResolver`.
+Pure core (✅ 123 PHPUnit tests in total, incl. Phase 3/4): `Service/MeasurementProtocol/` `PayloadBuilder`, `Client`, `QueueProcessor`, `RetryPolicy`, `ConsentEvaluator`, `GaCookieParser`, `ExclusionPolicy`, `ConfigIdValidator`, `TotalsResolver`, `ItemIdResolver`.
 
 Magento layer (written, 🧪 untested against Magento):
 - `etc/db_schema.xml` (+ hand-written whitelist) table `mageos_gtm_server_event`, FK to `sales_order` (cascade)
@@ -43,6 +44,24 @@ Magento layer (written, 🧪 untested against Magento):
 - ✅ Events older than Google accepts (72 h): the row becomes status `expired` (message "unrecoverable: …"), is never sent again, and stays in the table with its payload for admin review. The cron stops one hour early (71 h) and also expires a row whose next retry would land outside the window.
 - Tax setting: *including* = `value` is the order grand total (same as the client-side event), prices and shipping with tax; *excluding* = grand total minus tax, prices and shipping without tax; `tax` is always sent separately.
 - SKU setting: for configurable products `item_id` is the configurable's own SKU (parent, default) or the selected variant's SKU (child); other product types always use their own SKU. `item_variant` ("Black, XS") is sent either way.
+
+### Client-side fixes (former "known issues", 2026-10-20)
+- ✅ `items` is a flat GA4 list (was keyed by SKU and nested), one entry per visible cart/order row, row price, child rows skipped. Purchase quantity now uses `getQtyOrdered()` (the old `getQty()` does not exist on order items, so quantity was 0). Checkout blocks read `getAllVisibleItems()`.
+- ✅ Client-side `purchase` currency = order currency (was the store's current display currency).
+- ✅ Double `page_view`: removed `gtag('config')` from `head.phtml`.
+- ✅ Exported triggers: every GA4 event trigger is a *Custom Event* on `{{_event}}` (was *Window Loaded* + `ga4_event`, which misses events pushed after load); GA4 Configuration fires on *All Pages*. 👤 Existing GTM containers must be re-imported (documented).
+- ✅ New `view_item` (product page), `view_item_list` (category + search, max 50 items of the current page), `search` (`Block/CatalogTagManager`, `Service/CatalogService`, `gtm/catalog-events.phtml`, layouts `catalog_product_view`, `catalog_category_view`, `catalogsearch_result_index`). Rendered into FPC-cached HTML (catalog data only). The block renders after the product list (`after="-"`) so it reads the already loaded, paginated collection.
+- ✅ Export controllers now require the `MageOS_GoogleTagManager::configuration` ACL resource (any admin could call them before).
+
+### Phase 3: refunds, cancellations, re-send (2026-10-20)
+- ✅ Pure + tests: `FollowUpPayloadBuilder` (reuses client_id/user_id of the purchase, no timestamp), `FollowUpPolicy` (only when the purchase is pending/processing/sent), `ResendPolicy` (create / reset failed+expired / ignore sent, queued, skipped; drops `timestamp_micros` on reset).
+- 🧪 Magento: `Observer/EnqueueServerSideRefund` (`sales_order_creditmemo_save_after`, one row per credit memo via new column `reference_id` in the unique key), `Observer/EnqueueServerSideCancellation` (`order_cancel_after`), `Model/FollowUpEnqueuer`, `Model/PurchaseEnqueuer` (observer logic moved here so the re-send backfill reuses it), `Model/PurchaseResender`, mass action `gtm/serverside/massResend` + ACL `MageOS_GoogleTagManager::server_side_resend`.
+- Config: Track Refunds / Refund Event Name (`refund_server`), Track Cancellations / Cancellation Event Name (`cancel_server`), default on.
+
+### Phase 4: admin visibility (2026-10-20)
+- ✅ Pure + tests: `ReportSummary`; `debug_mode` added at send time when *Show in GA4 DebugView* is on (`QueueProcessor`).
+- 🧪 Magento: order grid column *GA4 Server-side Purchase* (`ui_component/sales_order_grid.xml`, `Plugin/OrderGridDeliveryStatus` on `UiComponent\DataProvider\CollectionFactory::getReport`, derived-table join), report page Reports > Marketing > *GA4 Server-side Events* (`menu.xml`, ACL `MageOS_GoogleTagManager::report`, `Controller/Adminhtml/Report/Index`, `Block/Adminhtml/Report`, `Model/ReportDataProvider`), daily cleanup cron `mageos_gtm_cleanup` (`Cron/Cleanup`, *Keep Sent/Skipped Rows*, default 90 days).
+- Schema: new column `reference_id`, unique key now (order_id, event_type, reference_id), index on `created_at`; whitelist updated by hand (keeps the old unique key name so it is dropped on upgrade).
 
 ### Verified against the real Magento 2.4.9 source (✅, cloud)
 The tag `2.4.9` of github.com/magento/magento2 is cloned at `/home/user/magento/magento2` (read-only, via the session's git proxy; re-clone with the command in `dev/check-magento.sh` in a new session). `dev/check-magento.sh` runs PHPStan against it and validates every XML file against Magento's XSDs. This is static checking only; it is not a substitute for local testing. It found and fixed:
@@ -71,6 +90,11 @@ Everything under "Magento layer" above, in particular the risky items:
 9. Debug mode: validation messages are logged to `var/log`.
 10. `purchase_server` visible in GA4 Realtime / DebugView with correct value, currency, items.
 11. Hyvä Checkout shipping/payment events (`local-testing.md` section 5): once per submission, right method codes, default/mobile/onepage checkouts, virtual cart.
+12. Client-side fixes: flat `items`, purchase currency, single `page_view`, custom-event triggers after re-importing the container, `view_item` / `view_item_list` / `search` on product, category and search pages (also with FPC/Varnish on, second visitor gets the same events).
+13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired.
+14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time.
+15. Report page (menu, ACL, numbers match the grid); cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView.
+16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
@@ -78,11 +102,9 @@ Everything under "Magento layer" above, in particular the risky items:
 - Legal/privacy sign-off on the "send anonymously when consent is unknown" default (see Decisions).
 
 ## Not started (⏳)
-- Phase 3: refund (`sales_order_creditmemo_save_after`), cancellation, admin mass action "re-send server-side purchase".
-- Phase 4: order grid column with delivery status, reconciliation report, `debug_mode` event param so server events show in DebugView.
 - **Future improvement, noted by the user:** an admin-configured *reporting currency* for purchase events (e.g. an EU+US store that wants everything tracked in EUR instead of EUR + USD). Today the order's currency (or the store base currency) is used. Needs a conversion step (Magento currency rates or a fixed rate) for value/tax/shipping/item prices/discounts, and a decision whether the client-side events follow the same rule. Replaces the earlier "fixed conversion rate" idea.
-- Admin action to re-send an `expired` order (needs the `timestamp_micros` dropped or refreshed; Google would reject the original). Part of Phase 3 mass re-send.
-- Cleanup of old `sent`/`skipped` rows from the queue table.
+- Report filters (store view, date range) and CSV export; per-row detail view of a queue row (payload, last error) in the admin.
+- `select_item` / `add_to_compare` client-side events (tags not in the export yet).
 
 ## Blocked / questions (❓)
 1. ~~Hyvä Checkout events~~ resolved: the user provided the Hyvä zip; events documented in `docs/hyva-checkout-notes.md` and wired in `checkout-steps.phtml`. Remaining: local verification (🧪 item 11).
@@ -102,8 +124,9 @@ Everything under "Magento layer" above, in particular the risky items:
 | Consent unknown | Confirmed again: send anonymously (default) | 2026-10-20 |
 
 ## Known risks / notes
-- GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h. Such rows are now closed as `expired` (never sent). With the defaults (8 attempts, delays 1, 2, 4 … 64 min, about 2 h total) this only happens after cron was down for ~3 days.
+- GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h. Such rows are closed as `expired` (never sent automatically). With the defaults (8 attempts, delays 1, 2, 4 … 64 min, about 2 h total) this only happens after cron was down for ~3 days. The re-send action sends them again without the old timestamp (dated at re-send).
 - `QueueProcessor` in debug mode closes rows as `sent` although Google records nothing; do not leave debug on.
-- Client-side `purchase` takes its currency from the store's *current* currency but the value from the order grand total (order currency); they can disagree on multi-currency stores. The server-side event uses the order's own currency/total pair.
-- `head.phtml` calls `gtag('config', <G-ID>)` and the exported container has a GA4 Configuration tag: possible double `page_view` (🧪 check in DebugView).
-- Other exported-container quirks not yet audited: tags with `WINDOW_LOADED` triggers for post-load events (`add_to_cart`, ...) may not fire reliably; items are keyed by SKU and nested one level deeper than GA4 expects (`Ga4-Ecommerce-Items` variable). Verify in GTM Preview.
+- Follow-ups for an order whose purchase is still `pending` can reach Google before the purchase (each row has its own retry timing). Harmless for comparison, noted.
+- Payment-gateway flows that cancel an order right after placement produce both `purchase_server` and `cancel_server`. Expected.
+- `view_item_list` on category pages reads the list block's collection; a theme that renames `category.products.list` / `search_result_list` gets no list event (🧪 Hyvä default theme uses these names, checked in the source).
+- The client-side events for `add_shipping_info` / `add_payment_info` fire on Hyvä's validation success, before the server confirms a step change (rare false positive, see `hyva-checkout-notes.md`).

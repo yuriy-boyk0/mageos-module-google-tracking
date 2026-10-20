@@ -24,7 +24,7 @@ class CheckoutTagManager extends TagManager
 
     public function getJsonCartViewEvent(): string
     {
-        $quoteItems = $this->checkoutSession->getQuote()->getItems();
+        $quoteItems = $this->checkoutSession->getQuote()->getAllVisibleItems();
         return $this->serializer->serialize(
             $this->cartService->viewCart($quoteItems)
         );
@@ -32,7 +32,7 @@ class CheckoutTagManager extends TagManager
 
     public function getJsonCheckoutBeginEvent(): string
     {
-        $quoteItems = $this->checkoutSession->getQuote()->getItems();
+        $quoteItems = $this->checkoutSession->getQuote()->getAllVisibleItems();
         return $this->serializer->serialize(
             $this->cartService->beginCheckout($quoteItems)
         );
@@ -44,7 +44,7 @@ class CheckoutTagManager extends TagManager
      */
     public function getJsonCheckoutStepBase(): string
     {
-        $quoteItems = $this->checkoutSession->getQuote()->getItems();
+        $quoteItems = $this->checkoutSession->getQuote()->getAllVisibleItems();
         $event = $this->cartService->beginCheckout($quoteItems);
 
         return $this->serializer->serialize($event['ecommerce']);

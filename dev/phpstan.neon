@@ -7,6 +7,9 @@ parameters:
         - ../Observer
         - ../Cron
         - ../Block
+        - ../Controller
+        - ../Plugin
+        - ../Service
     bootstrapFiles:
         - phpstan-magento-bootstrap.php
     reportUnmatchedIgnoredErrors: false

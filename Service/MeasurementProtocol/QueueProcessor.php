@@ -61,6 +61,9 @@ class QueueProcessor
                 continue;
             }
 
+            if ($settings->debugView) {
+                $payload = $this->withDebugView($payload);
+            }
             $result = $this->client->send($settings->measurementId, $settings->apiSecret, $payload, $settings->debug);
             $this->logResult($row, $result, $settings->debug);
 
@@ -86,6 +89,15 @@ class QueueProcessor
         }
 
         return $stats;
+    }
+
+    private function withDebugView(array $payload): array
+    {
+        foreach ($payload['events'] ?? [] as $i => $event) {
+            $payload['events'][$i]['params']['debug_mode'] = 1;
+        }
+
+        return $payload;
     }
 
     private function isTooOld(array $row, int $at): bool

@@ -6,6 +6,7 @@
             "increment_id": true,
             "store_id": true,
             "event_type": true,
+            "reference_id": true,
             "payload": true,
             "status": true,
             "attempts": true,
@@ -16,12 +17,14 @@
             "sent_at": true
         },
         "index": {
-            "MAGEOS_GTM_SERVER_EVENT_STATUS_NEXT_ATTEMPT_AT": true
+            "MAGEOS_GTM_SERVER_EVENT_STATUS_NEXT_ATTEMPT_AT": true,
+            "MAGEOS_GTM_SERVER_EVENT_CREATED_AT": true
         },
         "constraint": {
             "PRIMARY": true,
             "MAGEOS_GTM_SERVER_EVENT_ORDER_ID_EVENT_TYPE": true,
-            "MAGEOS_GTM_SERVER_EVENT_ORDER_ID_SALES_ORDER_ENTITY_ID": true
+            "MAGEOS_GTM_SERVER_EVENT_ORDER_ID_SALES_ORDER_ENTITY_ID": true,
+            "MAGEOS_GTM_SERVER_EVENT_ORDER_ID_EVENT_TYPE_REFERENCE_ID": true
         }
     }
 }

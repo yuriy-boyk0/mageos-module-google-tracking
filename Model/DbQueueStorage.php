@@ -25,16 +25,17 @@ class DbQueueStorage implements QueueStorageInterface
                 'increment_id' => (string) ($row['increment_id'] ?? ''),
                 'store_id' => (int) ($row['store_id'] ?? 0),
                 'event_type' => (string) $row['event_type'],
+                'reference_id' => (string) ($row['reference_id'] ?? ''),
                 'payload' => $row['payload'] ?? null,
                 'status' => $status,
                 'attempts' => 0,
                 'next_attempt_at' => $now,
                 'last_error' => isset($row['last_error']) ? mb_substr((string) $row['last_error'], 0, 255) : null,
-                'created_at' => $now,
+                'created_at' => (int) ($row['created_at'] ?? $now),
                 'updated_at' => $now,
             ]);
         } catch (DuplicateException $e) {
-            // Unique key (order_id, event_type): this order was already queued.
+            // Unique key (order_id, event_type, reference_id): this event was already queued.
             return false;
         }
 
@@ -127,6 +128,50 @@ class DbQueueStorage implements QueueStorageInterface
                 'updated_at' => $now,
             ],
             ['entity_id = ?' => $entityId]
+        );
+    }
+
+    public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array
+    {
+        $connection = $this->connection();
+        $row = $connection->fetchRow(
+            $connection->select()
+                ->from($this->table())
+                ->where('order_id = ?', $orderId)
+                ->where('event_type = ?', $eventType)
+                ->where('reference_id = ?', $referenceId)
+        );
+
+        return $row ?: null;
+    }
+
+    public function resetForResend(int $entityId, string $payload, int $now): void
+    {
+        $this->connection()->update(
+            $this->table(),
+            [
+                'status' => self::STATUS_PENDING,
+                'payload' => $payload,
+                'attempts' => 0,
+                'next_attempt_at' => $now,
+                'last_error' => 'manual re-send',
+                'created_at' => $now,
+                'updated_at' => $now,
+                'sent_at' => null,
+            ],
+            ['entity_id = ?' => $entityId]
+        );
+    }
+
+    public function deleteFinishedBefore(array $statuses, int $before): int
+    {
+        if ($statuses === []) {
+            return 0;
+        }
+
+        return $this->connection()->delete(
+            $this->table(),
+            ['status IN (?)' => $statuses, 'updated_at < ?' => $before]
         );
     }
 

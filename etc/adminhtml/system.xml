@@ -122,6 +122,38 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
+                <field id="track_refunds" translate="label comment" type="select" sortOrder="102" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Track Refunds</label>
+                    <comment><![CDATA[Sends one event per credit memo (refunded value and items), only for orders whose purchase was sent server-side.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="refund_event_name" translate="label comment" type="text" sortOrder="103" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Refund Event Name</label>
+                    <comment><![CDATA[Default: refund_server. A comparison signal like purchase_server, not GA4's standard refund.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                        <field id="track_refunds">1</field>
+                    </depends>
+                </field>
+                <field id="track_cancellations" translate="label comment" type="select" sortOrder="104" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Track Cancellations</label>
+                    <comment><![CDATA[Sends one event with the order total when an order is cancelled, only for orders whose purchase was sent server-side.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="cancel_event_name" translate="label comment" type="text" sortOrder="105" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Cancellation Event Name</label>
+                    <comment><![CDATA[Default: cancel_server.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                        <field id="track_cancellations">1</field>
+                    </depends>
+                </field>
                 <field id="max_attempts" translate="label comment" type="text" sortOrder="110" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Maximum Send Attempts</label>
                     <comment><![CDATA[Failed sends are retried with growing delays (1 min, 2, 4, ... up to 6 h) until this limit.]]></comment>
@@ -133,6 +165,22 @@
                     <label>Debug Mode</label>
                     <comment><![CDATA[Sends to Google's validation endpoint instead and logs the result in var/log. <strong>Nothing is recorded in GA4 while this is on</strong> and queued orders are closed as sent. Turn off after testing.]]></comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="debug_view" translate="label comment" type="select" sortOrder="125" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Show in GA4 DebugView</label>
+                    <comment><![CDATA[Adds <code>debug_mode</code> so server-side events appear in Analytics > Admin > DebugView. Unlike Debug Mode, events are really sent and recorded. Turn off after testing.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="retention_days" translate="label comment" type="text" sortOrder="130" showInDefault="1" canRestore="1">
+                    <label>Keep Sent/Skipped Rows (days)</label>
+                    <comment><![CDATA[Older sent and skipped rows are deleted daily. Failed and expired rows are always kept. 0 = keep forever.]]></comment>
+                    <validate>validate-digits</validate>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

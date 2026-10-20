@@ -14,13 +14,16 @@ class InMemoryQueueStorage implements QueueStorageInterface
     public function enqueue(array $row, int $now): bool
     {
         foreach ($this->rows as $existing) {
-            if ($existing['order_id'] === $row['order_id'] && $existing['event_type'] === $row['event_type']) {
+            if ($existing['order_id'] === $row['order_id'] && $existing['event_type'] === $row['event_type']
+                && $existing['reference_id'] === ($row['reference_id'] ?? '')
+            ) {
                 return false;
             }
         }
         $id = $this->nextId++;
         $this->rows[$id] = $row + [
             'entity_id' => $id,
+            'reference_id' => '',
             'status' => self::STATUS_PENDING,
             'attempts' => 0,
             'next_attempt_at' => $now,
@@ -28,7 +31,7 @@ class InMemoryQueueStorage implements QueueStorageInterface
             'payload' => null,
             'store_id' => 1,
             'increment_id' => (string) $row['order_id'],
-            'created_at' => $now,
+            'created_at' => $row['created_at'] ?? $now,
             'updated_at' => $now,
             'sent_at' => null,
         ];
@@ -85,5 +88,37 @@ class InMemoryQueueStorage implements QueueStorageInterface
     {
         $this->rows[$entityId] = ['status' => self::STATUS_EXPIRED, 'attempts' => $attempts, 'last_error' => $error, 'updated_at' => $now]
             + $this->rows[$entityId];
+    }
+
+    public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array
+    {
+        foreach ($this->rows as $row) {
+            if ($row['order_id'] === $orderId && $row['event_type'] === $eventType && $row['reference_id'] === $referenceId) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    public function resetForResend(int $entityId, string $payload, int $now): void
+    {
+        $this->rows[$entityId] = [
+            'status' => self::STATUS_PENDING, 'attempts' => 0, 'next_attempt_at' => $now, 'payload' => $payload,
+            'last_error' => 'manual re-send', 'created_at' => $now, 'updated_at' => $now, 'sent_at' => null,
+        ] + $this->rows[$entityId];
+    }
+
+    public function deleteFinishedBefore(array $statuses, int $before): int
+    {
+        $deleted = 0;
+        foreach ($this->rows as $id => $row) {
+            if (in_array($row['status'], $statuses, true) && $row['updated_at'] < $before) {
+                unset($this->rows[$id]);
+                $deleted++;
+            }
+        }
+
+        return $deleted;
     }
 }

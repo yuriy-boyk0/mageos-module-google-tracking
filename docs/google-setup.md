@@ -63,6 +63,8 @@ The module generates a container configuration with the GA4 tags, triggers and v
 
 If you change the Measurement ID in Magento later, export again and re-import it (or edit the `GA4 Configuration` tag in GTM).
 
+**Upgrading the module?** Containers imported from older versions used page-load triggers that miss events pushed later (add to cart, checkout steps). Export the container again and import it with *Merge* and *Overwrite conflicting tags, triggers and variables*, then publish.
+
 ## 5. Verify that it works
 
 1. **Accept cookies first.** Nothing loads before consent. Open the storefront in a private window, accept the cookie banner for tracking cookies, and check that the Magento config is enabled and cache flushed.
@@ -72,6 +74,8 @@ If you change the Measurement ID in Magento later, export again and re-import it
 
    | Action in the store | Event in GA4 |
    |---|---|
+   | Open a product page | `view_item` |
+   | Open a category, or search | `view_item_list` (and `search`) |
    | Add a product to cart | `add_to_cart` |
    | Change quantity / remove | `update_cart` / `remove_from_cart` |
    | Open the cart page | `view_cart` |
@@ -84,7 +88,7 @@ If you change the Measurement ID in Magento later, export again and re-import it
    `add_shipping_info` and `add_payment_info` are sent when you continue from the shipping step and when you place the order, once each (not when the checkout page loads).
 
 5. Reload the order success page. `purchase` must **not** be sent a second time for the same order.
-6. Check that `page_view` is counted once per page. If you see it twice, tell the maintainers: the module's head script also issues a `gtag('config', ...)` call.
+6. Check that `page_view` is counted once per page.
 
 Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; DebugView and Realtime are immediate.
 
@@ -93,7 +97,9 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 1. Make sure Magento cron is running, then place a test order after accepting the cookie banner.
 2. After a minute, open **Analytics > Reports > Realtime** (or the **Explore** section later). You should see both `purchase` (from the browser) and `purchase_server` (from Magento) with the same transaction ID.
 3. `purchase_server` is a comparison signal, not revenue: it does not appear in standard Monetization reports. Use a GA4 **Exploration** with the *transaction ID* dimension to compare the two events and see which orders the browser missed.
-4. Status per order is in the database table `mageos_gtm_server_event` (`pending`, `sent`, `failed`, `expired`, `skipped`; `last_error` explains skips, failures and expiry). Turn on **Debug Mode** to validate payloads (nothing is recorded in GA4 while it is on).
+4. In Magento, **Sales > Orders** shows the status per order in the column *GA4 Server-side Purchase* (add it via *Columns* if hidden): `sent`, `pending`, `failed`, `expired` (too old for Google), `skipped` (no consent or excluded). **Reports > Marketing > GA4 Server-side Events** summarises it per day. Failed, expired and never-tracked orders can be queued again with the order grid action **Re-send GA4 server-side purchase**.
+5. To see server-side events in **DebugView**, set *Show in GA4 DebugView* = Yes (events are recorded normally). *Debug Mode* is different: it only validates the payload with Google and records nothing; the result is written to `var/log/system.log`.
+6. Refunds (credit memos) and cancellations are sent as `refund_server` and `cancel_server` for orders whose purchase was sent server-side. Like `purchase_server`, they are comparison signals, not GA4's standard refund.
 
 ## Troubleshooting
 
@@ -105,6 +111,7 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | Export button says "Module not enabled" / "No information to export" | Enable the module and save a GA4 Measurement ID, then try again |
 | Events visible in Preview but not in GA4 | Ad blocker or browser privacy feature blocking Google. Test with a clean browser profile |
 | `purchase_server` stays `pending` | Cron is not running, or Google is unreachable (see `last_error`; retries use growing delays) |
+| Order grid shows no *GA4 Server-side Purchase* value | No row for that order: placed before the feature was enabled or while it was disabled. Use the *Re-send* mass action |
 | `purchase_server` is `expired` | Cron was not running for about 3 days; Google rejects events older than 72 hours, so it is kept for review but never sent |
 | `purchase_server` is `skipped` | See `last_error`: consent not given, excluded status/payment method, zero value, or admin order |
 | No `begin_checkout` | Hyvä Checkout is required; the default Magento checkout is not wired |

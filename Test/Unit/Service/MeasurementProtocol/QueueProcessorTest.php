@@ -278,4 +278,40 @@ class QueueProcessorTest extends TestCase
         $this->assertSame(1, $row['attempts']);
         $this->assertStringContainsString('HTTP 503', $row['last_error']);
     }
+
+    public function testDebugViewAddsTheDebugModeParameter(): void
+    {
+        $this->settings[1] = new SendSettings('G-ABC123XYZ9', 'secret', 3, false, true);
+        $this->queueOrder();
+        $transport = new FakeTransport(new HttpResponse(204));
+
+        $this->processor($transport)->process(self::NOW);
+
+        $sent = json_decode($transport->requests[0]['body'], true);
+        $this->assertSame(1, $sent['events'][0]['params']['debug_mode']);
+        $this->assertStringStartsWith('https://www.google-analytics.com/mp/collect?', $transport->requests[0]['url'], 'real endpoint');
+    }
+
+    public function testWithoutDebugViewThereIsNoDebugModeParameter(): void
+    {
+        $this->queueOrder();
+        $transport = new FakeTransport(new HttpResponse(204));
+        $this->processor($transport)->process(self::NOW);
+
+        $this->assertArrayNotHasKey('debug_mode', json_decode($transport->requests[0]['body'], true)['events'][0]['params'] ?? []);
+    }
+
+    public function testAResentExpiredRowIsSentAgain(): void
+    {
+        $id = $this->queueOrder();
+        $processor = $this->processor(new FakeTransport(new HttpResponse(204)));
+        $later = self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS + 10;
+        $processor->process($later);
+        $this->assertSame(QueueStorageInterface::STATUS_EXPIRED, $this->storage->rows[$id]['status']);
+
+        $this->storage->resetForResend($id, self::PAYLOAD, $later + 100);
+        $stats = $processor->process($later + 100);
+
+        $this->assertSame(1, $stats['sent'], 'the age limit restarts from the re-send');
+    }
 }

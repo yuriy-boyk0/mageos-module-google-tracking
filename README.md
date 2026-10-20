@@ -12,7 +12,7 @@ The module injects the GTM container (after cookie consent), pushes GA4 e-commer
 
 * Magento Open Source / Mage-OS 2.4.x
 * [Hyvä Theme](https://hyva.io) (storefront templates are Hyvä-only; Luma is not supported)
-* [Hyvä Checkout](https://hyva.io/hyva-checkout.html) for the `begin_checkout` event
+* [Hyvä Checkout](https://hyva.io/hyva-checkout.html) for the checkout events (`begin_checkout`, `add_shipping_info`, `add_payment_info`)
 * `mage-os/module-cookie-consent` (tracking only starts after consent)
 * `hyva-themes/magento2-theme-module`
 * `liquid/liquid` (used by the GTM export)
@@ -86,6 +86,9 @@ GTM is **not loaded** until the visitor accepts third-party tracking cookies in 
 
 | Event | When |
 |---|---|
+| `view_item` | Product page viewed |
+| `view_item_list` | Category page or search results viewed (products of the current page, up to 50, with `item_list_id` / `item_list_name`) |
+| `search` | Search results page (`search_term`) |
 | `add_to_cart` | Product added to cart |
 | `remove_from_cart` | Product removed from cart |
 | `update_cart` | Cart item quantities updated |
@@ -96,11 +99,15 @@ GTM is **not loaded** until the visitor accepts third-party tracking cookies in 
 | `add_to_wishlist` / `remove_from_wishlist` | Wishlist changes |
 | `login` / `logout` / `sign_up` | Customer account events |
 
-`page_view` is sent by the GA4 configuration tag of the exported GTM container, not by the module. The exported container also contains tags for `view_item`, `view_item_list` and `search`; the module does not push those events yet, so those tags stay idle.
+`page_view` is sent by the GA4 configuration tag of the exported GTM container (on *All Pages*), not by the module.
+
+All ecommerce events carry a flat GA4 `items` list (one entry per visible cart/order row, with the price actually paid), and `purchase` uses the order's own currency. The exported container fires every GA4 event tag on a **Custom Event** trigger matching the dataLayer event name, so events pushed after the page has loaded (cart, wishlist, checkout steps) are picked up. **If you imported the container before this version, export and import it again** (GTM: Import Container > Merge > Overwrite conflicting tags).
+
+`view_item`, `view_item_list` and `search` are rendered into the page HTML, which the full page cache stores and serves to every visitor of that page; they therefore only contain catalog data (prices as shown for the visitor's customer group, which the cache already varies by).
 
 ---
 
-## Server-side purchase tracking (`purchase_server`)
+## Server-side purchase tracking (`purchase_server`, refunds, cancellations)
 
 Optional. When an order is placed, Magento queues a second purchase event and a cron job sends it to GA4 through the Measurement Protocol, independent of whether the visitor's browser ever reaches the success page. It uses the event name `purchase_server` (configurable), **not** `purchase`.
 
@@ -115,7 +122,11 @@ Setup: **Stores > Configuration > Mage-OS > Google Tag Manager > Server-side Pur
 * **Tax in Totals**: send totals including tax (default, order grand total like the client-side event) or excluding tax (grand total minus tax; item prices and shipping without tax). `tax` is always sent separately.
 * **Item ID for Configurable Products**: send the parent (configurable) SKU (default) or the child (variant) SKU as `item_id`; the selected options are sent as `item_variant` either way. Other product types always send their own SKU.
 * An event that could not be delivered within about 71 hours is marked `expired` and never sent (Google rejects older events). The row stays in `mageos_gtm_server_event` with its payload so you can review it.
-* Debug Mode sends to Google's validation endpoint and logs the result in `var/log`; nothing is recorded in GA4 while it is on.
+* Debug Mode sends to Google's validation endpoint and logs the result in `var/log`; nothing is recorded in GA4 while it is on. **Show in GA4 DebugView** instead sends normally and adds `debug_mode`, so the events appear in Analytics > Admin > DebugView (they are recorded).
+* **Refunds and cancellations** (on by default when server-side tracking is enabled): every credit memo queues a `refund_server` event (refunded value and items, `refund_type` = `full`/`partial`) and a cancelled order queues a `cancel_server` event (order value). They reuse the purchase's anonymous or consented visitor id, and are only sent when the order's purchase was sent server-side; otherwise they are recorded as skipped. Event names are configurable.
+* **Order grid**: Sales > Orders has a column *GA4 Server-side Purchase* (sent, pending, failed, expired, skipped; filterable) and a mass action **Re-send GA4 server-side purchase**. It queues failed and expired orders again (the event is then dated at the time of sending, because Google rejects events older than 72 hours) and creates the event for orders that have none (for example placed before the feature was enabled; sent anonymously, as consent is unknown, unless configured to skip). Already sent, queued or deliberately skipped orders are left alone.
+* **Report**: Reports > Marketing > **GA4 Server-side Events** shows per order date how many orders were placed and how many purchase events were sent, pending, failed, expired, skipped or never tracked, plus refunds and cancellations sent.
+* Sent and skipped rows older than 90 days (configurable, 0 = forever) are deleted by a daily cron; failed and expired rows are kept.
 
 ---
 

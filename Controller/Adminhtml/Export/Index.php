@@ -14,6 +14,8 @@ use Magento\Framework\Controller\ResultFactory;
 
 class Index extends Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'MageOS_GoogleTagManager::configuration';
+
     public function __construct(
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly Export $exportService,

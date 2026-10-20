@@ -53,12 +53,7 @@ class CartService extends AbstractGtmService
 
     public function updateCart($items): void
     {
-        $quoteItems = [];
-        foreach ($items as $item) {
-            if (!isset( $quoteItems[$item->getSku()])) {
-                $quoteItems[$item->getSku()] = [$this->buildProductData($item->getProduct(), (float)$item->getQty())];
-            }
-        }
+        $quoteItems = $this->buildItemList($items ?? []);
         $this->eventQueue->enqueueSessionEvent(
             EventQueue::SESSION_KEY_UPDATE_CART,
             [
@@ -66,7 +61,7 @@ class CartService extends AbstractGtmService
                 'ga4_event' => 'update_cart',
                 'ecommerce' => [
                     'currency' => $this->getCurrencyCode(),
-                    'value' => $this->calculateTotalValue($quoteItems),
+                    'value' => $this->calculateValue($quoteItems),
                     'items' => $quoteItems,
                 ],
             ]
@@ -75,43 +70,33 @@ class CartService extends AbstractGtmService
 
     public function viewCart($items): array
     {
-        $quoteItems = [];
-        if ($items) {
-            foreach ($items as $item) {
-                if (!isset($quoteItems[$item->getSku()])) {
-                    $quoteItems[$item->getSku()] = [$this->buildProductData($item->getProduct(), (float)$item->getQty())];
-                }
-            }
+        $quoteItems = $this->buildItemList($items ?? []);
+        if ($quoteItems === []) {
             return [
-                'event' => 'view_cart',
-                'ga4_event' => 'view_cart',
-                'ecommerce' => [
-                    'currency' => $this->getCurrencyCode(),
-                    'value' => $this->calculateTotalValue($quoteItems),
-                    'items' => $quoteItems,
-                ],
+                'ecommerce' => null
             ];
         }
+
         return [
-            'ecommerce' => null
+            'event' => 'view_cart',
+            'ga4_event' => 'view_cart',
+            'ecommerce' => [
+                'currency' => $this->getCurrencyCode(),
+                'value' => $this->calculateValue($quoteItems),
+                'items' => $quoteItems,
+            ],
         ];
     }
 
-
     public function beginCheckout($items): array
     {
-        $quoteItems = [];
-        foreach ($items as $item) {
-            if (!isset( $quoteItems[$item->getSku()])) {
-                $quoteItems[$item->getSku()] = [$this->buildProductData($item->getProduct(), (float)$item->getQty())];
-            }
-        }
+        $quoteItems = $this->buildItemList($items ?? []);
         return [
             'event' => 'begin_checkout',
             'ga4_event' => 'begin_checkout',
             'ecommerce' => [
                 'currency' => $this->getCurrencyCode(),
-                'value' => $this->calculateTotalValue($quoteItems),
+                'value' => $this->calculateValue($quoteItems),
                 'items' => $quoteItems,
             ],
         ];
@@ -119,26 +104,51 @@ class CartService extends AbstractGtmService
 
     public function checkoutPurchase($order): array
     {
-        $orderItems = [];
-        foreach ($order->getItems() as $item) {
-            if (!isset($orderItems[$item->getSku()])) {
-                $orderItems[$item->getSku()] = [$this->buildProductData($item->getProduct(), (float)$item->getQty())];
-            }
-        }
+        $orderItems = $this->buildItemList($order->getItems() ?? [], true);
         return [
             'event' => 'purchase',
             'ga4_event' => 'purchase',
             'ecommerce' => [
                 'transaction_id' => $order->getIncrementId(),
-                'currency' => $this->getCurrencyCode(),
-                'tax' => $order->getTaxAmount(),
-                'shipping' => $order->getShippingAmount(),
-                'value' => $order->getGrandTotal(),
-                'discount' => $order->getDiscountAmount(),
+                // The order's own currency, matching the order totals below (not the store's current display currency).
+                'currency' => (string) $order->getOrderCurrencyCode(),
+                'tax' => (float) $order->getTaxAmount(),
+                'shipping' => (float) $order->getShippingAmount(),
+                'value' => (float) $order->getGrandTotal(),
+                'discount' => (float) $order->getDiscountAmount(),
                 'coupon' => $order->getCouponCode(),
                 'items' => $orderItems,
             ],
         ];
+    }
+
+    /**
+     * GA4 expects `items` to be a flat list of item objects. One entry per visible cart/order row: child rows
+     * (the simple product behind a configurable, bundle options) are skipped, their parent row carries the price.
+     *
+     * @param iterable<\Magento\Quote\Model\Quote\Item|\Magento\Sales\Model\Order\Item> $items
+     */
+    private function buildItemList(iterable $items, bool $isOrder = false): array
+    {
+        $list = [];
+        foreach ($items as $item) {
+            if ($item->getParentItemId() || $item->getParentItem()) {
+                continue;
+            }
+            $product = $item->getProduct();
+            if (!$product instanceof Product) {
+                continue;
+            }
+            $qty = (float) ($isOrder ? $item->getQtyOrdered() : $item->getQty());
+            $data = $this->buildProductData($product, $qty > 0 ? $qty : 1.0);
+            // The row price is what the customer actually pays (configurable/custom options), not the catalog price.
+            if ((float) $item->getPrice() > 0) {
+                $data['price'] = round((float) $item->getPrice(), 2);
+            }
+            $list[] = $data;
+        }
+
+        return $list;
     }
 
     private function calculateValue(array $items): float
@@ -151,14 +161,5 @@ class CartService extends AbstractGtmService
                 )
             ), 2
         );
-    }
-
-    private function calculateTotalValue(array $items): float
-    {
-        $totalValue = 0;
-        foreach ($items as $item) {
-            $totalValue+= $this->calculateValue($item);
-        }
-        return $totalValue;
     }
 }

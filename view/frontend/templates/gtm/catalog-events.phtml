@@ -1,0 +1,19 @@
+<?php
+use MageOS\GoogleTagManager\Block\CatalogTagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+
+/** @var CatalogTagManager $block */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled() && ($events = $block->getJsonEvents())): ?>
+<script>
+    (function () {
+        window.dataLayer = window.dataLayer || [];
+        <?php foreach ($events as $event): ?>
+        window.dataLayer.push({ecommerce: null});
+        window.dataLayer.push(<?= /* @noEscape */ $event ?>);
+        <?php endforeach; ?>
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

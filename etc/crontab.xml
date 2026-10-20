@@ -5,5 +5,8 @@
         <job name="mageos_gtm_send_purchases" instance="MageOS\GoogleTagManager\Cron\SendPurchases" method="execute">
             <schedule>* * * * *</schedule>
         </job>
+        <job name="mageos_gtm_cleanup" instance="MageOS\GoogleTagManager\Cron\Cleanup" method="execute">
+            <schedule>17 3 * * *</schedule>
+        </job>
     </group>
 </config>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <listingToolbar name="listing_top">
+        <massaction name="listing_massaction">
+            <action name="mageos_gtm_resend">
+                <settings>
+                    <confirm>
+                        <message translate="true">Queue the GA4 server-side purchase event again for the selected orders? Orders that were already sent, are queued, or were skipped (no consent, excluded) are left alone. Re-sent events are dated at the time of sending.</message>
+                        <title translate="true">Re-send GA4 server-side purchase</title>
+                    </confirm>
+                    <url path="gtm/serverside/massResend"/>
+                    <type>mageos_gtm_resend</type>
+                    <label translate="true">Re-send GA4 server-side purchase</label>
+                </settings>
+            </action>
+        </massaction>
+    </listingToolbar>
+    <columns name="sales_order_columns">
+        <column name="mageos_gtm_status" component="Magento_Ui/js/grid/columns/select" sortOrder="300">
+            <settings>
+                <filter>select</filter>
+                <options class="MageOS\GoogleTagManager\Model\Config\Source\DeliveryStatus"/>
+                <dataType>select</dataType>
+                <label translate="true">GA4 Server-side Purchase</label>
+                <visible>true</visible>
+            </settings>
+        </column>
+    </columns>
+</listing>

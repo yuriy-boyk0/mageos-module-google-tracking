@@ -41,14 +41,9 @@ $storeViewModel = $viewModels->require(StoreViewModel::class);
             }
         }, {once: true, passive: true});
 
+        // GA4 itself is configured inside the GTM container (the exported "GA4 Configuration" tag). No
+        // gtag('config') here: it made GA4 count a second page_view next to the container's own.
         window.dataLayer = window.dataLayer || [];
-        function gtag () {
-            window.dataLayer.push(arguments);
-        }
-        gtag('js', new Date());
-        <?php if ($block->getGA4MeasurementId()): ?>
-        gtag('config', '<?= $escaper->escapeHtml($block->getGA4MeasurementId()) ?>');
-        <?php endif; ?>
     </script>
     <?php $hyvaCsp->registerInlineScript() ?>
     <!-- End Google Tag Manager -->

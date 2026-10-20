@@ -17,6 +17,12 @@
                 <exclude_zero_value>1</exclude_zero_value>
                 <max_attempts>8</max_attempts>
                 <debug>0</debug>
+                <debug_view>0</debug_view>
+                <track_refunds>1</track_refunds>
+                <refund_event_name>refund_server</refund_event_name>
+                <track_cancellations>1</track_cancellations>
+                <cancel_event_name>cancel_server</cancel_event_name>
+                <retention_days>90</retention_days>
             </server_side>
         </googletagmanager>
     </default>
