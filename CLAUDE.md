@@ -46,6 +46,7 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - Inline scripts in templates must be followed by `$hyvaCsp->registerInlineScript()` (Hyvä CSP).
 - `etc/db_schema_whitelist.json` was written by hand; regenerate it locally with `bin/magento setup:db-declaration:generate-whitelist --module-name=MageOS_GoogleTagManager` after changing `db_schema.xml`.
 - Config paths: `googletagmanager/general/*` (tag_id, ga4_measurement_id, enabled), `googletagmanager/consent/*`, `googletagmanager/server_side/*`.
+- After every local test run, update `docs/STATUS.md` ("Verified locally, run N" and "Local test coverage: tested vs still missing") and `docs/local-testing.md`: what was tested, the result, what is still missing.
 - Commit messages: imperative summary + short body. Push to the branch the session was assigned; no PRs unless asked.
 
 ## Decisions already made (do not re-ask)

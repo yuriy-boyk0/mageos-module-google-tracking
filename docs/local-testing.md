@@ -89,7 +89,7 @@ Scenarios (place each, run cron, query the table):
 | Configurable product with options and coupon | one item with `item_variant` (e.g. "Black, XS"), `discount`, `coupon` |
 | Zero-value order / excluded status / excluded payment method | `skipped` with the matching reason |
 | Network blocked (e.g. block `www.google-analytics.com` in hosts/firewall) | checkout still completes at normal speed; row `pending` with growing `next_attempt_at`; after max attempts `failed` |
-| Wrong API secret | with the normal endpoint Google still answers 2xx (not detectable); use Debug Mode to validate |
+| Wrong API secret | the normal endpoint answers 2xx and the row becomes `sent`; Debug Mode does **not** catch it either (Google's validation endpoint does not check the secret). The only check is that the event shows up in GA4 Realtime / DebugView |
 | Debug Mode on | `var/log/system.log` shows `[MageOS_GoogleTagManager]` validation result; nothing in GA4; turn off afterwards |
 | Same order twice (re-trigger observer) | still one row (unique key) |
 | Cron stopped for 3+ days, then started | old rows become `expired` (message "unrecoverable…"), payload kept, nothing sent |
@@ -179,3 +179,11 @@ Same environment. Checkouts selected through *Hyvä Checkout > General > Checkou
 Same environment, defaults restored afterwards. See "Verified locally, run 4" in `docs/STATUS.md` for the table.
 - *Require Consent* = No, event-only (with *When Consent Cannot Be Determined* = Send and Skip), custom cookie name and the Cookiebot-style accepted value all behave as described in "Simulating cookie consent" and in the order table of section 4; one order was enough per server-side case.
 - Gotcha: a cookie written by Hyvä's banner carries `Domain=<host>`; deleting it from the console needs `domain=<host>` as well, otherwise it silently stays and the next "no cookie" check is wrong.
+
+### 2026-10-20: fifth local run (FPC, search, ACL, cleanup cron, blocked network, wrong secret)
+Same environment; results in `docs/STATUS.md` ("Verified locally, run 5"), and the full tested-vs-missing list is in "Local test coverage" there. Methods that worked:
+- Search / FPC: open `/catalogsearch/result/?q=bag` and read `dataLayer`; for FPC use `fetch(url, {credentials: 'omit'})` twice and compare the `x-magento-cache-debug` header (MISS, then HIT) and the `view_item_list` payload; vary `product_list_order` and `p`.
+- Blocked network: as root in the container append `127.0.0.1 www.google-analytics.com` to `/etc/hosts` (`warden env exec -T -u root php-fpm ...`), and remove it with `grep -v ... > tmp && cat tmp > /etc/hosts` (`sed -i` fails on the bind-mounted file). Lower *Maximum Attempts* (e.g. 3) to reach `failed` quickly; set `next_attempt_at=1` between runs instead of waiting. Run the sender directly with a small script that creates `MageOS\GoogleTagManager\Cron\SendPurchases` in the `crontab` area, or `bin/magento cron:run` twice a minute apart.
+- Cleanup cron: insert synthetic rows (distinct `reference_id`, old `updated_at`, every status) and run `MageOS\GoogleTagManager\Cron\Cleanup` the same way; delete the rows afterwards.
+- Wrong secret: write an encrypted wrong value with `EncryptorInterface::encrypt()` and `Magento\Config\Model\ResourceModel\Config::saveConfig()`, **back up the original encrypted value first** and restore it verbatim with SQL.
+- ACL: create two roles by script (`Magento\Authorization\Model\RoleFactory`, `RulesFactory::saveRel()` with the wanted resource ids) and two admin users; log in as each (the login form may autofill: select all and retype), check the menu, the mass-action list (`uiRegistry` component `sales_order_grid.sales_order_grid.listing_top.listing_massaction`) and what the mass action returns. Delete users and roles afterwards and sign back in as the real admin.
