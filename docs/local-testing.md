@@ -154,3 +154,11 @@ Environment: Magento 2.4.9, Hyvä 1.5.3, Hyvä Checkout 1.3.15, PHP 8.5.9, devel
 - Section 4 (server-side): guest order with consent accepted: `pending` → `sent` after the `curl_close()` fix. Everything else in the table not run yet.
 - Section 5 (Hyvä Checkout events): default checkout as guest: `add_shipping_info` once with `shipping_tier` = `tablerate_bestway`, `add_payment_info` once at Place Order, nothing on method selection. Mobile, one-page, virtual cart not run.
 - Section 7: grid column and report render with correct numbers; refunds, cancellations, mass action, ACL, cleanup not run.
+
+### 2026-10-20: second local run (after dropping the cookie-consent dependency)
+Same environment, no consent module or stub. Module at `c94fbcd` plus the two fixes below.
+- Update: `composer remove` of the stub package refreshed the module's requirements; `setup:upgrade` / `setup:di:compile` clean.
+- Consent: console cookie (accept / decline / none), the fallback event and Hyvä's built-in banner (Cookie Restriction Mode on) behave as documented in "Simulating cookie consent"; the guest order with accepted consent was `sent` with the `_ga` client id, the one with `{"1":0}` was `skipped` ("tracking consent not given"). Turn Cookie Restriction Mode off again afterwards if you want the baseline back (`bin/magento config:set web/cookie/cookie_restriction 0`).
+- Section 7: a partial credit memo produced one `refund_server` row (value, `partial`, same client id) that cron sent, a cancelled order with a skipped purchase produced a skipped `cancel` row, the mass action showed the confirmation and the correct messages, and the event log grid rendered with working filters. Two bugs were found and fixed (credit memo items arrive as strings; order # link). Debug Mode logged "Payload valid (debug endpoint, event not recorded)".
+- Tip: in the Orders grid the mass action asks for confirmation first; the result messages appear after you confirm.
+- Not run yet: see the end of the "Verified locally, run 2" block in `docs/STATUS.md`.

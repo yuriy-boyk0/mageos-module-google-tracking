@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (first local run on Magento 2.4.9, see "Verified locally").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (two local runs on Magento 2.4.9, see "Verified locally").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -110,6 +110,27 @@ Findings that are not module bugs:
 - An ad blocker in the browser (uBlock-style `google-analytics_analytics.js` redirect) neutered GTM: `gtm.js` returned 200 but `google_tag_manager` stayed empty. Disable it for the test site.
 - `php -l` segfaults (exit 139) in the Warden `php-fpm` PHP 8.5.9 container with the default ini (works with `php -n`), so `dev/check.sh` cannot run there; PHPUnit and the JS tests run fine (123 and 18 tests pass).
 
+### Verified locally, run 2 (🟢, 2026-10-20, after the cookie-consent dependency was dropped)
+Same environment as run 1, module updated to `c94fbcd`. The consent stub was removed (`composer remove`, `setup:upgrade`, `setup:di:compile`: clean, `MageOS_CookieConsent` gone from `config.php`). Module tests from a separate copy: 138 PHPUnit tests and 27 JS tests pass.
+
+| Area | Result |
+|---|---|
+| Update without the dependency | 🟢 `composer remove` of the stub also refreshed the module (its `composer.json` now requires only `liquid/liquid`), `setup:upgrade`/`di:compile` clean |
+| Admin: Cookie Consent group | 🟢 renders with the documented defaults (Require Consent Yes, `user_allowed_save_cookie`, empty accepted value, `user-allowed-save-cookie`) |
+| Consent gate, console cookie | 🟢 no cookie: no GTM, empty `dataLayer`; fallback event: GTM loads once; `{"1":0}`: no GTM, also not after the event; `{"1":1}`: GTM loads on every page |
+| Consent gate, Hyvä built-in banner | 🟢 with Cookie Restriction Mode on, the banner shows, GTM is not loaded before "Allow Cookies", loads right after it and on the next page |
+| Orders and server side | 🟢 guest order with consent accepted: `sent`, `client_id` from `_ga`; guest order with `{"1":0}`: `skipped` / "tracking consent not given", no `client_id`; the `add_to_cart` fix still holds (no replay on the cart page) |
+| Credit memo / cancellation | 🟢 after the fix below: partial refund queued and sent; cancel of an order with a skipped purchase → `skipped` |
+| Mass re-send | 🟢 see item 14 |
+| Debug mode | 🟢 see item 9 |
+| Event log grid | 🟢 see item 15 |
+
+Bugs found by this run (both fixed, committed on the branch):
+1. **Credit memo never queued a `refund_server` event.** `TotalsResolver::resolveItemPrice()` took `?float $priceInclTax` under `strict_types`, but credit memo items (and orders loaded from the DB for an admin re-send) return decimals as strings, so it threw a `TypeError` that `FollowUpEnqueuer` logged as "could not queue refund". Fix: accept `float|string|null` and cast inside the pure resolver; unit test added. Order placement was not affected (items hold floats there), so the purchase path never showed it.
+2. **Order # in the event log grid was plain text instead of a link.** `OrderLink::prepareDataSource()` iterated `$dataSource['data']['items'] ?? []` by reference, which loops over a temporary copy. Fix: iterate the real array.
+
+Not run yet in run 2: *Require Consent* = No, event-only setup, custom cookie name and accepted value, logged-in / admin-created / multishipping / redirect orders, configurable products and coupons, tax and SKU options, network blocked / wrong secret / expiry, mobile and one-page checkout, virtual cart, FPC/Varnish, search page, ACL, cleanup cron, GA4 Realtime/DebugView and GTM Preview checks by a person.
+
 ## Needs local testing (🧪)
 Everything under "Magento layer" above, in particular the risky items:
 1. `setup:upgrade` creates the table; the hand-written `db_schema_whitelist.json` is accepted (else regenerate it); FK to `sales_order` OK. 🟢 (2026-10-20)
@@ -117,16 +138,16 @@ Everything under "Magento layer" above, in particular the risky items:
 3. Admin config renders; saving a swapped ID shows the validation error; API secret is stored encrypted. 🟢 (2026-10-20)
 4. Observer fires for: guest order, logged-in order, admin-created order, multishipping, order placed via payment redirect/callback. Check `$order->getEntityId()` is set at `checkout_submit_all_after`. 🟢 guest order only (observer fires, order id set); logged-in, admin, multishipping and redirect payments still open
 5. `OrderSnapshotFactory`: values/currency match the client-side `purchase` for the same order; configurable products show one item with `item_variant`; categories fill `item_category..5`; discount per unit. 🟢 guest order, simple products only; configurable/coupon/discount still open
-6. Configurable consent (2026-10-20, replaces the `MageOS_CookieConsent` dependency): defaults with the console cookie / Hyvä built-in banner, decline, no cookie, fallback event, custom cookie name, "accepted" value (Cookiebot style), *Require Consent* = No, event-only setup on the server side; session cookie name `PHPSESSID`. Browser gate and server must agree (`local-testing.md`, "Simulating cookie consent")
+6. Configurable consent (2026-10-20, replaces the `MageOS_CookieConsent` dependency): defaults with the console cookie / Hyvä built-in banner, decline, no cookie, fallback event, custom cookie name, "accepted" value (Cookiebot style), *Require Consent* = No, event-only setup on the server side; session cookie name `PHPSESSID`. Browser gate and server must agree (`local-testing.md`, "Simulating cookie consent") 🟢 (run 2) tested without any consent module: defaults with a console cookie, decline, no cookie, fallback event (also after a decline: GTM stays off), and Hyvä's built-in banner (Cookie Restriction Mode on, "Allow Cookies" loads GTM on that page via the event and on the next page via the cookie; server rows use the same rules: accepted = real `_ga` client id, declined = `skipped`). Still open: *Require Consent* = No, event-only setup (empty cookie name), custom cookie name, `statistics:true` style accepted value, no cookie at all on a real order
 7. `_ga` / `_ga_<ID>` parsing against real cookies (both `GS1` and `GS2` formats), and that the server event joins the browser session in GA4. 🟡 `client_id` and `session_id` were taken from the real `_ga` / `_ga_<ID>` cookies of a guest order; which GS format Google sent and joining the browser session in GA4 are still to check
 8. Cron picks up pending rows; retry/backoff against a blocked network; permanent-error path with a wrong API secret. 🟢 cron sends once the `curl_close()` bug was fixed; retry/backoff with a blocked network and the wrong-secret path still open
-9. Debug mode: validation messages are logged to `var/log`.
+9. Debug mode: validation messages are logged to `var/log`. 🟢 (run 2) log shows "Payload valid (debug endpoint, event not recorded)"; no GA4 check needed
 10. `purchase_server` visible in GA4 Realtime / DebugView with correct value, currency, items. 🟢 queue side (row reaches `sent`); GA4 Realtime/DebugView check still needs a person
 11. Hyvä Checkout shipping/payment events (`local-testing.md` section 5): once per submission, right method codes, default/mobile/onepage checkouts, virtual cart. 🟢 default checkout, guest, one order (both events fire once, right method codes); mobile/one-page/virtual cart still open
 12. Client-side fixes: flat `items`, purchase currency, single `page_view`, custom-event triggers after re-importing the container, `view_item` / `view_item_list` / `search` on product, category and search pages (also with FPC/Varnish on, second visitor gets the same events). 🟡 partly: `view_item_list`, `view_item`, `view_cart`, `begin_checkout` seen in `dataLayer`; GTM Preview, search page, FPC/Varnish still open
-13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired.
-14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open
-15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check
+13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired. 🟡 (run 2) partial credit memo (adjustment fee) → one `refund_server` row, value 112, `refund_type` partial, same `client_id`, sent by cron; cancelling an order whose purchase was skipped → `cancel` row skipped with the reason. Bug found and fixed (full credit memo never queued). Still open: full credit memo after the fix, two partial memos, re-saving a memo, refund after a failed/expired purchase, cancel of a sent order
+14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open 🟢 (run 2) mass re-send: confirmation text, 2 queued (anonymous client ids, no timestamp) and 1 not queued with the reason ("skipped on purpose"); the 2 queued orders were sent by cron
+15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check 🟢 (run 2) event log renders with intro, 7 rows, filters by Order # work, sorting by order date; order # links to the order (was plain text, fixed). Still open: date/status/event/error filters, ACL, cleanup cron
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
 
 ## Needs user testing (👤)
