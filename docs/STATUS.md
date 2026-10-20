@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (seven local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (eight local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -187,7 +187,39 @@ Two one-page checkout orders (000000019, 000000020) placed with `www.google-anal
 
 No bugs found in run 7. One behaviour to decide on (👤): whether a re-sent purchase should also re-queue follow-ups that were skipped only because the purchase had not been sent.
 
-### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-20 after run 7)
+### Test environment: multi-store, multi-currency, multi-tax (2026-10-20)
+The test installation now has a second website for Italy (`https://ita.magento249.test/`, EUR, 22 % VAT included in the prices, `it_IT`, Italian provinces) next to the US store (USD, US state tax rates, prices exclude tax); details in the project `CLAUDE.md`. Base currency stays USD, so the order currency (EUR) differs from the base currency. Smoke test: Italian guest order `2000000001` placed on the one-page checkout (store-prefixed increment id), totals €34.04 incl. VAT 6.14, base total $37.00; the consent cookie for that host must be `{"2":1}` (website id).
+
+First observations on the Italian store (not yet analysed in the code; 🧪 to confirm and fix, they are the first multi-currency findings):
+1. **`view_item`, `view_item_list`, `add_to_cart` use the base-currency price with the store currency code**: `add_to_cart` and `view_item` show `currency` EUR, `value` 32 (the USD base price) while the shop shows €29.44 (net €24.13).
+2. **`view_cart` and `begin_checkout` are wrong in another way**: `currency` EUR, `value` and item `price` 26.23, which is the tax-exclusive EUR price 24.13 multiplied by the EUR→USD rate 1.087 (conversion applied in the wrong direction).
+3. `purchase` (client) and `purchase_server` both carry the correct order currency EUR and value 34.04, tax 6.14, but represent the lines differently: client item 24.13 + shipping 3.77 (net) + tax 6.14; server item 29.44 + shipping 4.60 (incl. VAT) with the same tax, following *Tax in Totals = including*.
+So events within one visit disagree with each other (and with the shop) for any store whose display currency differs from the base currency or whose prices include tax. Not fixed yet.
+
+### Verified locally, run 8 (🟢/🔴, 2026-10-20): multi-store, multi-currency, multi-tax smoke test
+Environment prepared in this run (see "Test environment" above and the project `CLAUDE.md`): Italy website `ita` (EUR, 22 % VAT included, `it_IT`) next to the US store (USD, state taxes, prices excluding tax), selected by host name through an nginx `MAGE_RUN_CODE` map. Smoke test with real storefront and one Italian guest order on the one-page checkout.
+
+| Area | Result |
+|---|---|
+| Both hosts | 🟢 `app.magento249.test` unchanged (HTTP 200, `en`); `ita.magento249.test` serves the Italy website in Chrome with valid TLS, `lang="it"`, prices like "29,44 €", Italian checkout texts, 110 provinces |
+| Tax and currency math (unsaved quotes, product `24-MB04` $32) | 🟢 Texas: tax 2.64, shipping 5.00, total 39.64; Florida: tax 1.92; California: tax 2.64; Italy: price incl. VAT €29.44 = $32 × 0.92, net 24.13, VAT 5.31, base total larger than the EUR total (order ≠ base currency) |
+| Italian checkout (real) | 🟢 subtotal 29,44 €, shipping 4,60 € incl. VAT, VAT 6,14 €, total 34,04 € (27,90 € excl. VAT); shipping *Flat Rate - Fixed*; order `2000000001` (store-prefixed increment id); order currency EUR, base USD, total $37.00 |
+| Consent per website | 🟢 cookie `{"2":1}` on the Italian host loads GTM (website id is the map key) |
+| Client events on the Italian store | 🔴 `view_item` / `view_item_list` / `add_to_cart` carry the USD base price with currency EUR; `view_cart` / `begin_checkout` carry the net EUR price × 1.087 (see Open issues 1 and 2). `add_shipping_info`, `add_payment_info` fire once as before |
+| `purchase` (client) | 🟢 currency EUR, value 34.04, tax 6.14; lines as net amounts (item 24.13, shipping 3.77), which add up to the value |
+| `purchase_server` | 🟢 `sent`; currency EUR, value 34.04, tax 6.14; lines as tax-inclusive amounts (item 29.44, shipping 4.60) following *Tax in Totals = including*; `_ga` client id of the visitor |
+
+Not exercised in run 8: *Currency basis* = base currency, *Tax in Totals* = excluding, *Item ID* modes, refunds / cancellations in EUR, switching the US store to EUR, per-website module settings, FPC with two websites.
+
+### Open issues (found locally, not fixed yet)
+| # | Issue | Evidence | Status |
+|---|---|---|---|
+| 1 | `view_item`, `view_item_list`, `add_to_cart` send the **base-currency price labelled with the store currency** | Italian store: `view_item` and `add_to_cart` `value` 32 with `currency` EUR; shop shows €29.44 (net €24.13) | 🔴 open |
+| 2 | `view_cart`, `begin_checkout` send **tax-exclusive price × wrong-direction rate** | Italian store: `value`/`price` 26.23 EUR = 24.13 × 1.087 (EUR→USD) | 🔴 open |
+| 3 | Client `purchase` and `purchase_server` represent lines differently (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟡 to decide (consistency across client / server) |
+| 4 | A refund or cancel skipped because the purchase had not been sent is not re-queued when the purchase is re-sent | run 7 | 🟡 to decide (design) |
+
+### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-20 after run 8)
 **Tested locally on Magento 2.4.9 + Hyvä + Hyvä Checkout (guest orders unless noted):**
 - Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 138 PHPUnit + 30 JS tests
 - Admin config rendering, ID validation both ways, encrypted API secret, container export generated
@@ -195,9 +227,11 @@ No bugs found in run 7. One behaviour to decide on (👤): whether a re-sent pur
 - Client events: `view_item_list`, `view_item`, `search`, `add_to_cart` (no replay), `remove_from_cart`, `view_cart`, `begin_checkout`, `add_shipping_info`, `add_payment_info`, `purchase`; default, mobile, one-page and virtual-only checkouts; CSP console check on checkout (enforced CSP, Alpine CSP build)
 - Server side: purchase queue, cron send, `_ga` client/session ids, consent skip, anonymous send, full and two partial refunds, re-saving a memo (dedupe and recovery of a lost row), refund / cancel after an expired, a skipped and a failed purchase, cancellation of a sent purchase, the full default retry schedule (8 attempts), expiry (> 71 h) and mass re-send of an expired order, Debug Mode, retries / failed with blocked network, wrong secret, cleanup cron
 - Hyvä one-page checkout (also used for the run 6 orders), default, mobile and virtual-only checkouts
+- Multi-store environment: second website (Italy, EUR, 22 % VAT included, `it_IT`) selected by host, US tax rates, tax and currency math, one Italian order end to end (client and server events, consent per website) with the first multi-currency findings (Open issues 1 to 3)
 - Admin: order grid column, event log grid (filters, sort, order link), ACL for two roles, FPC (MISS/HIT, sort, pagination)
 
 **Still missing (🧪 unless marked 👤):**
+- Multi-currency / multi-tax (an Italian store now exists, see "Test environment"): one smoke order done; findings 1 to 3 above must be analysed and re-tested; still to test there: *Currency basis* base vs order currency, *Tax in Totals* both ways, *Item ID* modes, refunds in EUR, the US store with a currency switch to EUR, consent cookie per website, server-side purchase for each website
 - Orders: logged-in customer (`user_id`), admin-created order (*Track Admin-created Orders* No/Yes), multishipping, redirect-based payment methods (Mollie, Braintree are installed), configurable products (`item_variant`), coupons / discounts, multi-currency (*Currency basis*), tax and SKU options (*Tax in Totals*, *Item ID*), excluded statuses / payment methods / zero-value orders, a real order with no consent cookie at all while consent is required
 - Follow-ups: refunds with coupons / discounts / multi-currency / tax options, a refund whose purchase is still `pending` (can reach Google first), a skipped refund / cancel is not re-queued after the purchase is re-sent (known, see risks)
 - Client events not yet exercised: `update_cart`, `login`, `logout`, `sign_up`, `add_to_wishlist`/`remove_from_wishlist`, single `page_view`, `select_item`-style events (not implemented)
