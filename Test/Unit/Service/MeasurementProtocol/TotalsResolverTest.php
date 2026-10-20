@@ -63,4 +63,13 @@ class TotalsResolverTest extends TestCase
         $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, null, TotalsResolver::INCLUDING_TAX));
         $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, 0.0, TotalsResolver::INCLUDING_TAX));
     }
+
+    public function testItemPriceAcceptsNumericStringsFromTheDatabase(): void
+    {
+        // Credit memo items and orders loaded from the DB return decimals as strings ("12.3000").
+        $this->assertSame(12.3, $this->resolver->resolveItemPrice(10.0, '12.3000', TotalsResolver::INCLUDING_TAX));
+        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '12.3000', TotalsResolver::EXCLUDING_TAX));
+        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '0.0000', TotalsResolver::INCLUDING_TAX));
+        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '', TotalsResolver::INCLUDING_TAX));
+    }
 }

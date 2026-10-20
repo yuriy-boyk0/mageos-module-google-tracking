@@ -38,13 +38,17 @@ class TotalsResolver
     /**
      * Unit price of an item. Falls back to the price without tax when the tax-inclusive price is not stored
      * (tax calculation disabled).
+     *
+     * The tax-inclusive price may arrive as a numeric string: Magento models loaded from the database
+     * (credit memo items, orders re-sent from the admin) return decimals as strings, while freshly placed orders hold floats.
      */
-    public function resolveItemPrice(float $priceExclTax, ?float $priceInclTax, string $basis): float
+    public function resolveItemPrice(float $priceExclTax, float|string|null $priceInclTax, string $basis): float
     {
-        if ($basis === self::EXCLUDING_TAX || $priceInclTax === null || $priceInclTax <= 0.0) {
+        $inclTax = ($priceInclTax === null || $priceInclTax === '') ? null : (float) $priceInclTax;
+        if ($basis === self::EXCLUDING_TAX || $inclTax === null || $inclTax <= 0.0) {
             return $priceExclTax;
         }
 
-        return $priceInclTax;
+        return $inclTax;
     }
 }
