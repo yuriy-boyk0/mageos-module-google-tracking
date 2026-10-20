@@ -92,7 +92,7 @@ Scenarios (place each, run cron, query the table):
 | Wrong API secret | the normal endpoint answers 2xx and the row becomes `sent`; Debug Mode does **not** catch it either (Google's validation endpoint does not check the secret). The only check is that the event shows up in GA4 Realtime / DebugView |
 | Debug Mode on | `var/log/system.log` shows `[MageOS_GoogleTagManager]` validation result; nothing in GA4; turn off afterwards |
 | Same order twice (re-trigger observer) | still one row (unique key) |
-| Cron stopped for 3+ days, then started | old rows become `expired` (message "unrecoverable…"), payload kept, nothing sent |
+| Cron stopped for 3+ days, then started (simulate: set the row's `created_at` and `updated_at` to 80 h ago, then run the sender) | the age is measured from `created_at`; the row becomes `expired` ("unrecoverable: older than Google accepts (72 h) …"), payload kept, nothing sent. A credit memo for such an order is `skipped` ("purchase was not sent (expired)"); the mass re-send action then queues it again without a timestamp |
 | Tax in Totals = Excluding / Item ID = Child | `value` = grand total − tax, item prices/shipping without tax; configurable `item_id` is the variant SKU. Compare with Including / Parent |
 Also verify:
 - The payload's `client_id` equals the browser's `_ga` cookie value (`GA1.1.<this part>`) and `session_id` the `_ga_<ID>` session, so the event lands in the visitor's session. Both cookie formats `GS1` and `GS2`.
@@ -127,7 +127,7 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 |---|---|
 | Full credit memo on a sent order | row `refund` (reference = credit memo id) `pending` → `sent`; `refund_server` in GA4 with value, items, `refund_type=full` |
 | Two partial credit memos | two refund rows, `refund_type=partial` |
-| Re-save / comment on an existing credit memo | no new row |
+| Re-save of an existing credit memo (API or code, with a changed field) | no new row (unique key); a memo whose event was lost gets its row. A comment in the admin is **not** a re-save: Magento saves only the comment and fires no save event (it also skips the event when nothing changed) |
 | Credit memo for an order whose purchase was `skipped` | refund row `skipped` with the purchase status in `last_error` |
 | Cancel an order (admin) | `cancel_server` with the order value; same `client_id` as the purchase payload |
 | Order grid | column *GA4 Server-side Purchase* shows statuses; filter by it, combine with the grid's status/date filters and sort: no "ambiguous column" SQL error |
@@ -187,3 +187,12 @@ Same environment; results in `docs/STATUS.md` ("Verified locally, run 5"), and t
 - Cleanup cron: insert synthetic rows (distinct `reference_id`, old `updated_at`, every status) and run `MageOS\GoogleTagManager\Cron\Cleanup` the same way; delete the rows afterwards.
 - Wrong secret: write an encrypted wrong value with `EncryptorInterface::encrypt()` and `Magento\Config\Model\ResourceModel\Config::saveConfig()`, **back up the original encrypted value first** and restore it verbatim with SQL.
 - ACL: create two roles by script (`Magento\Authorization\Model\RoleFactory`, `RulesFactory::saveRel()` with the wanted resource ids) and two admin users; log in as each (the login form may autofill: select all and retype), check the menu, the mass-action list (`uiRegistry` component `sales_order_grid.sales_order_grid.listing_top.listing_massaction`) and what the mass action returns. Delete users and roles afterwards and sign back in as the real admin.
+
+### 2026-10-20: sixth local run (credit memos, cancellation, expiry, re-send; Hyvä one-page checkout)
+Results in `docs/STATUS.md` ("Verified locally, run 6"). Methods that worked, and traps:
+- The checkout in use is now **Hyvä one-page** (`bin/magento config:set hyva_themes_checkout/general/checkout onepage`); set it back to `default` for the multi-step flows.
+- In this one-page checkout fill the form by name: `email_address`, `firstname`, `lastname`, `street[0]`, `postcode`, `city`, `telephone`, `select[name=region]` (Texas = `57`) and the radios `shipping-method-option` / `payment-method-option`. Setting `.value` and dispatching `input`, `change`, `blur` (and `focusout`) works and Magewire keeps the values; the region must be set explicitly or *Place Order* silently stays on the page ("State/Province field is required"). `find`-style element lookups may return the hidden login-form email field instead of the visible one: check with `getBoundingClientRect()`.
+- Items can be put in the cart with `fetch('/checkout/cart/add/product/<id>/', {method: 'POST', body: form_key, product, qty, redirect: 'manual'})` using `hyva.getFormKey()`.
+- Admin order actions by script of clicks: `#order_invoice`, the *Submit Invoice* button, `#order_creditmemo`, the quantity inputs `creditmemo[items][<id>][qty]` plus *Update Qty's*, *Refund Offline*, `#order-view-cancel-button` and its modal. The credit memo list and view URLs have their own secret key (read it from the menu link).
+- Mass action from a script: set the selection with `uiRegistry` (`...sales_order_columns.ids` `.selected([id])`) and call `...listing_massaction` `.applyAction('mageos_gtm_resend')`, then confirm the modal.
+- Browser-tool note: after logging in with a password the tool's clicks and typing stopped reaching the page for a while; setting values and clicking through JS kept working.
