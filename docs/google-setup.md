@@ -63,7 +63,7 @@ The module generates a container configuration with the GA4 tags, triggers and v
 
 If you change the Measurement ID in Magento later, export again and re-import it (or edit the `GA4 Configuration` tag in GTM).
 
-**Upgrading the module?** Containers imported from older versions used page-load triggers that miss events pushed later (add to cart, checkout steps). Export the container again and import it with *Merge* and *Overwrite conflicting tags, triggers and variables*, then publish.
+**Upgrading the module?** Containers imported from older versions used page-load triggers that miss events pushed later (add to cart, checkout steps). Export the container again and import it with *Merge* and *Overwrite conflicting tags, triggers and variables*, then publish. Since 2026-10-20 all exported tag and variable names use the uppercase **GA4** prefix (`GA4-Event`, `GA4-Ecommerce-Items`, `GA4 Viewcart`, ...); older imports had some `Ga4` names. If the import leaves both spellings in the container, delete the old `Ga4…` items (or import with *Overwrite* into a fresh workspace) before publishing.
 
 ## 5. Verify that it works
 

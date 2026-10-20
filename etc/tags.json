@@ -57,7 +57,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -106,7 +106,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-ItemsViewItem\}\}"
+                "value": "\{\{GA4-Ecommerce-ItemsViewItem\}\}"
               }
             ]
           }
@@ -155,7 +155,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -181,7 +181,7 @@
   },
   {
     "tagId": "285",
-    "name": "Ga4 Removefromcart",
+    "name": "GA4 Removefromcart",
     "type": "gaawe",
     "parameter": [
       {
@@ -204,7 +204,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -230,7 +230,7 @@
   },
   {
     "tagId": "275",
-    "name": "Ga4 Updatecart",
+    "name": "GA4 Updatecart",
     "type": "gaawe",
     "parameter": [
       {
@@ -253,7 +253,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -279,7 +279,7 @@
   },
   {
     "tagId": "232",
-    "name": "Ga4 Viewcart",
+    "name": "GA4 Viewcart",
     "type": "gaawe",
     "parameter": [
       {
@@ -302,7 +302,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -351,7 +351,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -400,7 +400,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           },
@@ -415,7 +415,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-TransactionID\}\}"
+                "value": "\{\{GA4-Ecommerce-TransactionID\}\}"
               }
             ]
           },
@@ -430,7 +430,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Value\}\}"
+                "value": "\{\{GA4-Ecommerce-Value\}\}"
               }
             ]
           },
@@ -445,7 +445,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Tax\}\}"
+                "value": "\{\{GA4-Ecommerce-Tax\}\}"
               }
             ]
           },
@@ -460,7 +460,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Discount\}\}"
+                "value": "\{\{GA4-Ecommerce-Discount\}\}"
               }
             ]
           },
@@ -475,7 +475,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Shipping\}\}"
+                "value": "\{\{GA4-Ecommerce-Shipping\}\}"
               }
             ]
           },
@@ -490,7 +490,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Currency\}\}"
+                "value": "\{\{GA4-Ecommerce-Currency\}\}"
               }
             ]
           },
@@ -505,7 +505,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "value",
-                "value": "\{\{Ga4-Ecommerce-Coupon\}\}"
+                "value": "\{\{GA4-Ecommerce-Coupon\}\}"
               }
             ]
           }
@@ -554,7 +554,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -603,7 +603,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -652,7 +652,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+                "value": "\{\{GA4-Ecommerce-Method\}\}"
               }
             ]
           }
@@ -701,7 +701,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+                "value": "\{\{GA4-Ecommerce-Method\}\}"
               }
             ]
           }
@@ -750,7 +750,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Method\}\}"
+                "value": "\{\{GA4-Ecommerce-Method\}\}"
               }
             ]
           }
@@ -799,7 +799,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-SearchTerm\}\}"
+                "value": "\{\{GA4-Ecommerce-SearchTerm\}\}"
               }
             ]
           }
@@ -848,7 +848,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }
@@ -897,7 +897,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "parameterValue",
-                "value": "\{\{Ga4-Ecommerce-Items\}\}"
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
               }
             ]
           }

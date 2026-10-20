@@ -51,6 +51,7 @@ Magento layer (written, 🧪 untested against Magento):
 - ✅ Double `page_view`: removed `gtag('config')` from `head.phtml`.
 - ✅ Exported triggers: every GA4 event trigger is a *Custom Event* on `{{_event}}` (was *Window Loaded* + `ga4_event`, which misses events pushed after load); GA4 Configuration fires on *All Pages*. 👤 Existing GTM containers must be re-imported (documented).
 - ✅ New `view_item` (product page), `view_item_list` (category + search, max 50 items of the current page), `search` (`Block/CatalogTagManager`, `Service/CatalogService`, `gtm/catalog-events.phtml`, layouts `catalog_product_view`, `catalog_category_view`, `catalogsearch_result_index`). Rendered into FPC-cached HTML (catalog data only). The block renders after the product list (`after="-"`) so it reads the already loaded, paginated collection.
+- ✅ Exported GTM names consistently use the uppercase `GA4` prefix (tags `GA4 Removefromcart` / `GA4 Updatecart` / `GA4 Viewcart` and all `GA4-…` variables were `Ga4`); all `{{…}}` references updated, checked that every reference resolves. 🧪 re-import over an older container may leave the old `Ga4…` items (documented in `google-setup.md`).
 - ✅ Export controllers now require the `MageOS_GoogleTagManager::configuration` ACL resource (any admin could call them before).
 
 ### Phase 3: refunds, cancellations, re-send (2026-10-20)

@@ -1,7 +1,7 @@
 [
   {
     "variableId": "269",
-    "name": "Ga4-Event",
+    "name": "GA4-Event",
     "type": "v",
     "parameter": [
       {
@@ -25,7 +25,7 @@
   },
   {
     "variableId": "270",
-    "name": "Ga4-Ecommerce-Items",
+    "name": "GA4-Ecommerce-Items",
     "type": "v",
     "parameter": [
       {
@@ -49,7 +49,7 @@
   },
   {
     "variableId": "271",
-    "name": "Ga4-Ecommerce-Discount",
+    "name": "GA4-Ecommerce-Discount",
     "type": "v",
     "parameter": [
       {
@@ -73,7 +73,7 @@
   },
   {
     "variableId": "272",
-    "name": "Ga4-Ecommerce-Coupon",
+    "name": "GA4-Ecommerce-Coupon",
     "type": "v",
     "parameter": [
       {
@@ -97,7 +97,7 @@
   },
   {
     "variableId": "273",
-    "name": "Ga4-Ecommerce-Currency",
+    "name": "GA4-Ecommerce-Currency",
     "type": "v",
     "parameter": [
       {
@@ -121,7 +121,7 @@
   },
   {
     "variableId": "274",
-    "name": "Ga4-Ecommerce-Shipping",
+    "name": "GA4-Ecommerce-Shipping",
     "type": "v",
     "parameter": [
       {
@@ -145,7 +145,7 @@
   },
   {
     "variableId": "275",
-    "name": "Ga4-Ecommerce-Tax",
+    "name": "GA4-Ecommerce-Tax",
     "type": "v",
     "parameter": [
       {
@@ -169,7 +169,7 @@
   },
   {
     "variableId": "276",
-    "name": "Ga4-Ecommerce-TransactionID",
+    "name": "GA4-Ecommerce-TransactionID",
     "type": "v",
     "parameter": [
       {
@@ -193,7 +193,7 @@
   },
   {
     "variableId": "277",
-    "name": "Ga4-Ecommerce-Value",
+    "name": "GA4-Ecommerce-Value",
     "type": "v",
     "parameter": [
       {
@@ -217,7 +217,7 @@
   },
   {
     "variableId": "278",
-    "name": "Ga4-Ecommerce-ItemsViewCart",
+    "name": "GA4-Ecommerce-ItemsViewCart",
     "type": "v",
     "parameter": [
       {
@@ -241,7 +241,7 @@
   },
   {
     "variableId": "279",
-    "name": "Ga4-Ecommerce-ItemsViewItem",
+    "name": "GA4-Ecommerce-ItemsViewItem",
     "type": "v",
     "parameter": [
       {
@@ -265,7 +265,7 @@
   },
   {
     "variableId": "280",
-    "name": "Ga4-Ecommerce-Method",
+    "name": "GA4-Ecommerce-Method",
     "type": "v",
     "parameter": [
       {
@@ -289,7 +289,7 @@
   },
   {
     "variableId": "281",
-    "name": "Ga4-Ecommerce-SearchTerm",
+    "name": "GA4-Ecommerce-SearchTerm",
     "type": "v",
     "parameter": [
       {
