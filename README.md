@@ -1,53 +1,23 @@
 # MageOS_GoogleTagManager
 
-The **MageOS_GoogleTagManager** module integrates **Google Tag Manager (GTM)** with **Google Analytics 4 (GA4)** to enable advanced e-commerce tracking in Hyvä-based Magento stores.
+Google Tag Manager (GTM) and Google Analytics 4 (GA4) e-commerce tracking for **Hyvä** based Magento / Mage-OS stores.
 
-It provides a structured data layer and event tracking system tailored for performance, scalability, and compliance.
+The module injects the GTM container (after cookie consent), pushes GA4 e-commerce events to the `dataLayer`, and can export a ready-made GTM container configuration that reads those events and forwards them to GA4.
 
----
-
-## Overview
-
-This module is designed specifically for **Hyvä themes**, ensuring lightweight and efficient tracking of user interactions across the storefront.
-
-Tracking is initialized **only after user consent is granted**, thanks to its dependency on the `MageOS_CookieConsent` module.
+> Setting up Google from scratch? Follow **[docs/google-setup.md](docs/google-setup.md)**: it covers creating the GA4 property and GTM container, and exactly which IDs go in which Magento field.
 
 ---
 
-## Features
+## Requirements
 
-### User Interaction
+* Magento Open Source / Mage-OS 2.4.x
+* [Hyvä Theme](https://hyva.io) (storefront templates are Hyvä-only; Luma is not supported)
+* [Hyvä Checkout](https://hyva.io/hyva-checkout.html) for the `begin_checkout` event
+* `mage-os/module-cookie-consent` (tracking only starts after consent)
+* `hyva-themes/magento2-theme-module`
+* `liquid/liquid` (used by the GTM export)
 
-* Page impressions (page views)
-* Click tracking
-* Scroll tracking
-
-### Cart Events
-
-* Product added to cart
-* Product removed from cart
-* Cart item quantity updates
-
-### Wishlist Events
-
-* Product added to wishlist
-* Product removed from wishlist
-
-### Checkout & Purchase
-
-* Checkout initiation
-* Completed purchases (transaction tracking)
-
----
-
-## Key Characteristics
-
-* Built specifically for **Hyvä frontend architecture**
-* Compatible with **Google Tag Manager (GTM)**
-* Implements **GA4 e-commerce tracking standards**
-* Structured **dataLayer** event system
-* Cookie-compliant tracking via `MageOS_CookieConsent`
-* Lightweight and performance-oriented
+These are declared in `composer.json` and installed automatically by Composer.
 
 ---
 
@@ -59,25 +29,28 @@ Tracking is initialized **only after user consent is granted**, thanks to its de
 composer require mage-os/module-google-tag-manager
 ```
 
-### 2. Enable the Module
+To test a local copy instead, add a path repository to the project's `composer.json` first:
+
+```bash
+composer config repositories.mageos-gtm path /path/to/mageos-module-google-tracking
+composer require mage-os/module-google-tag-manager:@dev
+```
+
+### 2. Enable the module and update the database
 
 ```bash
 bin/magento module:enable MageOS_GoogleTagManager
-```
-
-### 3. Run Setup Upgrade
-
-```bash
 bin/magento setup:upgrade
 ```
 
-### 4. Deploy Static Content (if needed)
+### 3. Compile and deploy (production mode only)
 
 ```bash
-bin/magento setup:static-content:deploy
+bin/magento setup:di:compile
+bin/magento setup:static-content:deploy -f
 ```
 
-### 5. Clear Cache
+### 4. Clear the cache
 
 ```bash
 bin/magento cache:flush
@@ -87,43 +60,51 @@ bin/magento cache:flush
 
 ## Configuration
 
-1. Configure your **Google Tag Manager container ID** in Magento admin (if applicable).
-2. Ensure your **GA4 tags** are properly set up inside GTM.
-3. Map GTM triggers to the dataLayer events emitted by this module.
+Go to **Stores > Configuration > MageOS > Google Tag Manager**. Use the store view scope if different store views need different containers.
+
+| Field | Value | Example |
+|---|---|---|
+| Enable | Yes | |
+| Google Tag ID | GTM **Container ID** | `GTM-XXXXXX` |
+| GA4 Measurement ID | GA4 web data stream **Measurement ID** | `G-XXXXXXXXXX` |
+
+The module is **disabled by default**. Where to find these IDs in Google is explained in [docs/google-setup.md](docs/google-setup.md).
+
+### Export the GTM container
+
+Under **Configuration Export**, click the export button (the module must be enabled and the GA4 Measurement ID saved). The file `mage-os_gtm_configuration.json` is downloaded. It contains the GA4 configuration tag (using your Measurement ID), one GA4 event tag per event, and the matching triggers and variables. Import it into your GTM container as described in [docs/google-setup.md](docs/google-setup.md#4-import-the-container-configuration-into-gtm).
 
 ---
 
-## Consent Handling
+## Consent handling
 
-Tracking is **disabled by default**.
-
-Events will only be pushed to the dataLayer after the user accepts **third-party tracking cookies**, managed by the `MageOS_CookieConsent` module.
-
-This ensures compliance with privacy regulations such as GDPR.
+GTM is **not loaded** until the visitor accepts third-party tracking cookies in the `MageOS_CookieConsent` banner, for the current website. Until then nothing is sent to Google, and no events are visible in GTM Preview or GA4.
 
 ---
 
-## Data Layer & Events
+## Events pushed to the dataLayer
 
-The module pushes structured events to the `dataLayer`, which can be consumed by GTM.
+| Event | When |
+|---|---|
+| `add_to_cart` | Product added to cart |
+| `remove_from_cart` | Product removed from cart |
+| `update_cart` | Cart item quantities updated |
+| `view_cart` | Cart page viewed |
+| `begin_checkout` | Hyvä Checkout opened |
+| `purchase` | Checkout success page, **once per order** (a reload or back navigation does not push it again) |
+| `add_to_wishlist` / `remove_from_wishlist` | Wishlist changes |
+| `login` / `logout` / `sign_up` | Customer account events |
 
-Typical events include:
-
-* `page_view`
-* `add_to_cart`
-* `remove_from_cart`
-* `update_cart`
-* `add_to_wishlist`
-* `remove_from_wishlist`
-* `begin_checkout`
-* `purchase`
-
-Make sure your GTM configuration listens for these events and forwards them to GA4 accordingly.
+`page_view` is sent by the GA4 configuration tag of the exported GTM container, not by the module. The exported container also contains tags for `view_item`, `view_item_list`, `search`, `add_shipping_info` and `add_payment_info`; the module does not push those events yet.
 
 ---
 
-## Notes
+## Verifying the setup
 
-* Ensure GTM is properly installed in your theme.
-* Verify events using GTM Preview mode.
-* Extend or customize events if needed for your business logic.
+Use GTM **Preview** mode and GA4 **Admin > DebugView**. See [docs/google-setup.md](docs/google-setup.md#5-verify-that-it-works).
+
+---
+
+## Plans
+
+The roadmap for server-side purchase tracking (GA4 Measurement Protocol) is in [docs/ga4-gtm-plan.md](docs/ga4-gtm-plan.md). It is not implemented yet.

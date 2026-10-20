@@ -10,7 +10,42 @@ use Magento\Framework\Escaper;
 <?php if ($block->isEnabled()): ?>
 <?php $checkoutSuccesEvent = $block->getJsonCheckoutPurchaseEvent(); ?>
 <script>
-    window.dataLayer.push(<?= $checkoutSuccesEvent; ?>);
+    (function () {
+        var eventData = <?= /* @noEscape */ $checkoutSuccesEvent ?>;
+        var transactionId = eventData && eventData.ecommerce && eventData.ecommerce.transaction_id;
+        var storageKey = 'mageos_gtm_tracked_purchases';
+        var tracked = [];
+
+        // No order in session (e.g. success page reopened after the session expired): nothing to track.
+        if (!transactionId) {
+            return;
+        }
+
+        try {
+            tracked = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            if (!Array.isArray(tracked)) {
+                tracked = [];
+            }
+        } catch (e) {
+            tracked = [];
+        }
+
+        // Already pushed for this order (page reload / back navigation).
+        if (tracked.indexOf(transactionId) !== -1) {
+            return;
+        }
+
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ecommerce: null});
+        window.dataLayer.push(eventData);
+
+        try {
+            tracked.push(transactionId);
+            localStorage.setItem(storageKey, JSON.stringify(tracked.slice(-20)));
+        } catch (e) {
+            // Storage unavailable: better to risk a duplicate than to lose the purchase.
+        }
+    })();
 </script>
 <?php $hyvaCsp->registerInlineScript() ?>
 <?php endif; ?>

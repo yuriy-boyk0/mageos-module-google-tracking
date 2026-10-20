@@ -126,8 +126,8 @@ class CartService extends AbstractGtmService
             }
         }
         return [
-            'event' => 'checkout_success',
-            'ga4_event' => 'checkout_success',
+            'event' => 'purchase',
+            'ga4_event' => 'purchase',
             'ecommerce' => [
                 'transaction_id' => $order->getIncrementId(),
                 'currency' => $this->getCurrencyCode(),

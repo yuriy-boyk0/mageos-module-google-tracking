@@ -7,17 +7,17 @@
     "type": "WINDOW_LOADED",
     "filter": [
       {
-        "type": "CONTAINS",
+        "type": "EQUALS",
         "parameter": [
           {
             "type": "TEMPLATE",
             "key": "arg0",
-            "value": "\{\{Page URL\}\}"
+            "value": "\{\{Ga4-Event\}\}"
           },
           {
             "type": "TEMPLATE",
             "key": "arg1",
-            "value": "checkout/onepage/success"
+            "value": "purchase"
           }
         ]
       }
