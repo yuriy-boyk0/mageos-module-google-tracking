@@ -3,6 +3,7 @@
     "description": "Google Tag Manager integration module",
     "type": "magento2-module",
     "require": {
+        "php": "~8.3.0||~8.4.0||~8.5.0",
         "magento/framework": "*",
         "liquid/liquid": "^1.4.40",
         "mage-os/module-cookie-consent": "^1.0",

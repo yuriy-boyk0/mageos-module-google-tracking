@@ -17,6 +17,8 @@ interface QueueStorageInterface
     public const STATUS_SENT = 'sent';
     public const STATUS_FAILED = 'failed';
     public const STATUS_SKIPPED = 'skipped';
+    /** Too old for Google to accept; kept for admin review, never sent. */
+    public const STATUS_EXPIRED = 'expired';
 
     public const EVENT_PURCHASE = 'purchase';
 
@@ -45,4 +47,10 @@ interface QueueStorageInterface
     public function markRetry(int $entityId, int $attempts, int $nextAttemptAt, string $error, int $now): void;
 
     public function markFailed(int $entityId, int $attempts, string $error, int $now): void;
+
+    /**
+     * Closes a row that can no longer be delivered because Google rejects events older than ~72 hours.
+     * The row is kept (with its payload) so an admin can review it, but it is never sent again.
+     */
+    public function markExpired(int $entityId, int $attempts, string $error, int $now): void;
 }

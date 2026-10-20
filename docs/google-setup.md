@@ -92,7 +92,7 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 1. Make sure Magento cron is running, then place a test order after accepting the cookie banner.
 2. After a minute, open **Analytics > Reports > Realtime** (or the **Explore** section later). You should see both `purchase` (from the browser) and `purchase_server` (from Magento) with the same transaction ID.
 3. `purchase_server` is a comparison signal, not revenue: it does not appear in standard Monetization reports. Use a GA4 **Exploration** with the *transaction ID* dimension to compare the two events and see which orders the browser missed.
-4. Status per order is in the database table `mageos_gtm_server_event` (`pending`, `sent`, `failed`, `skipped`; `last_error` explains skips and failures). Turn on **Debug Mode** to validate payloads (nothing is recorded in GA4 while it is on).
+4. Status per order is in the database table `mageos_gtm_server_event` (`pending`, `sent`, `failed`, `expired`, `skipped`; `last_error` explains skips, failures and expiry). Turn on **Debug Mode** to validate payloads (nothing is recorded in GA4 while it is on).
 
 ## Troubleshooting
 
@@ -104,6 +104,7 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | Export button says "Module not enabled" / "No information to export" | Enable the module and save a GA4 Measurement ID, then try again |
 | Events visible in Preview but not in GA4 | Ad blocker or browser privacy feature blocking Google. Test with a clean browser profile |
 | `purchase_server` stays `pending` | Cron is not running, or Google is unreachable (see `last_error`; retries use growing delays) |
+| `purchase_server` is `expired` | Cron was not running for about 3 days; Google rejects events older than 72 hours, so it is kept for review but never sent |
 | `purchase_server` is `skipped` | See `last_error`: consent not given, excluded status/payment method, zero value, or admin order |
 | No `begin_checkout` | Hyvä Checkout is required; the default Magento checkout is not wired |
 | Revenue is 0 in reports | Check that the order currency is a valid ISO code and the `purchase` event has `value` and `currency` |

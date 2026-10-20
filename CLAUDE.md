@@ -11,16 +11,17 @@ Guidance for Claude Code sessions working on `MageOS_GoogleTagManager` (Composer
 ## Two environments, different capabilities
 | | Claude cloud session | Local session (real Magento + Hyvä + Hyvä Checkout) |
 |---|---|---|
-| Magento / Hyvä installed | **No** (`magento/framework` is not on Packagist; the Mage-OS/Magento repos and docs.hyva.io are blocked by the egress proxy) | Yes |
+| Magento / Hyvä installed | **No install**, but the Magento **source** can be cloned read-only: `add_repo` for `magento/magento2` says it is available, then `GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --branch 2.4.9 https://github.com/magento/magento2 /home/user/magento/magento2` (about 1 min). Use it to check real class/method names and XSDs; grep it before relying on any Magento API. PHPStan: `git clone --depth 1 --branch 1.12.34 https://github.com/phpstan/phpstan /home/user/tools/phpstan` (Composer cannot download from GitHub in the sandbox). Hyvä Checkout source is not available unless the user uploads it; docs.hyva.io and the Mage-OS/Magento Composer repos are blocked | Yes |
 | Outbound to Google | Blocked | Yes |
 | Can verify | PHP syntax, XML, JSON, Magento-free unit tests, inline JS | Everything: DI compile, setup:upgrade, admin config, real orders, cron, GA4 DebugView |
 
-So: write logic as **pure PHP with no Magento imports** wherever possible and unit test it; keep Magento-dependent code thin, and record what could not be verified in `docs/STATUS.md` (section "Needs local testing") and `docs/local-testing.md`. Never claim Magento-dependent code works because the unit tests pass.
+So: write logic as **pure PHP with no Magento imports** wherever possible and unit test it; keep Magento-dependent code thin, and record what could not be verified in `docs/STATUS.md` (section "Needs local testing") and `docs/local-testing.md`. Never claim Magento-dependent code works because the unit tests pass; static checks against the 2.4.9 source reduce risk but do not replace local testing.
 
 ## Commands
 ```bash
 (cd dev && composer install)   # once per fresh clone: installs PHPUnit into dev/vendor (gitignored)
 dev/check.sh                   # PHP lint, XML, JSON, PHPUnit, JS tests; run before every commit
+dev/check-magento.sh           # PHPStan + XSD validation against the real Magento 2.4.9 sources (needs the clones below)
 dev/vendor/bin/phpunit -c phpunit.xml.dist --filter ClientTest   # a single test class
 node --test Test/js/phtml-scripts.test.js                        # inline <script> tests
 ```

@@ -70,6 +70,22 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
+                <field id="totals_tax" translate="label comment" type="select" sortOrder="55" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Tax in Totals</label>
+                    <comment><![CDATA[Including: <code>value</code> is the order grand total, like the client-side purchase event. Excluding: grand total minus tax. Item prices and shipping follow the same choice; <code>tax</code> is always sent separately.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\TaxBasis</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="item_id_mode" translate="label comment" type="select" sortOrder="56" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Item ID for Configurable Products</label>
+                    <comment><![CDATA[Which SKU is sent as <code>item_id</code> for configurable products. Other product types always send their own SKU. The variant options are sent as <code>item_variant</code> either way.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\ItemIdMode</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
                 <field id="unknown_consent" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>When Consent Cannot Be Determined</label>
                     <comment><![CDATA[Admin-created orders and orders placed by payment-gateway callbacks have no visitor cookies. Orders from visitors who declined tracking cookies are never sent.]]></comment>

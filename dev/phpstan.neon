@@ -1,0 +1,12 @@
+# Static check of the Magento-dependent code against the real Magento sources (see phpstan-magento-bootstrap.php).
+# Not part of dev/check.sh because it needs the Magento checkout; run it when touching Model/, Observer/, Cron/, Block/.
+parameters:
+    level: 4
+    paths:
+        - ../Model
+        - ../Observer
+        - ../Cron
+        - ../Block
+    bootstrapFiles:
+        - phpstan-magento-bootstrap.php
+    reportUnmatchedIgnoredErrors: false

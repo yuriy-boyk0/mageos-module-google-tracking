@@ -10,6 +10,8 @@
                 <enabled>0</enabled>
                 <event_name>purchase_server</event_name>
                 <currency_basis>display</currency_basis>
+                <totals_tax>including</totals_tax>
+                <item_id_mode>parent</item_id_mode>
                 <unknown_consent>send</unknown_consent>
                 <include_admin_orders>0</include_admin_orders>
                 <exclude_zero_value>1</exclude_zero_value>

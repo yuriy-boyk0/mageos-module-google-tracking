@@ -12,8 +12,8 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 |---|---|
 | 1 Client-side purchase fix | ✅ code + tests · 🧪 verify on real success page |
 | 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | base layer only · ❓ Hyvä event names unknown · 🧪 |
-| 0 Measurement Protocol foundation | ✅ core + tests · 🧪 Magento wiring |
-| 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · some options ⏳ |
+| 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
+| 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · only the fixed-conversion-rate option ⏳ |
 | 3 Refunds / cancellations / mass re-send | ⏳ not started |
 | 4 Admin visibility (grid column, reconciliation report) | ⏳ not started (debug mode is done as part of Phase 0) |
 | 5 Documentation | ✅ README, `google-setup.md`, `local-testing.md`, this file · 👤 docs acceptance (see below) |
@@ -29,7 +29,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 - 🧪 Check on a real order: one `purchase` per order, none on reload, GTM import accepts the JSON without those IDs.
 
 ### Phase 0 + 2: server-side `purchase_server`
-Pure core (✅ 87 PHPUnit tests): `Service/MeasurementProtocol/` `PayloadBuilder`, `Client`, `QueueProcessor`, `RetryPolicy`, `ConsentEvaluator`, `GaCookieParser`, `ExclusionPolicy`, `ConfigIdValidator`.
+Pure core (✅ 102 PHPUnit tests): `Service/MeasurementProtocol/` `PayloadBuilder`, `Client`, `QueueProcessor`, `RetryPolicy`, `ConsentEvaluator`, `GaCookieParser`, `ExclusionPolicy`, `ConfigIdValidator`, `TotalsResolver`, `ItemIdResolver`.
 
 Magento layer (written, 🧪 untested against Magento):
 - `etc/db_schema.xml` (+ hand-written whitelist) table `mageos_gtm_server_event`, FK to `sales_order` (cascade)
@@ -39,7 +39,20 @@ Magento layer (written, 🧪 untested against Magento):
 - `Model/OrderSnapshotFactory` (items, up to 5 category levels, variant from selected options, parent/child folding)
 - `Model/RequestContextProvider` (consent + `_ga` / `_ga_<ID>` cookies)
 - Config ID validation: GTM `GTM-…` and GA4 `G-…` formats rejected on save if swapped (`Model/Config/Backend/*`)
-- Config: enable, Measurement ID (falls back to General), encrypted API secret, event name, currency basis, unknown-consent action, include admin orders, exclude zero value / statuses / payment methods, max attempts, debug (validation endpoint).
+- Config: enable, Measurement ID (falls back to General), encrypted API secret, event name, currency basis, **tax in totals (including/excluding)**, **item ID for configurable products (parent/child SKU)**, unknown-consent action, include admin orders, exclude zero value / statuses / payment methods, max attempts, debug (validation endpoint).
+- ✅ Events older than Google accepts (72 h): the row becomes status `expired` (message "unrecoverable: …"), is never sent again, and stays in the table with its payload for admin review. The cron stops one hour early (71 h) and also expires a row whose next retry would land outside the window.
+- Tax setting: *including* = `value` is the order grand total (same as the client-side event), prices and shipping with tax; *excluding* = grand total minus tax, prices and shipping without tax; `tax` is always sent separately.
+- SKU setting: for configurable products `item_id` is the configurable's own SKU (parent, default) or the selected variant's SKU (child); other product types always use their own SKU. `item_variant` ("Black, XS") is sent either way.
+
+### Verified against the real Magento 2.4.9 source (✅, cloud)
+The tag `2.4.9` of github.com/magento/magento2 is cloned at `/home/user/magento/magento2` (read-only, via the session's git proxy; re-clone with the command in `dev/check-magento.sh` in a new session). `dev/check-magento.sh` runs PHPStan against it and validates every XML file against Magento's XSDs. This is static checking only; it is not a substitute for local testing. It found and fixed:
+- `AdapterInterface::insertIgnore()` does not exist (would have crashed order placement handling): now `insert()` + `DuplicateException`.
+- `ProductInterface::getCategoryIds()` is not on the interface: guarded with `instanceof Product`.
+- `checkout_submit_all_after` is dispatched by `QuoteManagement::placeOrder()` (not `submit()`), by admin order creation, PayPal Express and multishipping (`orders` key); the observer handles `order` and `orders`.
+- Magento stores a configurable's order row with the *variant* SKU (`Configurable::getSku`), so the parent SKU must come from the catalog product; handled in `ItemIdResolver` / `OrderSnapshotFactory`.
+- Pre-existing: `Observer/AddToWishlist.php` called `array_last()` (PHP 8.5 only; Magento 2.4.9 supports 8.3/8.4) and could use an undefined `$item`; fixed. `composer.json` now requires PHP `~8.3.0||~8.4.0||~8.5.0` like Magento 2.4.9.
+- ⚠️ Not fixed, needs a decision/local check: `etc/adminhtml/system.xml` uses the tab id `mage-os`; Magento 2.4.9's XSD allows only `[a-zA-Z0-9_]` for tab ids, so it fails XSD validation. Validation is enforced in developer mode, where the admin configuration may error out. If it does, rename the tab id to `mage_os` (also the `<tab>` reference in the section), keeping it consistent with `MageOS_CookieConsent` if that module shares the tab.
+- Other PHPStan notes are pre-existing magic-getter noise (`$observer->getEvent()->getProduct()` etc.) or classes not available without Composer (`Psr\Log`).
 
 ### Phase 5: docs
 - ✅ `README.md`, `docs/google-setup.md`, `docs/local-testing.md`, `CLAUDE.md`.
@@ -67,11 +80,13 @@ Everything under "Magento layer" above, in particular the risky items:
 ## Not started (⏳)
 - Phase 3: refund (`sales_order_creditmemo_save_after`), cancellation, admin mass action "re-send server-side purchase".
 - Phase 4: order grid column with delivery status, reconciliation report, `debug_mode` event param so server events show in DebugView.
-- Phase 2 options not yet built: inclusive/exclusive tax totals toggle, fixed currency conversion rate override, parent vs child SKU toggle (currently parent row, children folded in).
+- Phase 2 option not built: fixed currency conversion rate override (ask the user if still wanted).
+- Admin action to re-send an `expired` order (needs the `timestamp_micros` dropped or refreshed; Google would reject the original). Part of Phase 3 mass re-send.
 - Cleanup of old `sent`/`skipped` rows from the queue table.
 
 ## Blocked / questions (❓)
-1. **Hyvä Checkout `add_shipping_info` / `add_payment_info`**: the exact Hyvä Checkout events for "shipping method submitted" and "payment method submitted" are unknown (docs.hyva.io unreachable from cloud). Base layer is in `view/frontend/templates/gtm/checkout-steps.phtml` (`window.mageosGtmCheckout.push(...)`, listeners disabled). To finish: run the discovery steps in `local-testing.md`, fill `HYVA_EVENTS` / `EXTRACTORS`, add a local test.
+1. **Hyvä Checkout `add_shipping_info` / `add_payment_info`**: the exact Hyvä Checkout events for "shipping method submitted" and "payment method submitted" are unknown (docs.hyva.io unreachable from cloud). Base layer is in `view/frontend/templates/gtm/checkout-steps.phtml` (`window.mageosGtmCheckout.push(...)`, listeners disabled). **The user offered to provide a zip of Hyvä Checkout + Hyvä theme**: once uploaded to the session (keep it outside the repository, it is commercial code; extract to e.g. `/home/user/hyva/`), read its frontend events (`grep -rn "dispatchEvent\|\$dispatch" .../view`), fill `HYVA_EVENTS` / `EXTRACTORS`, extend `Test/js/phtml-scripts.test.js`, then still confirm locally.
+2. `system.xml` tab id `mage-os` vs Magento 2.4.9 XSD (see above).
 
 ## Decisions made
 | Decision | Choice | Date |
@@ -81,9 +96,12 @@ Everything under "Magento layer" above, in particular the risky items:
 | Hyvä shipping/payment events | Base layer + disabled stub now; real wiring after local verification | 2026-10-20 |
 | `purchase_server` semantics | Comparison-only signal, not revenue; document it | earlier |
 | Unit tests | Written alongside code (earlier "defer tests" instruction superseded) | 2026-10-20 |
+| Events older than 72 h | Keep in the table as `expired` (unrecoverable), skip in cron | 2026-10-20 |
+| Tax in totals / item ID | Admin config: including or excluding tax; parent or child SKU for configurables | 2026-10-20 |
+| Consent unknown | Confirmed again: send anonymously (default) | 2026-10-20 |
 
 ## Known risks / notes
-- GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h; an order that keeps failing past that will be rejected even after the queue recovers. Keep max attempts × backoff well inside 72 h (defaults: 8 attempts, about 4 h).
+- GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h. Such rows are now closed as `expired` (never sent). With the defaults (8 attempts, delays 1, 2, 4 … 64 min, about 2 h total) this only happens after cron was down for ~3 days.
 - `QueueProcessor` in debug mode closes rows as `sent` although Google records nothing; do not leave debug on.
 - Client-side `purchase` takes its currency from the store's *current* currency but the value from the order grand total (order currency); they can disagree on multi-currency stores. The server-side event uses the order's own currency/total pair.
 - `head.phtml` calls `gtag('config', <G-ID>)` and the exported container has a GA4 Configuration tag: possible double `page_view` (🧪 check in DebugView).

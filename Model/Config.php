@@ -6,9 +6,11 @@ namespace MageOS\GoogleTagManager\Model;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\PayloadBuilder;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettings;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettingsProviderInterface;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\TotalsResolver;
 
 /**
  * Reads the server-side (Measurement Protocol) configuration group.
@@ -71,6 +73,20 @@ class Config implements SendSettingsProviderInterface
         return $this->value('currency_basis', $storeId) === self::CURRENCY_BASE
             ? self::CURRENCY_BASE
             : self::CURRENCY_DISPLAY;
+    }
+
+    public function getTaxBasis(int $storeId): string
+    {
+        return $this->value('totals_tax', $storeId) === TotalsResolver::EXCLUDING_TAX
+            ? TotalsResolver::EXCLUDING_TAX
+            : TotalsResolver::INCLUDING_TAX;
+    }
+
+    public function getItemIdMode(int $storeId): string
+    {
+        return $this->value('item_id_mode', $storeId) === ItemIdResolver::CHILD
+            ? ItemIdResolver::CHILD
+            : ItemIdResolver::PARENT;
     }
 
     public function getUnknownConsentAction(int $storeId): string

@@ -108,9 +108,12 @@ It is a **comparison signal**: it is not counted as revenue in standard GA4 repo
 Setup: **Stores > Configuration > MageOS > Google Tag Manager > Server-side Purchase Tracking**. You need a Measurement Protocol **API secret** from the same GA4 data stream as the Measurement ID (see [docs/google-setup.md](docs/google-setup.md)). Magento **cron must be running**.
 
 * Checkout is never blocked or slowed: the order only inserts a row into `mageos_gtm_server_event`; sending happens in cron with retries (growing delays, configurable maximum).
-* Delivery status per order (`pending`, `sent`, `failed`, `skipped` with the reason) is stored in that table.
+* Delivery status per order (`pending`, `sent`, `failed`, `expired`, `skipped` with the reason) is stored in that table.
 * Visitors who declined tracking cookies are never sent. When consent cannot be determined (admin-created orders, payment-gateway callbacks) the default is to send **anonymously** (no visitor identifiers); change it under *When Consent Cannot Be Determined*.
 * Exclusions: zero-value orders, order statuses, payment methods, admin-created orders.
+* **Tax in Totals**: send totals including tax (default, order grand total like the client-side event) or excluding tax (grand total minus tax; item prices and shipping without tax). `tax` is always sent separately.
+* **Item ID for Configurable Products**: send the parent (configurable) SKU (default) or the child (variant) SKU as `item_id`; the selected options are sent as `item_variant` either way. Other product types always send their own SKU.
+* An event that could not be delivered within about 71 hours is marked `expired` and never sent (Google rejects older events). The row stays in `mageos_gtm_server_event` with its payload so you can review it.
 * Debug Mode sends to Google's validation endpoint and logs the result in `var/log`; nothing is recorded in GA4 while it is on.
 
 ---

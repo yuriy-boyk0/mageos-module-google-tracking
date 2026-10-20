@@ -7,6 +7,9 @@ For a Claude Code session or a person with the real store. Cloud sessions cannot
 - Developer or production mode; cron working (`bin/magento cron:run` twice schedules then executes jobs) or run it manually while testing.
 - A new GA4 property + GTM container, created by following `docs/google-setup.md` (this doubles as the docs acceptance test). You need: GTM Container ID, GA4 Measurement ID, and a Measurement Protocol API secret of the **same data stream**.
 
+## 0b. First thing to check: admin configuration loads
+`etc/adminhtml/system.xml` declares the tab id `mage-os`, which Magento 2.4.9's XSD does not allow (`[a-zA-Z0-9_]` only). In developer mode open Stores > Configuration > MageOS > Google Tag Manager. If the admin errors with an invalid-XML message, rename the tab id to `mage_os` (the `<tab id>` and the section's `<tab>` reference) and keep it consistent with `MageOS_CookieConsent`.
+
 ## 1. Install the module
 ```bash
 composer config repositories.mageos-gtm path /path/to/mageos-module-google-tracking
@@ -53,6 +56,8 @@ Scenarios (place each, run cron, query the table):
 | Wrong API secret | with the normal endpoint Google still answers 2xx (not detectable); use Debug Mode to validate |
 | Debug Mode on | `var/log/system.log` shows `[MageOS_GoogleTagManager]` validation result; nothing in GA4; turn off afterwards |
 | Same order twice (re-trigger observer) | still one row (unique key) |
+| Cron stopped for 3+ days, then started | old rows become `expired` (message "unrecoverable…"), payload kept, nothing sent |
+| Tax in Totals = Excluding / Item ID = Child | `value` = grand total − tax, item prices/shipping without tax; configurable `item_id` is the variant SKU. Compare with Including / Parent |
 Also verify:
 - The payload's `client_id` equals the browser's `_ga` cookie value (`GA1.1.<this part>`) and `session_id` the `_ga_<ID>` session, so the event lands in the visitor's session. Both cookie formats `GS1` and `GS2`.
 - The consent cookie really is `user_allowed_save_cookie` with a `websiteId → 1` map after accepting tracking in `MageOS_CookieConsent` (`document.cookie`), and the session cookie is `PHPSESSID`. If not, adjust `Model/RequestContextProvider` and `ConsentEvaluator` (+ tests).

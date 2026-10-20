@@ -80,4 +80,10 @@ class InMemoryQueueStorage implements QueueStorageInterface
         $this->rows[$entityId] = ['status' => self::STATUS_FAILED, 'attempts' => $attempts, 'last_error' => $error, 'updated_at' => $now]
             + $this->rows[$entityId];
     }
+
+    public function markExpired(int $entityId, int $attempts, string $error, int $now): void
+    {
+        $this->rows[$entityId] = ['status' => self::STATUS_EXPIRED, 'attempts' => $attempts, 'last_error' => $error, 'updated_at' => $now]
+            + $this->rows[$entityId];
+    }
 }

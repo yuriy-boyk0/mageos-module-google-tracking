@@ -100,7 +100,12 @@ class EnqueueServerSidePurchase implements ObserverInterface
         $sessionId = $granted ? $this->requestContext->getSessionId($measurementId) : null;
 
         $payload = $this->payloadBuilder->build(
-            $this->snapshotFactory->create($order, $this->config->getCurrencyBasis($storeId)),
+            $this->snapshotFactory->create(
+                $order,
+                $this->config->getCurrencyBasis($storeId),
+                $this->config->getTaxBasis($storeId),
+                $this->config->getItemIdMode($storeId)
+            ),
             $this->config->getEventName($storeId),
             $clientId,
             $sessionId,

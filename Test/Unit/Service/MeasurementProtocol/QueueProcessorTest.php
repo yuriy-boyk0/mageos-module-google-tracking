@@ -67,7 +67,7 @@ class QueueProcessorTest extends TestCase
 
         $stats = $this->processor($transport)->process(self::NOW);
 
-        $this->assertSame(['sent' => 1, 'retried' => 0, 'failed' => 0, 'skipped' => 0], $stats);
+        $this->assertSame(['sent' => 1, 'retried' => 0, 'failed' => 0, 'expired' => 0, 'skipped' => 0], $stats);
         $this->assertSame(QueueStorageInterface::STATUS_SENT, $this->storage->rows[$id]['status']);
         $this->assertSame(1, $this->storage->rows[$id]['attempts']);
         $this->assertSame(self::NOW, $this->storage->rows[$id]['sent_at']);
@@ -222,5 +222,60 @@ class QueueProcessorTest extends TestCase
         $this->processor(new FakeTransport(new HttpResponse(403)))->process(self::NOW);
         $this->assertCount(1, $this->logged);
         $this->assertStringContainsString('000000002', $this->logged[0]);
+    }
+
+    public function testEventsOlderThanGoogleAcceptsAreExpiredNotSent(): void
+    {
+        $id = $this->queueOrder(1, ['increment_id' => '000000001']);
+        $transport = new FakeTransport(new HttpResponse(204));
+        $later = self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS;
+
+        $stats = $this->processor($transport)->process($later);
+
+        $this->assertSame(1, $stats['expired']);
+        $this->assertSame(0, $stats['sent']);
+        $this->assertSame([], $transport->requests);
+        $row = $this->storage->rows[$id];
+        $this->assertSame(QueueStorageInterface::STATUS_EXPIRED, $row['status']);
+        $this->assertSame(self::PAYLOAD, $row['payload'], 'the payload stays available for admin review');
+        $this->assertStringContainsString('unrecoverable', $row['last_error']);
+    }
+
+    public function testExpiredRowsAreSkippedByLaterRuns(): void
+    {
+        $this->queueOrder();
+        $transport = new FakeTransport(new HttpResponse(204));
+        $processor = $this->processor($transport);
+
+        $processor->process(self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS);
+        $stats = $processor->process(self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS + 3600);
+
+        $this->assertSame(0, array_sum($stats));
+        $this->assertSame([], $transport->requests);
+    }
+
+    public function testEventJustInsideTheWindowIsStillSent(): void
+    {
+        $this->queueOrder();
+        $transport = new FakeTransport(new HttpResponse(204));
+
+        $stats = $this->processor($transport)->process(self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS - 1);
+
+        $this->assertSame(1, $stats['sent']);
+    }
+
+    public function testRetryThatWouldLandOutsideTheWindowExpiresTheRowImmediately(): void
+    {
+        $id = $this->queueOrder();
+        $now = self::NOW + QueueProcessor::MAX_EVENT_AGE_SECONDS - 30; // next retry (+60 s) would be too late
+
+        $stats = $this->processor(new FakeTransport(new HttpResponse(503)))->process($now);
+
+        $this->assertSame(1, $stats['expired']);
+        $this->assertSame(0, $stats['retried']);
+        $row = $this->storage->rows[$id];
+        $this->assertSame(QueueStorageInterface::STATUS_EXPIRED, $row['status']);
+        $this->assertSame(1, $row['attempts']);
+        $this->assertStringContainsString('HTTP 503', $row['last_error']);
     }
 }
