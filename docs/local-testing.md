@@ -5,6 +5,10 @@ For a Claude Code session or a person with the real store. Cloud sessions cannot
 ## 0. Prerequisites
 - Clean Magento Open Source 2.4.9 with sample data, Hyvä theme + Hyvä Checkout active, `MageOS_CookieConsent` installed (a required dependency).
 - Developer or production mode; cron working (`bin/magento cron:run` twice schedules then executes jobs) or run it manually while testing.
+- **Hyvä Checkout must be selected, not just installed.** The default of `hyva_themes_checkout/general/checkout` is the Luma fallback, so `/checkout/` shows "No Checkout module installed" until you run `bin/magento config:set hyva_themes_checkout/general/checkout default` (or pick *Hyvä Checkout* under Stores > Configuration > Hyvä Checkout) and flush the cache.
+- **`mage-os/module-cookie-consent` is not on Packagist** (404), so `composer require` of this module cannot resolve it on its own. Add its real source as a Composer repository, or for pure testing use a throw-away stub package that provides the module `MageOS_CookieConsent`, writes the cookie `user_allowed_save_cookie` = URL-encoded `{"<websiteId>":1}` (or `0` when declined) and dispatches the window event `cookie-consent-tracking-approved` on accept. Keep such a stub outside this repository and remove it afterwards. The real module's cookie format, event and admin tab id are still unverified (items 6 and 16 in `STATUS.md`).
+- Keep the Hyvä Theme module's own **Google Tag Manager** section (`hyva_theme_google`) disabled; GTM would be loaded twice.
+- Test in a browser **without an ad blocker** for the site (uBlock-style rules replace `google-analytics_analytics.js`; `gtm.js` then returns 200 but `window.google_tag_manager` stays empty).
 - A new GA4 property + GTM container, created by following `docs/google-setup.md` (this doubles as the docs acceptance test). You need: GTM Container ID, GA4 Measurement ID, and a Measurement Protocol API secret of the **same data stream**.
 
 ## 0b. First thing to check: admin tab
@@ -26,6 +30,18 @@ bin/magento setup:db-declaration:generate-whitelist --module-name=MageOS_GoogleT
 Check: `DESCRIBE mageos_gtm_server_event;` and that the FK to `sales_order` exists.
 
 Run the unit suites from a **separate clone** of the module repository (not inside the Magento tree, so `dev/vendor` is never scanned by `setup:di:compile`): `(cd dev && composer install) && dev/check.sh`.
+
+**Warden (Docker) variant.** The container only sees the project directory, so clone the module into it (for example `packages/mageos-module-google-tracking`, on the branch under test) and use that relative path; Composer symlinks it, so later `git pull` / edits are live (then `bin/magento cache:flush`, plus `setup:upgrade` / `setup:di:compile` when DI, schema or plugins changed). Run everything inside the container, for example:
+```bash
+warden env exec -T php-fpm composer config repositories.mageos-gtm path packages/mageos-module-google-tracking
+warden env exec -T php-fpm composer require mage-os/module-google-tag-manager:@dev
+warden env exec -T php-fpm bin/magento module:enable MageOS_GoogleTagManager
+warden env exec -T php-fpm bin/magento setup:upgrade
+warden env exec -T php-fpm bin/magento setup:di:compile
+```
+Do **not** run `composer install` in `dev/` of that symlinked clone: `dev/vendor` would sit inside the Magento tree where `setup:di:compile` scans it. If you did, delete `dev/vendor`. Known tooling problem (PHP 8.5.9 Warden container): `php -l` crashes with a segfault under the default ini (it works with `php -n -l`), so `dev/check.sh` fails in its first step there; use a separate clone with the host PHP, or run `dev/vendor/bin/phpunit -c phpunit.xml.dist` and `node --test Test/js/` directly.
+
+Admin URLs contain a secret key. Open Stores > Configuration through the menu (the "Mage-OS" section appears next to a second, unrelated "Google Tag Manager" entry under Hyvä Theme), or copy the link from the page; a hand-typed URL without the key just redirects to the dashboard.
 
 ## 2. Configure
 Stores > Configuration > Mage-OS > Google Tag Manager.
@@ -104,3 +120,19 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).
+
+## 9. Tips for scripted browser testing
+- Magento's *Use system value* checkboxes only enable their field through the page's click handler: set the field values with real clicks (or call `.click()` on the checkbox and dispatch `change` on selects), otherwise the disabled fields are not submitted and Save reports "You saved the configuration" with nothing stored. Check with `SELECT path, value FROM core_config_data WHERE path LIKE 'googletagmanager/%'`.
+- `dataLayer` is lost when the page navigates (order placement redirects to the success page). Record pushes across the redirect by wrapping `dataLayer.push` and mirroring to `sessionStorage` before clicking *Place Order*.
+- Cron: the job runs every minute and `cron:run` only executes rows that are due, so after `cron:run` wait for the next minute and run it again; then check `mageos_gtm_server_event` and `var/log/system.log` (`[MageOS_GoogleTagManager] queue run: {...}`). To retry a row, set `status='pending', attempts=0, next_attempt_at=1, last_error=NULL`.
+- After changing config or templates run `bin/magento cache:flush`; the admin shows the stale-cache notice otherwise.
+
+## 10. Run log
+### 2026-10-20: first local run (guest order, default Hyvä Checkout)
+Environment: Magento 2.4.9, Hyvä 1.5.3, Hyvä Checkout 1.3.15, PHP 8.5.9, developer mode, sample data, Warden on WSL2; cookie consent **stub** (see Prerequisites). Details and the item-by-item state are in `docs/STATUS.md` ("Verified locally").
+- Section 1 (install): passed; table and FK present.
+- Section 2 (configure): validation passed in both directions; API secret encrypted; container export generated with the GA4 Measurement ID. Not yet confirmed: GTM accepting the import without errors.
+- Section 3 (client-side events): `view_item_list`, `view_item`, `add_to_cart`, `view_cart`, `begin_checkout`, `purchase` seen in `dataLayer`; `add_to_cart` was duplicated on the next page until fixed. GTM Preview / DebugView and the remaining events (`update_cart`, `remove_from_cart`, `login`, `logout`, `sign_up`, wishlist, `search`) not checked yet.
+- Section 4 (server-side): guest order with consent accepted: `pending` → `sent` after the `curl_close()` fix. Everything else in the table not run yet.
+- Section 5 (Hyvä Checkout events): default checkout as guest: `add_shipping_info` once with `shipping_tier` = `tablerate_bestway`, `add_payment_info` once at Place Order, nothing on method selection. Mobile, one-page, virtual cart not run.
+- Section 7: grid column and report render with correct numbers; refunds, cancellations, mass action, ACL, cleanup not run.
