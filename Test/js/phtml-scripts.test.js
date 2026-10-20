@@ -161,15 +161,24 @@ test('events without a method code are ignored', () => {
 });
 
 // body.phtml: delivers queued events from the customer-data "gtm" section to the dataLayer.
-function bodyComponent(storage = new Map()) {
+// Models Alpine's registration: the constructor must be registered with Alpine.data() on `alpine:init`.
+function bodyComponent(storage = new Map(), cookie = '') {
     const src = fs.readFileSync(path.join(__dirname, '../../view/frontend/templates/body.phtml'), 'utf8');
     const js = /<script>([\s\S]*?)<\/script>/.exec(src)[1]
-        .replace('<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>', 'gtm_logout_event');
-    const window = {dataLayer: []};
+        .replaceAll('<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>', 'gtm_logout_event');
+    const listeners = {};
+    const registered = {};
+    const document = {cookie};
+    const window = {
+        dataLayer: [],
+        addEventListener: (name, fn, opts) => { (listeners[name] ||= []).push({fn, opts}); },
+    };
+    const Alpine = {data: (name, fn) => { registered[name] = fn; }};
     const localStorage = {getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, v)};
-    const context = {window, localStorage, JSON, document: {cookie: ''}, console};
-    vm.runInNewContext(js + '\nthis.component = initGtmDatalayer();', context);
-    return {window, handler: context.component.eventListeners['@private-content-loaded.window']};
+    vm.runInNewContext(js, {window, localStorage, JSON, document, Alpine, console});
+    (listeners['alpine:init'] || []).forEach(({fn}) => fn());
+    const component = registered.initGtmDatalayer ? registered.initGtmDatalayer() : undefined;
+    return {window, document, listeners, registered, component, handler: component?.eventListeners['@private-content-loaded.window']};
 }
 
 const ADD_TO_CART = {event: 'add_to_cart', ecommerce: {currency: 'USD', value: 34, items: [{item_id: 'A'}]}};
@@ -276,4 +285,40 @@ test('head: consent not required loads GTM immediately', () => {
 
 test('head: no container id, nothing is loaded', () => {
     assert.strictEqual(head({containerId: ''}, magentoCookie({1: 1})).inserted.length, 0);
+});
+
+test('body: Alpine component is registered once on alpine:init (Hyvä CSP build needs Alpine.data)', () => {
+    const {listeners, registered} = bodyComponent();
+    assert.strictEqual(listeners['alpine:init'].length, 1);
+    assert.strictEqual(listeners['alpine:init'][0].opts.once, true);
+    assert.deepStrictEqual(Object.keys(registered), ['initGtmDatalayer']);
+});
+
+test('body: init() consumes the logout cookie once, then expires it', () => {
+    const {window, document, component} = bodyComponent(new Map(), 'a=b; gtm_logout_event=' + encodeURIComponent(JSON.stringify({event: 'logout'})));
+    component.init();
+    assert.deepStrictEqual(window.dataLayer.map((e) => e.event ?? 'reset'), ['reset', 'logout']);
+    assert.match(document.cookie, /gtm_logout_event=; expires=/);
+});
+
+// Hyvä's Alpine CSP build cannot evaluate expressions: attribute values may only be property or method names.
+test('templates: Alpine directives are CSP-safe (no calls, operators or assignments in expressions)', () => {
+    const dir = path.join(__dirname, '../../view/frontend/templates');
+    const files = [];
+    (function walk(d) {
+        for (const e of fs.readdirSync(d, {withFileTypes: true})) {
+            e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.phtml') && files.push(path.join(d, e.name));
+        }
+    })(dir);
+    const directive = /\s(x-[a-z:.-]+|@[a-z.:-]+|:[a-z-]+)="([^"]*)"/g;
+    const safe = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/;
+    let checked = 0;
+    for (const file of files) {
+        const html = fs.readFileSync(file, 'utf8').replace(/<script[\s\S]*?<\/script>/g, '');
+        for (const [, name, value] of html.matchAll(directive)) {
+            checked++;
+            assert.match(value, safe, `${path.basename(file)}: ${name}="${value}" is not CSP-safe`);
+        }
+    }
+    assert.ok(checked >= 2, 'expected to find the Alpine directives in body.phtml');
 });

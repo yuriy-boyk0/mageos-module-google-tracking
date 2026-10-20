@@ -18,11 +18,7 @@ use Magento\Framework\Escaper;
 </noscript>
 <!-- End Google Tag Manager (noscript) -->
 <?php endif; ?>
-<div
-    x-data="initGtmDatalayer()"
-    x-init="checkLogoutCookie()"
-    x-bind="eventListeners"
-></div>
+<div x-data="initGtmDatalayer" x-bind="eventListeners"></div>
 
 <script>
     function initGtmDatalayer() {
@@ -104,7 +100,10 @@ use Magento\Framework\Escaper;
         }
 
         return {
-            checkLogoutCookie: function () {
+            init() {
+                this.checkLogoutCookie();
+            },
+            checkLogoutCookie() {
                 window.dataLayer = window.dataLayer || [];
                 let cookieName = '<?= /* @noEscape */ EventQueue::COOKIE_LOGOUT ?>=';
                 let pairs = document.cookie.split(';');
@@ -138,6 +137,7 @@ use Magento\Framework\Escaper;
             }
         };
     }
+    window.addEventListener('alpine:init', () => Alpine.data('initGtmDatalayer', initGtmDatalayer), {once: true})
 </script>
 <?php $hyvaCsp->registerInlineScript() ?>
 <?php endif; ?>
