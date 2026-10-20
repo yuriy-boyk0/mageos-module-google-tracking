@@ -13,7 +13,7 @@ The module injects the GTM container (after cookie consent), pushes GA4 e-commer
 * Magento Open Source / Mage-OS 2.4.x
 * [Hyvä Theme](https://hyva.io) (storefront templates are Hyvä-only; Luma is not supported)
 * [Hyvä Checkout](https://hyva.io/hyva-checkout.html) for the checkout events (`begin_checkout`, `add_shipping_info`, `add_payment_info`)
-* `mage-os/module-cookie-consent` (tracking only starts after consent)
+* A cookie consent banner: Hyvä's built-in banner (Magento *Cookie Restriction Mode*) works out of the box; any other banner can be connected by cookie name and/or browser event (see *Cookie consent* below). No consent module is required.
 * `hyva-themes/magento2-theme-module`
 * `liquid/liquid` (used by the GTM export)
 
@@ -76,9 +76,18 @@ Under **Configuration Export**, click the export button (the module must be enab
 
 ---
 
-## Consent handling
+## Cookie consent
 
-GTM is **not loaded** until the visitor accepts third-party tracking cookies in the `MageOS_CookieConsent` banner, for the current website. Until then nothing is sent to Google, and no events are visible in GTM Preview or GA4.
+GTM is **not loaded** until the visitor has accepted cookies. Until then nothing is sent to Google, and no events are visible in GTM Preview or GA4. Configure it under **Stores > Configuration > Mage-OS > Google Tag Manager > Cookie Consent**:
+
+| Field | Default | Meaning |
+|---|---|---|
+| Require Consent | Yes | No = GTM always loads (only where tracking needs no consent) |
+| Consent Cookie Name | `user_allowed_save_cookie` | Cookie the banner writes when the visitor accepts. The default is Magento's own cookie, written by Hyvä's built-in banner (enable *Stores > Configuration > General > Web > Default Cookie Settings > Cookie Restriction Mode*); its value is `{"<websiteId>":1}` |
+| Cookie Value Meaning "Accepted" | empty | Optional text the cookie must contain, e.g. `statistics:true` for Cookiebot's `CookieConsent` cookie. Empty = automatic: a JSON map needs a truthy entry for the current website ID; a plain value must be `1`, `true`, `yes`, `granted`, `accepted` or `allow` |
+| Consent Event Names (fallback) | `user-allowed-save-cookie` | Comma-separated window events that mean "accepted", for banners that announce consent with an event (Hyvä's banner fires `user-allowed-save-cookie` the moment the visitor accepts). GTM then loads on that page, unless the consent cookie is present and says "declined" |
+
+The same cookie rules decide server-side whether `purchase_server` may use the visitor's GA identifiers. With an event-only banner (no cookie name), the server cannot see consent and applies *When Consent Cannot Be Determined*. Without a consent requirement the GTM `<noscript>` iframe is also output; with consent required it is not, since a visitor without JavaScript cannot consent.
 
 ---
 

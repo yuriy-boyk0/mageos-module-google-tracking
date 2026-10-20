@@ -20,6 +20,7 @@ class Config implements SendSettingsProviderInterface
 {
     private const PATH = 'googletagmanager/server_side/';
     private const PATH_GA4_MEASUREMENT_ID = 'googletagmanager/general/ga4_measurement_id';
+    private const PATH_CONSENT = 'googletagmanager/consent/';
 
     public const CURRENCY_DISPLAY = 'display';
     public const CURRENCY_BASE = 'base';
@@ -67,6 +68,21 @@ class Config implements SendSettingsProviderInterface
         $name = trim((string) $this->value('event_name', $storeId));
 
         return $name === '' ? PayloadBuilder::DEFAULT_EVENT_NAME : $name;
+    }
+
+    public function isConsentRequired(int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(self::PATH_CONSENT . 'required', ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
+    public function getConsentCookieName(int $storeId): string
+    {
+        return trim((string) $this->scopeConfig->getValue(self::PATH_CONSENT . 'cookie_name', ScopeInterface::SCOPE_STORE, $storeId));
+    }
+
+    public function getConsentGrantedValue(int $storeId): string
+    {
+        return trim((string) $this->scopeConfig->getValue(self::PATH_CONSENT . 'granted_value', ScopeInterface::SCOPE_STORE, $storeId));
     }
 
     public function isRefundTrackingEnabled(int $storeId): bool

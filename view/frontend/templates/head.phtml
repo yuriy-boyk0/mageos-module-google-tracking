@@ -1,49 +1,96 @@
 <?php
 use MageOS\GoogleTagManager\Block\TagManager;
 use Hyva\Theme\ViewModel\HyvaCsp;
-use Magento\Framework\Escaper;
-use Magento\Cookie\Helper\Cookie;
-use Hyva\Theme\ViewModel\Store as StoreViewModel;
-use Hyva\Theme\Model\ViewModelRegistry;
 
 /** @var TagManager $block */
-/** @var Escaper $escaper */
 /** @var HyvaCsp $hyvaCsp */
-/** @var ViewModelRegistry $viewModels */
-/** @var StoreViewModel $storeViewModel */
-$storeViewModel = $viewModels->require(StoreViewModel::class);
 ?>
 <?php if ($block->isEnabled()): ?>
-    <!-- Google Tag Manager -->
+    <!-- Google Tag Manager (loaded only after consent, see Stores > Configuration > Mage-OS > Google Tag Manager > Cookie Consent) -->
     <script>
-        const isUserAllowedSaveCookieName = '<?= /* @noEscape */ Cookie::IS_USER_ALLOWED_SAVE_COOKIE ?>';
-        const currentWebsiteId = <?= (int) $storeViewModel->getStore()->getWebsiteId() ?>;
+        (function () {
+            var config = <?= /* @noEscape */ $block->getJsonConsentConfig() ?>;
+            // Same cookie rules as Service\MeasurementProtocol\ConsentEvaluator (server side).
+            var TRUTHY = ['1', 'true', 'yes', 'y', 'on', 'granted', 'accepted', 'allow', 'allowed'];
+            var loaded = false;
 
-        window.addEventListener('cookie-consent-tracking-approved', () => {
-            const allowedCookies = hyva.getCookie(isUserAllowedSaveCookieName);
-            const allowedCookieWebsites = allowedCookies
-                ? JSON.parse(unescape(allowedCookies))
-                : [];
-            if (allowedCookieWebsites[currentWebsiteId]) {
-                (function (w, d, s, l, i) {
-                    w[l] = w[l] || [];
-                    w[l].push({
-                        'gtm.start':
-                            new Date().getTime(), event: 'gtm.js'
-                    });
-                    var f = d.getElementsByTagName(s)[0],
-                        j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
-                    j.async = true;
-                    j.src =
-                        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-                    f.parentNode.insertBefore(j, f);
-                })(window, document, 'script', 'dataLayer', '<?= $escaper->escapeHtml($block->getTagId()) ?>');
+            // GA4 itself is configured inside the GTM container (the exported "GA4 Configuration" tag). No
+            // gtag('config') here: it made GA4 count a second page_view next to the container's own.
+            window.dataLayer = window.dataLayer || [];
+
+            function readCookie(name) {
+                var parts = document.cookie ? document.cookie.split(';') : [];
+                for (var i = 0; i < parts.length; i++) {
+                    var part = parts[i].replace(/^\s+/, '');
+                    if (part.indexOf(name + '=') === 0) {
+                        return part.substring(name.length + 1);
+                    }
+                }
+                return null;
             }
-        }, {once: true, passive: true});
 
-        // GA4 itself is configured inside the GTM container (the exported "GA4 Configuration" tag). No
-        // gtag('config') here: it made GA4 count a second page_view next to the container's own.
-        window.dataLayer = window.dataLayer || [];
+            function isCookieGranted(raw) {
+                var value;
+                try {
+                    value = decodeURIComponent(raw);
+                } catch (e) {
+                    value = raw;
+                }
+                if (config.grantedValue) {
+                    return value.indexOf(config.grantedValue) !== -1;
+                }
+                try {
+                    var parsed = JSON.parse(value);
+                    if (parsed !== null && typeof parsed === 'object') {
+                        return !!parsed[config.websiteId];
+                    }
+                } catch (e) {
+                    // not JSON: plain flag below
+                }
+                return TRUTHY.indexOf(String(value).trim().toLowerCase()) !== -1;
+            }
+
+            function consentCookie() {
+                return config.cookieName ? readCookie(config.cookieName) : null;
+            }
+
+            function loadGtm() {
+                if (loaded || !config.containerId) {
+                    return;
+                }
+                loaded = true;
+                window.dataLayer.push({'gtm.start': new Date().getTime(), event: 'gtm.js'});
+                var first = document.getElementsByTagName('script')[0];
+                var script = document.createElement('script');
+                script.async = true;
+                script.src = 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(config.containerId);
+                first.parentNode.insertBefore(script, first);
+            }
+
+            if (!config.required) {
+                loadGtm();
+                return;
+            }
+
+            var cookie = consentCookie();
+            if (cookie && isCookieGranted(cookie)) {
+                loadGtm();
+                return;
+            }
+
+            // Fallback for banners that announce consent with a browser event (e.g. Hyvä's built-in banner
+            // dispatches "user-allowed-save-cookie" when the visitor accepts). The event counts as consent unless
+            // the configured cookie is present and says otherwise.
+            (config.events || []).forEach(function (name) {
+                window.addEventListener(name, function () {
+                    var current = consentCookie();
+                    if (current && !isCookieGranted(current)) {
+                        return;
+                    }
+                    loadGtm();
+                });
+            });
+        })();
     </script>
     <?php $hyvaCsp->registerInlineScript() ?>
     <!-- End Google Tag Manager -->

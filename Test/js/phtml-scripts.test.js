@@ -199,3 +199,81 @@ test('body: an empty section pushes nothing', () => {
     handler({detail: {data: {}}});
     assert.deepStrictEqual(window.dataLayer, []);
 });
+
+// head.phtml: consent gate that loads GTM (same cookie rules as ConsentEvaluator on the server).
+const HEAD_TAG = '<?= /* @noEscape */ $block->getJsonConsentConfig() ?>';
+function head(configOverrides = {}, cookie = '') {
+    const config = Object.assign({
+        required: true,
+        cookieName: 'user_allowed_save_cookie',
+        grantedValue: '',
+        events: ['user-allowed-save-cookie'],
+        websiteId: 1,
+        containerId: 'GTM-ABC123',
+    }, configOverrides);
+    const src = fs.readFileSync(path.join(__dirname, '../../view/frontend/templates/head.phtml'), 'utf8');
+    const js = /<script>([\s\S]*?)<\/script>/.exec(src)[1].replace(HEAD_TAG, JSON.stringify(config));
+    const inserted = [];
+    const document = {
+        cookie,
+        getElementsByTagName: () => [{parentNode: {insertBefore: (el) => inserted.push(el.src)}}],
+        createElement: () => ({}),
+    };
+    const listeners = {};
+    const window = {addEventListener: (name, fn) => ((listeners[name] ||= []).push(fn))};
+    vm.runInNewContext(js, {window, document, JSON, String, encodeURIComponent, decodeURIComponent});
+    return {window, inserted, fire: (name) => (listeners[name] || []).forEach((fn) => fn({})), document};
+}
+const magentoCookie = (map) => 'user_allowed_save_cookie=' + encodeURIComponent(JSON.stringify(map));
+
+test('head: no consent cookie, no event: GTM is not loaded', () => {
+    const h = head();
+    assert.deepStrictEqual(h.inserted, []);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(h.window.dataLayer)), []);
+});
+
+test('head: Magento consent cookie accepted for this website loads GTM once', () => {
+    const h = head({}, 'other=1; ' + magentoCookie({1: 1}));
+    assert.deepStrictEqual(h.inserted, ['https://www.googletagmanager.com/gtm.js?id=GTM-ABC123']);
+    h.fire('user-allowed-save-cookie');
+    assert.strictEqual(h.inserted.length, 1);
+});
+
+test('head: cookie accepted only for another website, or declined, does not load GTM', () => {
+    assert.deepStrictEqual(head({}, magentoCookie({2: 1})).inserted, []);
+    assert.deepStrictEqual(head({}, magentoCookie({1: 0})).inserted, []);
+});
+
+test('head: the fallback event loads GTM when no cookie is set yet', () => {
+    const h = head();
+    h.fire('user-allowed-save-cookie');
+    assert.strictEqual(h.inserted.length, 1);
+});
+
+test('head: the event does not override a cookie that says declined', () => {
+    const h = head({}, magentoCookie({1: 0}));
+    h.fire('user-allowed-save-cookie');
+    assert.deepStrictEqual(h.inserted, []);
+});
+
+test('head: custom cookie name, plain flag value and custom event names', () => {
+    assert.strictEqual(head({cookieName: 'my_consent'}, 'my_consent=true').inserted.length, 1);
+    assert.strictEqual(head({cookieName: 'my_consent'}, 'my_consent=0').inserted.length, 0);
+    const h = head({cookieName: '', events: ['banner:accepted', 'other-event']});
+    h.fire('other-event');
+    assert.strictEqual(h.inserted.length, 1);
+});
+
+test('head: granted value is searched inside the decoded cookie (Cookiebot style)', () => {
+    const cookiebot = 'CookieConsent=' + encodeURIComponent("{stamp:'x',necessary:true,statistics:true,marketing:false}");
+    assert.strictEqual(head({cookieName: 'CookieConsent', grantedValue: 'statistics:true'}, cookiebot).inserted.length, 1);
+    assert.strictEqual(head({cookieName: 'CookieConsent', grantedValue: 'marketing:true'}, cookiebot).inserted.length, 0);
+});
+
+test('head: consent not required loads GTM immediately', () => {
+    assert.strictEqual(head({required: false}).inserted.length, 1);
+});
+
+test('head: no container id, nothing is loaded', () => {
+    assert.strictEqual(head({containerId: ''}, magentoCookie({1: 1})).inserted.length, 0);
+});

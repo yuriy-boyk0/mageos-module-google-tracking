@@ -45,6 +45,13 @@ Magento layer (written, 🧪 untested against Magento):
 - Tax setting: *including* = `value` is the order grand total (same as the client-side event), prices and shipping with tax; *excluding* = grand total minus tax, prices and shipping without tax; `tax` is always sent separately.
 - SKU setting: for configurable products `item_id` is the configurable's own SKU (parent, default) or the selected variant's SKU (child); other product types always use their own SKU. `item_variant` ("Black, XS") is sent either way.
 
+### Cookie consent without a consent module (2026-10-20)
+- ✅ Dropped the `mage-os/module-cookie-consent` dependency (Composer and `module.xml` sequence): the package does not exist yet.
+- ✅ New config group *Cookie Consent* (`googletagmanager/consent/*`): Require Consent (default Yes), Consent Cookie Name (default `user_allowed_save_cookie`, Magento/Hyvä banner), Cookie Value Meaning "Accepted" (optional substring, e.g. Cookiebot `statistics:true`; empty = JSON website map or plain truthy flag), Consent Event Names (fallback, default `user-allowed-save-cookie` = Hyvä banner's accept event).
+- ✅ `head.phtml` rewritten: loads GTM when the cookie is granted, or on a configured event unless the cookie says declined, or always when consent is not required; no `hyva.getCookie` dependency. 9 JS tests. GTM `<noscript>` iframe only without a consent requirement.
+- ✅ Server side: `ConsentEvaluator` uses the same configurable rules (16 tests); event-only setup (no cookie name) = consent unknown, *Require Consent* = No = granted. `RequestContextProvider` reads the configured cookie.
+- 🧪 Local: see item 6 below.
+
 ### Client-side fixes (former "known issues", 2026-10-20)
 - ✅ `items` is a flat GA4 list (was keyed by SKU and nested), one entry per visible cart/order row, row price, child rows skipped. Purchase quantity now uses `getQtyOrdered()` (the old `getQty()` does not exist on order items, so quantity was 0). Checkout blocks read `getAllVisibleItems()`.
 - ✅ Client-side `purchase` currency = order currency (was the store's current display currency).
@@ -71,7 +78,7 @@ The tag `2.4.9` of github.com/magento/magento2 is cloned at `/home/user/magento/
 - `checkout_submit_all_after` is dispatched by `QuoteManagement::placeOrder()` (not `submit()`), by admin order creation, PayPal Express and multishipping (`orders` key); the observer handles `order` and `orders`.
 - Magento stores a configurable's order row with the *variant* SKU (`Configurable::getSku`), so the parent SKU must come from the catalog product; handled in `ItemIdResolver` / `OrderSnapshotFactory`.
 - Pre-existing: `Observer/AddToWishlist.php` called `array_last()` (PHP 8.5 only; Magento 2.4.9 supports 8.3/8.4) and could use an undefined `$item`; fixed. `composer.json` now requires PHP `~8.3.0||~8.4.0||~8.5.0` like Magento 2.4.9.
-- ✅ Fixed on the user's instruction: the admin tab is created by this module as id `mage_os` (valid for Magento 2.4.9's XSD, which rejects hyphens in tab ids) with the label **Mage-OS**. Other modules that should share the tab must use the same id `mage_os`; a module declaring a different id creates a separate tab. 🧪 confirm the menu entry appears as Stores > Configuration > Mage-OS > Google Tag Manager, and check `MageOS_CookieConsent` for its tab id.
+- ✅ Fixed on the user's instruction: the admin tab is created by this module as id `mage_os` (valid for Magento 2.4.9's XSD, which rejects hyphens in tab ids) with the label **Mage-OS**. Other modules that should share the tab must use the same id `mage_os`; a module declaring a different id creates a separate tab. 🧪 confirm the menu entry appears as Stores > Configuration > Mage-OS > Google Tag Manager (🟢 seen locally under one Mage-OS tab).
 - Other PHPStan notes are pre-existing magic-getter noise (`$observer->getEvent()->getProduct()` etc.) or classes not available without Composer (`Psr\Log`).
 
 ### Phase 5: docs
@@ -91,7 +98,7 @@ Environment: Magento Open Source 2.4.9, Hyvä default theme 1.5.3, Hyvä Checkou
 | Server-side purchase | 🟢 one `pending` row per order with `client_id`/`session_id` taken from the `_ga` cookies; payload value, shipping, tax and items match the client-side event; cron moved it to `sent` (after the `curl_close()` fix below) |
 | Order grid / report | 🟢 column shows "Sent" for the new order, blank for the two old ones, no SQL error; report numbers match (1 order sent, 2 not tracked) |
 
-Not verified yet (still 🧪): a person confirming `purchase_server` in GA4 Realtime/DebugView and the client events in GTM Preview/DebugView; logged-in, admin-created, multishipping and redirect-payment orders; consent declined; refunds, cancellations, mass re-send, ACL; network blocked / wrong secret / debug mode / expiry; configurable products and coupons; tax and SKU options; mobile and one-page checkout, virtual cart; FPC/Varnish; search page; the real `MageOS_CookieConsent` (tab id clash, cookie contents).
+Not verified yet (still 🧪): a person confirming `purchase_server` in GA4 Realtime/DebugView and the client events in GTM Preview/DebugView; logged-in, admin-created, multishipping and redirect-payment orders; consent declined; refunds, cancellations, mass re-send, ACL; network blocked / wrong secret / debug mode / expiry; configurable products and coupons; tax and SKU options; mobile and one-page checkout, virtual cart; FPC/Varnish; search page; the new configurable consent settings (item 6; the stub used in this run is no longer needed).
 
 Bugs found by this run (both fixed, with a test where possible):
 1. **`add_to_cart` delivered twice** (once on the page, again on the next page load). Hyvä's `private-content.phtml` dispatches `private-content-loaded` with the section-data object and then writes that same object to localStorage, which undid `clearDatalayerSection()` in `body.phtml`. Fix: also empty `event.detail.data.gtm.datalayer` in the handler (Hyvä does the same for `messages`). Test: `Test/js/phtml-scripts.test.js` ("body: …").
@@ -110,7 +117,7 @@ Everything under "Magento layer" above, in particular the risky items:
 3. Admin config renders; saving a swapped ID shows the validation error; API secret is stored encrypted. 🟢 (2026-10-20)
 4. Observer fires for: guest order, logged-in order, admin-created order, multishipping, order placed via payment redirect/callback. Check `$order->getEntityId()` is set at `checkout_submit_all_after`. 🟢 guest order only (observer fires, order id set); logged-in, admin, multishipping and redirect payments still open
 5. `OrderSnapshotFactory`: values/currency match the client-side `purchase` for the same order; configurable products show one item with `item_variant`; categories fill `item_category..5`; discount per unit. 🟢 guest order, simple products only; configurable/coupon/discount still open
-6. Consent cookie (`user_allowed_save_cookie`): confirm what `MageOS_CookieConsent` writes, whether it reflects the *tracking* category, and the real session cookie name (assumed `PHPSESSID`). `ConsentEvaluator` assumes a JSON map `websiteId → 1` (mirrors `head.phtml`).
+6. Configurable consent (2026-10-20, replaces the `MageOS_CookieConsent` dependency): defaults with the console cookie / Hyvä built-in banner, decline, no cookie, fallback event, custom cookie name, "accepted" value (Cookiebot style), *Require Consent* = No, event-only setup on the server side; session cookie name `PHPSESSID`. Browser gate and server must agree (`local-testing.md`, "Simulating cookie consent")
 7. `_ga` / `_ga_<ID>` parsing against real cookies (both `GS1` and `GS2` formats), and that the server event joins the browser session in GA4. 🟡 `client_id` and `session_id` were taken from the real `_ga` / `_ga_<ID>` cookies of a guest order; which GS format Google sent and joining the browser session in GA4 are still to check
 8. Cron picks up pending rows; retry/backoff against a blocked network; permanent-error path with a wrong API secret. 🟢 cron sends once the `curl_close()` bug was fixed; retry/backoff with a blocked network and the wrong-secret path still open
 9. Debug mode: validation messages are logged to `var/log`.
@@ -148,6 +155,7 @@ Everything under "Magento layer" above, in particular the risky items:
 | Events older than 72 h | Keep in the table as `expired` (unrecoverable), skip in cron | 2026-10-20 |
 | Tax in totals / item ID | Admin config: including or excluding tax; parent or child SKU for configurables | 2026-10-20 |
 | Consent unknown | Confirmed again: send anonymously (default) | 2026-10-20 |
+| Consent | No consent-module dependency; configurable cookie name, accepted value, fallback events, require consent | 2026-10-20 |
 | Admin report | Simple event log grid (order date, order #, event, status, error) instead of the per-day summary; intro text spaced from the grid | 2026-10-20 |
 
 ## Known risks / notes

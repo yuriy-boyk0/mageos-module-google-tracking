@@ -6,6 +6,12 @@
             <general>
                 <enabled>0</enabled>
             </general>
+            <consent>
+                <required>1</required>
+                <cookie_name>user_allowed_save_cookie</cookie_name>
+                <granted_value/>
+                <event_names>user-allowed-save-cookie</event_names>
+            </consent>
             <server_side>
                 <enabled>0</enabled>
                 <event_name>purchase_server</event_name>

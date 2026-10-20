@@ -16,8 +16,6 @@ use MageOS\GoogleTagManager\Service\MeasurementProtocol\GaCookieParser;
  */
 class RequestContextProvider
 {
-    // Magento\Cookie\Helper\Cookie::IS_USER_ALLOWED_SAVE_COOKIE, the cookie head.phtml checks before loading GTM
-    private const CONSENT_COOKIE = 'user_allowed_save_cookie';
     private const SESSION_COOKIE = 'PHPSESSID';
     private const GA_COOKIE = '_ga';
 
@@ -25,7 +23,8 @@ class RequestContextProvider
         private readonly CookieManagerInterface $cookieManager,
         private readonly State $appState,
         private readonly ConsentEvaluator $consentEvaluator,
-        private readonly GaCookieParser $gaCookieParser
+        private readonly GaCookieParser $gaCookieParser,
+        private readonly Config $config
     ) {}
 
     public function isAdminArea(): bool
@@ -37,13 +36,21 @@ class RequestContextProvider
         }
     }
 
-    public function getConsentState(int $websiteId): ConsentState
+    /**
+     * Uses the "Cookie Consent" configuration (same cookie as the browser-side gate in head.phtml).
+     */
+    public function getConsentState(int $websiteId, int $storeId): ConsentState
     {
+        $cookieName = $this->config->getConsentCookieName($storeId);
+
         return $this->consentEvaluator->evaluate(
             $this->isAdminArea(),
-            $this->cookieManager->getCookie(self::CONSENT_COOKIE),
+            $cookieName === '' ? null : $this->cookieManager->getCookie($cookieName),
             $this->cookieManager->getCookie(self::SESSION_COOKIE) !== null,
-            $websiteId
+            $websiteId,
+            $this->config->isConsentRequired($storeId),
+            $cookieName,
+            $this->config->getConsentGrantedValue($storeId)
         );
     }
 

@@ -44,6 +44,8 @@ The secret belongs to this one data stream: it must be used together with that s
 
 ### Enter the IDs in Magento
 
+(Before going live, also check **Cookie Consent** in the same configuration section: by default the module waits for Magento's own consent cookie, written by Hyvä's built-in banner when *Cookie Restriction Mode* is enabled.)
+
 1. In the Magento admin open **Stores > Configuration > Mage-OS > Google Tag Manager**.
 2. Set **Enable** to *Yes*.
 3. Paste the Container ID into **Google Tag ID** and the Measurement ID into **GA4 Measurement ID**. Magento rejects a value in the wrong format (`GTM-…` vs `G-…`).
@@ -67,7 +69,7 @@ If you change the Measurement ID in Magento later, export again and re-import it
 
 ## 5. Verify that it works
 
-1. **Accept cookies first.** Nothing loads before consent. Open the storefront in a private window, accept the cookie banner for tracking cookies, and check that the Magento config is enabled and cache flushed.
+1. **Accept cookies first.** Nothing loads before consent. Open the storefront in a private window and accept the cookie banner (Hyvä's built-in banner appears when *Cookie Restriction Mode* is enabled, see *Cookie Consent* in the README; another banner must be connected there by cookie name or event). Check that the Magento config is enabled and the cache flushed. No banner yet? Simulate consent in the browser console: `document.cookie = 'user_allowed_save_cookie=' + encodeURIComponent('{"1":1}') + '; path=/'` and reload (1 = your website ID).
 2. In Tag Manager click **Preview**, enter the store URL and connect. In the Tag Assistant window you should see the container load and `GA4 Configuration` fire on the page.
 3. In Analytics open **Admin > DebugView** (or **Reports > Realtime**). Browsing the store should show `page_view`.
 4. Trigger events and watch them arrive:
@@ -106,7 +108,8 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | Symptom | Likely cause |
 |---|---|
 | No GTM script in the page source | Module disabled, wrong store view scope, empty Google Tag ID, or cache not flushed |
-| GTM script missing until banner is accepted | Expected: consent is required. Accept tracking cookies |
+| GTM script missing until banner is accepted | Expected: consent is required. Accept the banner, or check *Cookie Consent* settings (cookie name / granted value / event names must match your banner) |
+| GTM never loads although the banner was accepted | The banner writes a different cookie or none: set *Consent Cookie Name* (and *Cookie Value Meaning "Accepted"*) or the banner's event in *Consent Event Names*. In the console, `document.cookie` shows which cookie it writes |
 | GTM loads but nothing arrives in GA4 | Container not published (and Preview not connected), or GA4 Measurement ID wrong |
 | Export button says "Module not enabled" / "No information to export" | Enable the module and save a GA4 Measurement ID, then try again |
 | Events visible in Preview but not in GA4 | Ad blocker or browser privacy feature blocking Google. Test with a clean browser profile |

@@ -33,6 +33,36 @@
                     </depends>
                 </field>
             </group>
+            <group id="consent" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Cookie Consent</label>
+                <comment><![CDATA[How the module knows that the visitor accepted tracking. GTM is loaded, and the server-side purchase uses the visitor's GA identifiers, only after consent. Works with Magento's own cookie (Hyvä's built-in banner, enabled by <em>General > Web > Default Cookie Settings > Cookie Restriction Mode</em>) or with any other banner via a cookie name and/or a browser event.]]></comment>
+                <field id="required" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Require Consent</label>
+                    <comment><![CDATA[No = GTM always loads and server-side events always use the visitor's identifiers. Only for stores where tracking needs no consent.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="cookie_name" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Consent Cookie Name</label>
+                    <comment><![CDATA[Cookie written by the banner when the visitor accepts. Default <code>user_allowed_save_cookie</code> (Magento / Hyvä banner, value <code>{"websiteId":1}</code>). Leave empty if the banner only fires a browser event; the server then cannot see consent and uses <em>When Consent Cannot Be Determined</em>.]]></comment>
+                    <depends>
+                        <field id="required">1</field>
+                    </depends>
+                </field>
+                <field id="granted_value" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Cookie Value Meaning "Accepted"</label>
+                    <comment><![CDATA[Optional text the cookie must contain, e.g. <code>statistics:true</code> for Cookiebot's <code>CookieConsent</code> cookie. Empty = automatic: a JSON map needs a truthy entry for the current website ID, a plain value must be 1, true, yes, granted, accepted or allow.]]></comment>
+                    <depends>
+                        <field id="required">1</field>
+                    </depends>
+                </field>
+                <field id="event_names" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Consent Event Names (fallback)</label>
+                    <comment><![CDATA[Comma-separated browser (window) events that mean "accepted", for banners that announce consent with an event. Default <code>user-allowed-save-cookie</code> (Hyvä's built-in banner). When the event fires, GTM loads on that page unless the consent cookie is present and says "declined". Event-only banners must fire the event on every page load.]]></comment>
+                    <depends>
+                        <field id="required">1</field>
+                    </depends>
+                </field>
+            </group>
             <group id="server_side" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Server-side Purchase Tracking (Measurement Protocol)</label>
                 <comment><![CDATA[Sends a second purchase event (<code>purchase_server</code> by default) from Magento to GA4 when an order is placed, independent of the browser. It is a <strong>comparison signal</strong> to see how many orders client-side tracking misses; it is not counted as revenue in standard GA4 reports. Requires cron.]]></comment>

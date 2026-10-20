@@ -3,16 +3,32 @@
 For a Claude Code session or a person with the real store. Cloud sessions cannot run any of this (see `CLAUDE.md`). Record results in `docs/STATUS.md` ("Needs local testing") as you go: tick items, note failures, and fix code or tell the user.
 
 ## 0. Prerequisites
-- Clean Magento Open Source 2.4.9 with sample data, Hyvä theme + Hyvä Checkout active, `MageOS_CookieConsent` installed (a required dependency).
+- Clean Magento Open Source 2.4.9 with sample data, Hyvä theme + Hyvä Checkout active. No consent module is needed (the former `mage-os/module-cookie-consent` dependency was dropped, it does not exist yet); consent is simulated with a cookie, see "Simulating cookie consent" below.
 - Developer or production mode; cron working (`bin/magento cron:run` twice schedules then executes jobs) or run it manually while testing.
 - **Hyvä Checkout must be selected, not just installed.** The default of `hyva_themes_checkout/general/checkout` is the Luma fallback, so `/checkout/` shows "No Checkout module installed" until you run `bin/magento config:set hyva_themes_checkout/general/checkout default` (or pick *Hyvä Checkout* under Stores > Configuration > Hyvä Checkout) and flush the cache.
-- **`mage-os/module-cookie-consent` is not on Packagist** (404), so `composer require` of this module cannot resolve it on its own. Add its real source as a Composer repository, or for pure testing use a throw-away stub package that provides the module `MageOS_CookieConsent`, writes the cookie `user_allowed_save_cookie` = URL-encoded `{"<websiteId>":1}` (or `0` when declined) and dispatches the window event `cookie-consent-tracking-approved` on accept. Keep such a stub outside this repository and remove it afterwards. The real module's cookie format, event and admin tab id are still unverified (items 6 and 16 in `STATUS.md`).
+- If you installed the earlier consent **stub** package (first local run), remove it: `composer remove` it, `bin/magento module:uninstall` or disable `MageOS_CookieConsent`, then `setup:upgrade`.
+
+### Simulating cookie consent
+The module reads the consent from **Stores > Configuration > Mage-OS > Google Tag Manager > Cookie Consent** (defaults: cookie `user_allowed_save_cookie`, fallback event `user-allowed-save-cookie`). Without a real banner, set the cookie by hand in the browser console on the storefront (replace `1` with the website ID, `1` on a default install) and reload the page:
+```js
+// accept
+document.cookie = 'user_allowed_save_cookie=' + encodeURIComponent('{"1":1}') + '; path=/';
+// decline
+document.cookie = 'user_allowed_save_cookie=' + encodeURIComponent('{"1":0}') + '; path=/';
+// remove (= banner never answered)
+document.cookie = 'user_allowed_save_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+// event fallback, without any cookie: GTM must load on this page view only
+window.dispatchEvent(new CustomEvent('user-allowed-save-cookie'));
+```
+Expected: with "accept" `gtm.js?id=GTM-…` is requested on every page and server-side purchases carry the `_ga` client id; with "decline" or no cookie, no GTM and the purchase row is `skipped` ("tracking consent not given"). Alternatively enable *Stores > Configuration > General > Web > Default Cookie Settings > Cookie Restriction Mode* and use Hyvä's built-in banner, which writes the same cookie and fires the same event.
+
+Also try a custom setup: *Consent Cookie Name* = `my_consent`, then `document.cookie = 'my_consent=true; path=/'`; and *Cookie Value Meaning "Accepted"* = `statistics:true` with `document.cookie = 'CookieConsent=' + encodeURIComponent("{necessary:true,statistics:true}") + '; path=/'` (cookie name `CookieConsent`).
 - Keep the Hyvä Theme module's own **Google Tag Manager** section (`hyva_theme_google`) disabled; GTM would be loaded twice.
 - Test in a browser **without an ad blocker** for the site (uBlock-style rules replace `google-analytics_analytics.js`; `gtm.js` then returns 200 but `window.google_tag_manager` stays empty).
 - A new GA4 property + GTM container, created by following `docs/google-setup.md` (this doubles as the docs acceptance test). You need: GTM Container ID, GA4 Measurement ID, and a Measurement Protocol API secret of the **same data stream**.
 
 ## 0b. First thing to check: admin tab
-The module creates the admin tab itself (`etc/adminhtml/system.xml`: tab id `mage_os`, label **Mage-OS**). Open Stores > Configuration and confirm **Mage-OS > Google Tag Manager** appears, also in developer mode. If `MageOS_CookieConsent` declares a differently named tab, two Mage-OS tabs will show; align the ids then.
+The module creates the admin tab itself (`etc/adminhtml/system.xml`: tab id `mage_os`, label **Mage-OS**). Open Stores > Configuration and confirm **Mage-OS > Google Tag Manager** appears, also in developer mode. Future Mage-OS modules that should appear under the same tab must use the tab id `mage_os`.
 
 ## 1. Install the module
 ```bash
@@ -51,7 +67,7 @@ Stores > Configuration > Mage-OS > Google Tag Manager.
 - Export the container (Configuration Export), import it into GTM (Merge), publish. Confirm GTM accepts the file (the leftover `accountId`/`containerId` fields were removed).
 
 ## 3. Client-side events (GTM Preview + GA4 DebugView)
-Accept the cookie banner first. Verify `page_view`, `add_to_cart`, `update_cart`, `remove_from_cart`, `view_cart`, `begin_checkout`, `login`, `logout`, `sign_up`, `add_to_wishlist`.
+Give consent first (banner or the console cookie from "Simulating cookie consent"). Verify `page_view`, `add_to_cart`, `update_cart`, `remove_from_cart`, `view_cart`, `begin_checkout`, `login`, `logout`, `sign_up`, `add_to_wishlist`.
 - `page_view` must be counted **once** per page (possible duplicate from `head.phtml` `gtag('config')` + the GA4 Configuration tag).
 - Place an order: exactly one `purchase`; reload the success page: none. Check that the idle `GA4 Addshippinginfo` / `GA4 Addpaymentinfo` tags do **not** fire on the success page any more.
 
@@ -64,7 +80,9 @@ Scenarios (place each, run cron, query the table):
 |---|---|
 | Guest order, consent accepted | row `pending` → `sent`; GA4 Realtime shows `purchase_server` with the same `transaction_id`, value, currency, tax, shipping, items |
 | Logged-in order, consent accepted | as above, plus `user_id` in the payload (inspect payload column) |
-| Consent declined / banner never accepted | row `skipped`, `last_error` = "tracking consent not given" |
+| Consent declined / banner never accepted (console cookie `{"1":0}` or no cookie) | row `skipped`, `last_error` = "tracking consent not given" |
+| *Require Consent* = No | GTM loads without any cookie; purchase uses the `_ga` client id |
+| Event-only setup (*Consent Cookie Name* empty) | GTM loads after the event; purchase row uses the *When Consent Cannot Be Determined* action (default: sent anonymously) |
 | Admin-created order | `skipped` while "Track Admin-created Orders" = No; with Yes → sent anonymously (default "send anonymously") |
 | Configurable product with options and coupon | one item with `item_variant` (e.g. "Black, XS"), `discount`, `coupon` |
 | Zero-value order / excluded status / excluded payment method | `skipped` with the matching reason |
@@ -76,7 +94,7 @@ Scenarios (place each, run cron, query the table):
 | Tax in Totals = Excluding / Item ID = Child | `value` = grand total − tax, item prices/shipping without tax; configurable `item_id` is the variant SKU. Compare with Including / Parent |
 Also verify:
 - The payload's `client_id` equals the browser's `_ga` cookie value (`GA1.1.<this part>`) and `session_id` the `_ga_<ID>` session, so the event lands in the visitor's session. Both cookie formats `GS1` and `GS2`.
-- The consent cookie is `user_allowed_save_cookie` with a `{"<websiteId>":1}` map (confirmed in the Hyvä banner source, which exists only when Magento's *cookie restriction mode* is enabled). Check whether `MageOS_CookieConsent`'s tracking category changes anything the server can read, and that the session cookie is `PHPSESSID`. If not, adjust `Model/RequestContextProvider` / `ConsentEvaluator` (+ tests).
+- Browser gate and server agree: the same console cookie that loads GTM makes the purchase row use the visitor's `_ga` client id, and a declining cookie skips it. The session cookie name is assumed to be `PHPSESSID` (`Model/RequestContextProvider`).
 - Values in the payload equal the client-side `purchase` for the same order (multi-currency store: switch display currency, compare).
 - Order placed through a redirect payment method, and multishipping (the observer receives `orders` there).
 - `bin/magento cron:run` logs one line per run with sent/retried/failed counts; a crash mid-run is recovered after 10 minutes (row stuck in `processing`).

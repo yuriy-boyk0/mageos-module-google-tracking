@@ -29,7 +29,7 @@ node --test Test/js/phtml-scripts.test.js                        # inline <scrip
 PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/` (Magento-free). The JS tests extract the inline `<script>` from the `.phtml` templates and run them in a Node `vm` with stubs, so if you change a script's variable names or the `<?= ... ?>` placeholders, update the test's placeholder strings.
 
 ## Architecture
-- **Client-side**: Observers (`Observer/`) put events in session via `Service/EventQueue`; `CustomerData/Gtm` delivers them through a customer-data section; `view/frontend/templates/body.phtml` (Alpine) pushes them to `dataLayer`. Page-level events (`view_cart`, `begin_checkout`, `purchase`) are inline scripts in `view/frontend/templates/gtm/`. GTM loads only after cookie consent (`head.phtml`).
+- **Client-side**: Observers (`Observer/`) put events in session via `Service/EventQueue`; `CustomerData/Gtm` delivers them through a customer-data section; `view/frontend/templates/body.phtml` (Alpine) pushes them to `dataLayer`. Page-level events (`view_cart`, `begin_checkout`, `purchase`) are inline scripts in `view/frontend/templates/gtm/`. GTM loads only after cookie consent (`head.phtml`), configured under `googletagmanager/consent/*` (required, cookie_name, granted_value, event_names); the browser gate and `Service/MeasurementProtocol/ConsentEvaluator` apply the same cookie rules, keep them in sync (JS tests cover `head.phtml`). There is no consent-module dependency.
 - **GTM export**: `etc/tags.json`, `triggers.json`, `variables.json`, `build_in_var.json` are Liquid-templated and rendered by `Service/Export`. The `\{\{ \}\}` escapes are intentional (undone in the export controller). Event triggers are *Custom Event* triggers on `{{_event}}` (the dataLayer `event` name); GA4 Configuration fires on *All Pages*. Changing them means users must re-import the container: say so in the docs.
 - **Server-side purchase (Measurement Protocol)**, purchase only, by design:
   `checkout_submit_all_after` → `Observer/EnqueueServerSidePurchase` (consent, exclusions, builds payload, inserts a row) → table `mageos_gtm_server_event` → cron `Cron/SendPurchases` every minute → `Service/MeasurementProtocol/QueueProcessor` → `Client` → `Model/CurlTransport`. The observer must **never** call Google or throw; all failures are swallowed and logged so checkout cannot break.
@@ -45,7 +45,7 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - Secrets (API secret) are stored encrypted and read at send time; never write them into the queue table or logs.
 - Inline scripts in templates must be followed by `$hyvaCsp->registerInlineScript()` (Hyvä CSP).
 - `etc/db_schema_whitelist.json` was written by hand; regenerate it locally with `bin/magento setup:db-declaration:generate-whitelist --module-name=MageOS_GoogleTagManager` after changing `db_schema.xml`.
-- Config paths: `googletagmanager/general/*` (tag_id, ga4_measurement_id, enabled), `googletagmanager/server_side/*`.
+- Config paths: `googletagmanager/general/*` (tag_id, ga4_measurement_id, enabled), `googletagmanager/consent/*`, `googletagmanager/server_side/*`.
 - Commit messages: imperative summary + short body. Push to the branch the session was assigned; no PRs unless asked.
 
 ## Decisions already made (do not re-ask)
@@ -54,6 +54,8 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - `add_shipping_info` / `add_payment_info` on Hyvä Checkout: pushed on `checkout:validation:success` from the remembered selection (`view/frontend/templates/gtm/checkout-steps.phtml`, `docs/hyva-checkout-notes.md`); needs local verification.
 - Purchase currency = the order's currency for now; an admin-configured reporting currency is a noted future improvement (see `docs/STATUS.md`).
 - `purchase_server` stays comparison-only and is documented as such.
+
+- No dependency on `mage-os/module-cookie-consent` (it does not exist yet): consent cookie name, "accepted" value and fallback window events are configurable; defaults match Magento's/Hyvä's built-in banner.
 
 ## Open questions
 Listed in `docs/STATUS.md`. Ask the user when blocked by one; do not guess Hyvä Checkout event names.

@@ -4,7 +4,6 @@
     <module name="MageOS_GoogleTagManager">
         <sequence>
             <module name="Magento_Customer" />
-            <module name="MageOS_CookieConsent" />
             <module name="Hyva_Theme" />
         </sequence>
     </module>

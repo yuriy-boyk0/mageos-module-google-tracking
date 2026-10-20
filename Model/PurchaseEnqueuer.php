@@ -63,7 +63,7 @@ class PurchaseEnqueuer
         }
 
         $consent = $fromVisitorRequest
-            ? $this->requestContext->getConsentState((int) $this->storeManager->getStore($storeId)->getWebsiteId())
+            ? $this->requestContext->getConsentState((int) $this->storeManager->getStore($storeId)->getWebsiteId(), $storeId)
             : ConsentState::Unknown;
         if ($consent === ConsentState::Declined) {
             return $this->skip($base, self::SKIP_NO_CONSENT, $now);

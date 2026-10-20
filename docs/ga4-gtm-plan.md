@@ -29,7 +29,7 @@ Purchase is the one event that gets **both** a client-side and a server-side imp
 
 - GTM container snippet injection (head + noscript), admin-configurable per store view.
 - Client-side dataLayer events: `add_to_cart`, `remove_from_cart`, cart quantity update, `begin_checkout` (Hyvä Checkout only — shipping/payment steps not wired), a purchase-like event on the success page (bug: hard-coded event name `checkout_success` instead of GA4-standard `purchase`, no dedup on reload), `view_cart`, `login`/`logout`, `sign_up`, `add_to_wishlist`.
-- A basic single-boolean consent gate (via a sibling `MageOS_CookieConsent` module) before GTM loads — not full Google Consent Mode V2.
+- A basic single-boolean consent gate before GTM loads — not full Google Consent Mode V2. Originally tied to a sibling `MageOS_CookieConsent` module; since that module does not exist yet the dependency was dropped (2026-10-20) and the gate is configurable (consent cookie name, optional "accepted" value, fallback window events, or no consent requirement).
 - Full Page Cache / Varnish compatible architecture (customer-data section + non-cacheable blocks).
 - Hyvä CSP compatibility (all inline scripts registered, GTM domain whitelisted).
 - A GTM container **export** tool (admin button generates tags/triggers/variables as importable JSON via Liquid templates) — this is the one existing piece of "automation" tooling, but it's JSON-file-only, no OAuth/API push.
@@ -148,12 +148,12 @@ Basic documentation, written for someone who has a fresh Magento 2.4.9 + Hyvä +
 
 | Document | Content |
 |---|---|
-| **Installation** | Requirements (Magento 2.4.9, PHP version, Hyvä theme, Hyvä Checkout, `MageOS_CookieConsent`, `liquid/liquid`); `composer require` plus the path/VCS repository option for pre-release testing; `module:enable`, `setup:upgrade`, `di:compile`, `setup:static-content:deploy`, `cache:flush`; cron/queue consumer note for server-side purchase; uninstall steps |
+| **Installation** | Requirements (Magento 2.4.9, PHP version, Hyvä theme, Hyvä Checkout, a cookie banner, `liquid/liquid`); `composer require` plus the path/VCS repository option for pre-release testing; `module:enable`, `setup:upgrade`, `di:compile`, `setup:static-content:deploy`, `cache:flush`; cron/queue consumer note for server-side purchase; uninstall steps |
 | **Creating the Google accounts** | Step by step: (1) create a Google Analytics account and a **GA4 property**; (2) add a **Web data stream** for the store URL and copy the **Measurement ID** (`G-XXXXXXXXXX`); (3) create a **Measurement Protocol API secret** (Data stream > Measurement Protocol API secrets); (4) create a Tag Manager account and a **Web container** and copy the **Container ID** (`GTM-XXXXXX`); (5) optionally link nothing else, since Ads and other platforms are out of scope |
 | **Which ID goes where** | Table mapping each Google value to its Magento field (see below) |
 | **GTM container setup** | Use the admin **Configuration Export** button to download the generated JSON; in GTM go to Admin > Import Container, choose the file, pick a workspace, select *Merge* (not overwrite) on a fresh container; review the imported tags/triggers/variables; **Preview** and then **Submit/Publish** |
 | **Verifying it works** | GTM Preview mode, GA4 Admin > DebugView and Reports > Realtime; what to expect for each event, including `purchase` and `purchase_server`; how to compare the two for the same `transaction_id` |
-| **Consent behavior** | What the `MageOS_CookieConsent` banner gates, and why events do not appear until consent is accepted |
+| **Consent behavior** | The *Cookie Consent* settings (cookie name, accepted value, fallback events, require consent), what they gate, and why events do not appear until consent is accepted |
 | **Server-side purchase** | State up front that `purchase_server` is a comparison-only event, not counted as revenue in standard GA4 reports, and that the GTM/GA4 admin decides manually whether to use it. Then: what it is, why it has a separate event name, the config fields, the delivery status in the order grid, retrying via mass action, debug mode, and the reporting caveat that unique revenue is the union of both events' `transaction_id`s |
 | **Troubleshooting** | No GTM snippet (module disabled / wrong store scope / full page cache), no events (consent not given, ad blocker), `purchase_server` stuck pending (cron or consumer not running), MP 2xx but nothing in reports (wrong Measurement ID or API secret; use debug endpoint), revenue shown as 0 (currency) |
 
