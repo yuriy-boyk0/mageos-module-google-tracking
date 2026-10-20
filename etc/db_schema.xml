@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="mageos_gtm_server_event" resource="default" engine="innodb" comment="MageOS GTM server-side event queue and delivery status">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false" comment="Sales order entity ID"/>
+        <column xsi:type="varchar" name="increment_id" nullable="false" length="32" comment="Order increment ID (GA4 transaction_id)"/>
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" default="0" comment="Store ID"/>
+        <column xsi:type="varchar" name="event_type" nullable="false" length="32" comment="purchase"/>
+        <column xsi:type="mediumtext" name="payload" nullable="true" comment="Measurement Protocol JSON payload"/>
+        <column xsi:type="varchar" name="status" nullable="false" length="16" default="pending" comment="pending, processing, sent, failed, skipped"/>
+        <column xsi:type="smallint" name="attempts" unsigned="true" nullable="false" default="0" comment="Send attempts made"/>
+        <column xsi:type="int" name="next_attempt_at" unsigned="true" nullable="false" default="0" comment="Unix time of next attempt"/>
+        <column xsi:type="varchar" name="last_error" nullable="true" length="255" comment="Last error or skip reason"/>
+        <column xsi:type="int" name="created_at" unsigned="true" nullable="false" comment="Unix time created"/>
+        <column xsi:type="int" name="updated_at" unsigned="true" nullable="false" comment="Unix time updated"/>
+        <column xsi:type="int" name="sent_at" unsigned="true" nullable="true" comment="Unix time delivered"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="MAGEOS_GTM_SERVER_EVENT_ORDER_ID_EVENT_TYPE">
+            <column name="order_id"/>
+            <column name="event_type"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="MAGEOS_GTM_SERVER_EVENT_ORDER_ID_SALES_ORDER_ENTITY_ID" table="mageos_gtm_server_event" column="order_id" referenceTable="sales_order" referenceColumn="entity_id" onDelete="CASCADE"/>
+        <index referenceId="MAGEOS_GTM_SERVER_EVENT_STATUS_NEXT_ATTEMPT_AT" indexType="btree">
+            <column name="status"/>
+            <column name="next_attempt_at"/>
+        </index>
+    </table>
+</schema>

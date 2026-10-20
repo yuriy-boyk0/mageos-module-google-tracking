@@ -1,0 +1,135 @@
+<?php
+declare(strict_types=1);
+
+namespace MageOS\GoogleTagManager\Model;
+
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Encryption\EncryptorInterface;
+use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\PayloadBuilder;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettings;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettingsProviderInterface;
+
+/**
+ * Reads the server-side (Measurement Protocol) configuration group.
+ */
+class Config implements SendSettingsProviderInterface
+{
+    private const PATH = 'googletagmanager/server_side/';
+    private const PATH_GA4_MEASUREMENT_ID = 'googletagmanager/general/ga4_measurement_id';
+
+    public const CURRENCY_DISPLAY = 'display';
+    public const CURRENCY_BASE = 'base';
+    public const UNKNOWN_CONSENT_SEND = 'send';
+    public const UNKNOWN_CONSENT_SKIP = 'skip';
+
+    private const DEFAULT_MAX_ATTEMPTS = 8;
+
+    public function __construct(
+        private readonly ScopeConfigInterface $scopeConfig,
+        private readonly EncryptorInterface $encryptor
+    ) {}
+
+    public function isEnabled(int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(self::PATH . 'enabled', ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
+    /**
+     * The server-side Measurement ID, falling back to the GA4 Measurement ID of the General group.
+     */
+    public function getMeasurementId(int $storeId): string
+    {
+        $own = trim((string) $this->value('measurement_id', $storeId));
+        if ($own !== '') {
+            return $own;
+        }
+
+        return trim((string) $this->scopeConfig->getValue(
+            self::PATH_GA4_MEASUREMENT_ID,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    public function getApiSecret(int $storeId): string
+    {
+        $raw = (string) $this->value('api_secret', $storeId);
+
+        return $raw === '' ? '' : trim($this->encryptor->decrypt($raw));
+    }
+
+    public function getEventName(int $storeId): string
+    {
+        $name = trim((string) $this->value('event_name', $storeId));
+
+        return $name === '' ? PayloadBuilder::DEFAULT_EVENT_NAME : $name;
+    }
+
+    public function getCurrencyBasis(int $storeId): string
+    {
+        return $this->value('currency_basis', $storeId) === self::CURRENCY_BASE
+            ? self::CURRENCY_BASE
+            : self::CURRENCY_DISPLAY;
+    }
+
+    public function getUnknownConsentAction(int $storeId): string
+    {
+        return $this->value('unknown_consent', $storeId) === self::UNKNOWN_CONSENT_SKIP
+            ? self::UNKNOWN_CONSENT_SKIP
+            : self::UNKNOWN_CONSENT_SEND;
+    }
+
+    /**
+     * @return array{exclude_zero_value: bool, excluded_statuses: string[], excluded_payment_methods: string[], include_admin_orders: bool}
+     */
+    public function getExclusionRules(int $storeId): array
+    {
+        return [
+            'exclude_zero_value' => $this->flag('exclude_zero_value', $storeId),
+            'excluded_statuses' => $this->list('excluded_statuses', $storeId),
+            'excluded_payment_methods' => $this->list('excluded_payment_methods', $storeId),
+            'include_admin_orders' => $this->flag('include_admin_orders', $storeId),
+        ];
+    }
+
+    public function getSettings(int $storeId): ?SendSettings
+    {
+        if (!$this->isEnabled($storeId)) {
+            return null;
+        }
+        $measurementId = $this->getMeasurementId($storeId);
+        $apiSecret = $this->getApiSecret($storeId);
+        if ($measurementId === '' || $apiSecret === '') {
+            return null;
+        }
+        $attempts = (int) $this->value('max_attempts', $storeId);
+
+        return new SendSettings(
+            $measurementId,
+            $apiSecret,
+            $attempts > 0 ? $attempts : self::DEFAULT_MAX_ATTEMPTS,
+            $this->flag('debug', $storeId)
+        );
+    }
+
+    private function value(string $field, int $storeId): mixed
+    {
+        return $this->scopeConfig->getValue(self::PATH . $field, ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
+    private function flag(string $field, int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(self::PATH . $field, ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
+    /**
+     * @return string[]
+     */
+    private function list(string $field, int $storeId): array
+    {
+        $raw = (string) $this->value($field, $storeId);
+
+        return $raw === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $raw)), 'strlen'));
+    }
+}

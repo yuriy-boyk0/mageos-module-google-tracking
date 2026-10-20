@@ -6,6 +6,16 @@
             <general>
                 <enabled>0</enabled>
             </general>
+            <server_side>
+                <enabled>0</enabled>
+                <event_name>purchase_server</event_name>
+                <currency_basis>display</currency_basis>
+                <unknown_consent>send</unknown_consent>
+                <include_admin_orders>0</include_admin_orders>
+                <exclude_zero_value>1</exclude_zero_value>
+                <max_attempts>8</max_attempts>
+                <debug>0</debug>
+            </server_side>
         </googletagmanager>
     </default>
 </config>

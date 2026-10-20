@@ -1,0 +1,5 @@
+# Keep dev tooling out of Composer dist installs (and out of the Magento tree)
+/dev export-ignore
+/Test export-ignore
+/phpunit.xml.dist export-ignore
+/CLAUDE.md export-ignore

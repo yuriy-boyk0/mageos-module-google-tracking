@@ -38,6 +38,18 @@ class CheckoutTagManager extends TagManager
         );
     }
 
+    /**
+     * Ecommerce data (currency, value, items) shared by the checkout step events
+     * add_shipping_info and add_payment_info.
+     */
+    public function getJsonCheckoutStepBase(): string
+    {
+        $quoteItems = $this->checkoutSession->getQuote()->getItems();
+        $event = $this->cartService->beginCheckout($quoteItems);
+
+        return $this->serializer->serialize($event['ecommerce']);
+    }
+
     public function getJsonCheckoutPurchaseEvent(): string
     {
         $order = $this->checkoutSession->getLastRealOrder();

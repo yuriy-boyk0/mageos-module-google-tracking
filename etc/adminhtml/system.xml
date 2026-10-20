@@ -18,6 +18,7 @@
                 </field>
                 <field id="tag_id" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Google Tag ID</label>
+                    <backend_model>MageOS\GoogleTagManager\Model\Config\Backend\ContainerId</backend_model>
                     <comment><![CDATA[Register <a href="https://tagmanager.google.com" target='_blank'>here</a> and get the tag ID. E.g: GTM-XXXXXX]]></comment>
                     <depends>
                         <field id="enabled">1</field>
@@ -25,7 +26,97 @@
                 </field>
                 <field id="ga4_measurement_id" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>GA4 Measurement ID</label>
+                    <backend_model>MageOS\GoogleTagManager\Model\Config\Backend\MeasurementId</backend_model>
                     <comment><![CDATA[Register <a href="https://analytics.google.com/analytics/web/?pagename=admin" target='_blank'>here</a> and get the tag Measurement ID inside data stream section. E.g: G-XXXXXXXXXX]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+            <group id="server_side" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Server-side Purchase Tracking (Measurement Protocol)</label>
+                <comment><![CDATA[Sends a second purchase event (<code>purchase_server</code> by default) from Magento to GA4 when an order is placed, independent of the browser. It is a <strong>comparison signal</strong> to see how many orders client-side tracking misses; it is not counted as revenue in standard GA4 reports. Requires cron.]]></comment>
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Enable</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="measurement_id" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Measurement ID</label>
+                    <comment><![CDATA[Leave empty to use the GA4 Measurement ID from the General group. Must belong to the same data stream as the API secret.]]></comment>
+                    <backend_model>MageOS\GoogleTagManager\Model\Config\Backend\MeasurementId</backend_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="api_secret" translate="label comment" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>API Secret</label>
+                    <comment><![CDATA[Analytics > Admin > Data streams > your stream > Measurement Protocol API secrets > Create.]]></comment>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="event_name" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Event Name</label>
+                    <comment><![CDATA[Default: purchase_server. Letters, digits and underscores; must start with a letter. Do not use <code>purchase</code>, that is the client-side event.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="currency_basis" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Currency</label>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\CurrencyBasis</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="unknown_consent" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>When Consent Cannot Be Determined</label>
+                    <comment><![CDATA[Admin-created orders and orders placed by payment-gateway callbacks have no visitor cookies. Orders from visitors who declined tracking cookies are never sent.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\UnknownConsentAction</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="include_admin_orders" translate="label" type="select" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Track Admin-created Orders</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="exclude_zero_value" translate="label" type="select" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Exclude Zero-value Orders</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="excluded_statuses" translate="label" type="multiselect" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Exclude Order Statuses</label>
+                    <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="excluded_payment_methods" translate="label" type="multiselect" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Exclude Payment Methods</label>
+                    <source_model>Magento\Payment\Model\Config\Source\Allmethods</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="max_attempts" translate="label comment" type="text" sortOrder="110" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Maximum Send Attempts</label>
+                    <comment><![CDATA[Failed sends are retried with growing delays (1 min, 2, 4, ... up to 6 h) until this limit.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="debug" translate="label comment" type="select" sortOrder="120" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Debug Mode</label>
+                    <comment><![CDATA[Sends to Google's validation endpoint instead and logs the result in var/log. <strong>Nothing is recorded in GA4 while this is on</strong> and queued orders are closed as sent. Turn off after testing.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

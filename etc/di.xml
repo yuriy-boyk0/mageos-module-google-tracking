@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\QueueStorageInterface" type="MageOS\GoogleTagManager\Model\DbQueueStorage"/>
+    <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettingsProviderInterface" type="MageOS\GoogleTagManager\Model\Config"/>
+    <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\HttpTransportInterface" type="MageOS\GoogleTagManager\Model\CurlTransport"/>
+    <preference for="MageOS\GoogleTagManager\Service\MeasurementProtocol\LogInterface" type="MageOS\GoogleTagManager\Model\Log"/>
+</config>

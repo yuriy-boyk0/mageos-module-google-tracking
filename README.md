@@ -99,6 +99,22 @@ GTM is **not loaded** until the visitor accepts third-party tracking cookies in 
 
 ---
 
+## Server-side purchase tracking (`purchase_server`)
+
+Optional. When an order is placed, Magento queues a second purchase event and a cron job sends it to GA4 through the Measurement Protocol, independent of whether the visitor's browser ever reaches the success page. It uses the event name `purchase_server` (configurable), **not** `purchase`.
+
+It is a **comparison signal**: it is not counted as revenue in standard GA4 reports. Compare `purchase` and `purchase_server` for the same `transaction_id` (for example in a GA4 Exploration) to see how many orders client-side tracking misses because of ad blockers or abandoned tabs. Unique revenue is the union of the transaction IDs seen on either event, not their sum. Whether to use it beyond that comparison is up to whoever manages the GA4/GTM account.
+
+Setup: **Stores > Configuration > MageOS > Google Tag Manager > Server-side Purchase Tracking**. You need a Measurement Protocol **API secret** from the same GA4 data stream as the Measurement ID (see [docs/google-setup.md](docs/google-setup.md)). Magento **cron must be running**.
+
+* Checkout is never blocked or slowed: the order only inserts a row into `mageos_gtm_server_event`; sending happens in cron with retries (growing delays, configurable maximum).
+* Delivery status per order (`pending`, `sent`, `failed`, `skipped` with the reason) is stored in that table.
+* Visitors who declined tracking cookies are never sent. When consent cannot be determined (admin-created orders, payment-gateway callbacks) the default is to send **anonymously** (no visitor identifiers); change it under *When Consent Cannot Be Determined*.
+* Exclusions: zero-value orders, order statuses, payment methods, admin-created orders.
+* Debug Mode sends to Google's validation endpoint and logs the result in `var/log`; nothing is recorded in GA4 while it is on.
+
+---
+
 ## Verifying the setup
 
 Use GTM **Preview** mode and GA4 **Admin > DebugView**. See [docs/google-setup.md](docs/google-setup.md#5-verify-that-it-works).
@@ -107,4 +123,4 @@ Use GTM **Preview** mode and GA4 **Admin > DebugView**. See [docs/google-setup.m
 
 ## Plans
 
-The roadmap for server-side purchase tracking (GA4 Measurement Protocol) is in [docs/ga4-gtm-plan.md](docs/ga4-gtm-plan.md). It is not implemented yet.
+Design and roadmap: [docs/ga4-gtm-plan.md](docs/ga4-gtm-plan.md). Current progress and what still needs testing: [docs/STATUS.md](docs/STATUS.md). Developers: see [CLAUDE.md](CLAUDE.md) and [docs/local-testing.md](docs/local-testing.md).

@@ -7,6 +7,7 @@
     <body>
         <referenceContainer name="after.body.start">
             <block class="MageOS\GoogleTagManager\Block\CheckoutTagManager" name="gtm.checkout.begin" template="MageOS_GoogleTagManager::gtm/checkout-begin.phtml" cacheable="false" />
+            <block class="MageOS\GoogleTagManager\Block\CheckoutTagManager" name="gtm.checkout.steps" template="MageOS_GoogleTagManager::gtm/checkout-steps.phtml" cacheable="false" />
         </referenceContainer>
     </body>
 </page>

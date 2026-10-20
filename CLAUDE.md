@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+Guidance for Claude Code sessions working on `MageOS_GoogleTagManager` (Composer package `mage-os/module-google-tag-manager`): a Magento 2 / Mage-OS module for **Hyvä** storefronts that injects GTM, pushes GA4 e-commerce events to the dataLayer, exports a GTM container, and (new) sends a server-side `purchase_server` event via the GA4 Measurement Protocol.
+
+## Read these first
+- `docs/STATUS.md`: what is done, what still needs local testing, user testing, or a decision. **Keep it updated in every session.**
+- `docs/ga4-gtm-plan.md`: the design and phases.
+- `docs/local-testing.md`: how to test on a real Magento 2.4.9 + Hyvä + Hyvä Checkout install (this is the target environment).
+- `docs/google-setup.md`: end-user guide (GA4/GTM accounts, which ID goes where). Keep it in sync with config changes.
+
+## Two environments, different capabilities
+| | Claude cloud session | Local session (real Magento + Hyvä + Hyvä Checkout) |
+|---|---|---|
+| Magento / Hyvä installed | **No** (`magento/framework` is not on Packagist; the Mage-OS/Magento repos and docs.hyva.io are blocked by the egress proxy) | Yes |
+| Outbound to Google | Blocked | Yes |
+| Can verify | PHP syntax, XML, JSON, Magento-free unit tests, inline JS | Everything: DI compile, setup:upgrade, admin config, real orders, cron, GA4 DebugView |
+
+So: write logic as **pure PHP with no Magento imports** wherever possible and unit test it; keep Magento-dependent code thin, and record what could not be verified in `docs/STATUS.md` (section "Needs local testing") and `docs/local-testing.md`. Never claim Magento-dependent code works because the unit tests pass.
+
+## Commands
+```bash
+(cd dev && composer install)   # once per fresh clone: installs PHPUnit into dev/vendor (gitignored)
+dev/check.sh                   # PHP lint, XML, JSON, PHPUnit, JS tests; run before every commit
+dev/vendor/bin/phpunit -c phpunit.xml.dist --filter ClientTest   # a single test class
+node --test Test/js/phtml-scripts.test.js                        # inline <script> tests
+```
+PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/` (Magento-free). The JS tests extract the inline `<script>` from the `.phtml` templates and run them in a Node `vm` with stubs, so if you change a script's variable names or the `<?= ... ?>` placeholders, update the test's placeholder strings.
+
+## Architecture
+- **Client-side**: Observers (`Observer/`) put events in session via `Service/EventQueue`; `CustomerData/Gtm` delivers them through a customer-data section; `view/frontend/templates/body.phtml` (Alpine) pushes them to `dataLayer`. Page-level events (`view_cart`, `begin_checkout`, `purchase`) are inline scripts in `view/frontend/templates/gtm/`. GTM loads only after cookie consent (`head.phtml`).
+- **GTM export**: `etc/tags.json`, `triggers.json`, `variables.json`, `build_in_var.json` are Liquid-templated and rendered by `Service/Export`. The `\{\{ \}\}` escapes are intentional (undone in the export controller). Triggers key on `{{Ga4-Event}}` = the `ga4_event` dataLayer field.
+- **Server-side purchase (Measurement Protocol)**, purchase only, by design:
+  `checkout_submit_all_after` → `Observer/EnqueueServerSidePurchase` (consent, exclusions, builds payload, inserts a row) → table `mageos_gtm_server_event` → cron `Cron/SendPurchases` every minute → `Service/MeasurementProtocol/QueueProcessor` → `Client` → `Model/CurlTransport`. The observer must **never** call Google or throw; all failures are swallowed and logged so checkout cannot break.
+  - Pure, unit-tested core: `Service/MeasurementProtocol/*` (PayloadBuilder, Client, QueueProcessor, ConsentEvaluator, GaCookieParser, ExclusionPolicy, RetryPolicy, ConfigIdValidator).
+  - Magento adapters, **not testable in cloud**: `Model/Config`, `Model/DbQueueStorage`, `Model/OrderSnapshotFactory`, `Model/RequestContextProvider`, `Model/CurlTransport`, `Model/Log`, the observer, cron, `etc/db_schema*.xml`, `etc/adminhtml/system.xml`.
+  - `purchase_server` is a deliberately different event name from the client-side `purchase`: a comparison signal, not revenue. Do not "fix" this by deduplicating or renaming.
+- Only `purchase` goes server-side. Do not move other events server-side (see plan, non-goals).
+
+## Conventions
+- PHP 8.2+, `declare(strict_types=1)`, constructor promotion with `readonly`, namespace `MageOS\GoogleTagManager`.
+- Secrets (API secret) are stored encrypted and read at send time; never write them into the queue table or logs.
+- Inline scripts in templates must be followed by `$hyvaCsp->registerInlineScript()` (Hyvä CSP).
+- `etc/db_schema_whitelist.json` was written by hand; regenerate it locally with `bin/magento setup:db-declaration:generate-whitelist --module-name=MageOS_GoogleTagManager` after changing `db_schema.xml`.
+- Config paths: `googletagmanager/general/*` (tag_id, ga4_measurement_id, enabled), `googletagmanager/server_side/*`.
+- Commit messages: imperative summary + short body. Push to the branch the session was assigned; no PRs unless asked.
+
+## Decisions already made (do not re-ask)
+- Queue = own DB table + cron, not Magento MQ.
+- When consent cannot be determined (admin orders, gateway callbacks) the default is **send anonymously** (no client_id link, no user_id); configurable. Visitors who declined are never sent.
+- `add_shipping_info` / `add_payment_info` on Hyvä Checkout: base layer only until real Hyvä Checkout events are verified locally (`view/frontend/templates/gtm/checkout-steps.phtml`).
+- `purchase_server` stays comparison-only and is documented as such.
+
+## Open questions
+Listed in `docs/STATUS.md`. Ask the user when blocked by one; do not guess Hyvä Checkout event names.

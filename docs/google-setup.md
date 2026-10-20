@@ -32,12 +32,23 @@ They are different things. The GTM container is the script loaded on the page. T
 3. Accept the terms. Google shows an install dialog; **you don't need to copy its snippets**, the module injects GTM for you. Close the dialog.
 4. The **Container ID** (`GTM-XXXXXX`) is shown at the top of the workspace, next to the container name.
 
+## 3b. (Optional) Create a Measurement Protocol API secret for server-side purchase tracking
+
+Only needed if you enable *Server-side Purchase Tracking* in Magento.
+
+1. In Analytics open **Admin > Data streams** and select the web stream from step 2.
+2. Scroll to **Measurement Protocol API secrets** and click **Create**.
+3. Enter a nickname (for example `magento`), click **Create**, and copy the **Secret value**.
+
+The secret belongs to this one data stream: it must be used together with that stream's Measurement ID, otherwise Google accepts the data but it never appears in reports.
+
 ### Enter the IDs in Magento
 
 1. In the Magento admin open **Stores > Configuration > MageOS > Google Tag Manager**.
 2. Set **Enable** to *Yes*.
-3. Paste the Container ID into **Google Tag ID** and the Measurement ID into **GA4 Measurement ID**.
-4. Click **Save Config**, then **System > Cache Management** and flush the cache.
+3. Paste the Container ID into **Google Tag ID** and the Measurement ID into **GA4 Measurement ID**. Magento rejects a value in the wrong format (`GTM-…` vs `G-…`).
+4. Optional: under **Server-side Purchase Tracking** set **Enable** to *Yes* and paste the **API Secret** from step 3b. Leave *Measurement ID* empty to reuse the one above.
+5. Click **Save Config**, then **System > Cache Management** and flush the cache.
 
 ## 4. Import the container configuration into GTM
 
@@ -76,6 +87,13 @@ If you change the Measurement ID in Magento later, export again and re-import it
 
 Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; DebugView and Realtime are immediate.
 
+## 6. (Optional) Check the server-side purchase
+
+1. Make sure Magento cron is running, then place a test order after accepting the cookie banner.
+2. After a minute, open **Analytics > Reports > Realtime** (or the **Explore** section later). You should see both `purchase` (from the browser) and `purchase_server` (from Magento) with the same transaction ID.
+3. `purchase_server` is a comparison signal, not revenue: it does not appear in standard Monetization reports. Use a GA4 **Exploration** with the *transaction ID* dimension to compare the two events and see which orders the browser missed.
+4. Status per order is in the database table `mageos_gtm_server_event` (`pending`, `sent`, `failed`, `skipped`; `last_error` explains skips and failures). Turn on **Debug Mode** to validate payloads (nothing is recorded in GA4 while it is on).
+
 ## Troubleshooting
 
 | Symptom | Likely cause |
@@ -85,5 +103,7 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | GTM loads but nothing arrives in GA4 | Container not published (and Preview not connected), or GA4 Measurement ID wrong |
 | Export button says "Module not enabled" / "No information to export" | Enable the module and save a GA4 Measurement ID, then try again |
 | Events visible in Preview but not in GA4 | Ad blocker or browser privacy feature blocking Google. Test with a clean browser profile |
+| `purchase_server` stays `pending` | Cron is not running, or Google is unreachable (see `last_error`; retries use growing delays) |
+| `purchase_server` is `skipped` | See `last_error`: consent not given, excluded status/payment method, zero value, or admin order |
 | No `begin_checkout` | Hyvä Checkout is required; the default Magento checkout is not wired |
 | Revenue is 0 in reports | Check that the order currency is a valid ISO code and the `purchase` event has `value` and `currency` |

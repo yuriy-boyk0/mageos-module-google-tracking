@@ -25,4 +25,7 @@
     <event name="customer_register_success">
         <observer name="gtm_customer_sign_up" instance="MageOS\GoogleTagManager\Observer\CustomerSignUp"/>
     </event>
+    <event name="checkout_submit_all_after">
+        <observer name="gtm_server_side_purchase" instance="MageOS\GoogleTagManager\Observer\EnqueueServerSidePurchase"/>
+    </event>
 </config>

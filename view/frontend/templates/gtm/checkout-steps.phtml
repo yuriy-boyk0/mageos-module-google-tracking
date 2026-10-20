@@ -1,0 +1,75 @@
+<?php
+use MageOS\GoogleTagManager\Block\CheckoutTagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+use Magento\Framework\Escaper;
+
+/** @var CheckoutTagManager $block */
+/** @var Escaper $escaper */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled()): ?>
+<script>
+    /*
+     * add_shipping_info / add_payment_info for Hyvä Checkout.
+     *
+     * BASE LAYER, NOT ACTIVE YET. window.mageosGtmCheckout.push() is ready and tested, but nothing calls it:
+     * the Hyvä Checkout events that mean "shipping method submitted" / "payment method submitted" have not been
+     * verified against a real Hyvä Checkout install. Fill HYVA_EVENTS and the extractors below once they are known
+     * (see docs/local-testing.md, section "Hyvä Checkout shipping/payment events").
+     */
+    (function () {
+        var base = <?= /* @noEscape */ $block->getJsonCheckoutStepBase() ?>;
+        var lastPushed = {};
+
+        function push(eventName, extra) {
+            var value = extra ? JSON.stringify(extra) : '';
+            // Same event with the same value twice in a row (e.g. a component re-render): count it once.
+            if (lastPushed[eventName] === value) {
+                return false;
+            }
+            lastPushed[eventName] = value;
+
+            var ecommerce = {};
+            Object.keys(base || {}).forEach(function (key) { ecommerce[key] = base[key]; });
+            Object.keys(extra || {}).forEach(function (key) { ecommerce[key] = extra[key]; });
+
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({ecommerce: null});
+            window.dataLayer.push({event: eventName, ga4_event: eventName, ecommerce: ecommerce});
+            return true;
+        }
+
+        window.mageosGtmCheckout = window.mageosGtmCheckout || {};
+        window.mageosGtmCheckout.push = push;
+
+        // TODO(local test): browser event names dispatched by Hyvä Checkout on window. null = not wired.
+        var HYVA_EVENTS = {
+            add_shipping_info: null,
+            add_payment_info: null
+        };
+
+        // TODO(local test): read the selected method from the event detail. Return '' to skip the push.
+        var EXTRACTORS = {
+            add_shipping_info: function (detail) { return detail && detail.method ? String(detail.method) : ''; },
+            add_payment_info: function (detail) { return detail && detail.method ? String(detail.method) : ''; }
+        };
+        var PARAM = {add_shipping_info: 'shipping_tier', add_payment_info: 'payment_type'};
+
+        Object.keys(HYVA_EVENTS).forEach(function (eventName) {
+            if (!HYVA_EVENTS[eventName]) {
+                return;
+            }
+            window.addEventListener(HYVA_EVENTS[eventName], function (e) {
+                var method = EXTRACTORS[eventName](e.detail);
+                if (!method) {
+                    return;
+                }
+                var extra = {};
+                extra[PARAM[eventName]] = method;
+                push(eventName, extra);
+            });
+        });
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

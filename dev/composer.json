@@ -1,0 +1,14 @@
+{
+    "name": "mage-os/module-google-tag-manager-dev",
+    "description": "Standalone tooling to run the module's Magento-free unit tests (no Magento install needed)",
+    "type": "project",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
