@@ -7,8 +7,8 @@ For a Claude Code session or a person with the real store. Cloud sessions cannot
 - Developer or production mode; cron working (`bin/magento cron:run` twice schedules then executes jobs) or run it manually while testing.
 - A new GA4 property + GTM container, created by following `docs/google-setup.md` (this doubles as the docs acceptance test). You need: GTM Container ID, GA4 Measurement ID, and a Measurement Protocol API secret of the **same data stream**.
 
-## 0b. First thing to check: admin configuration loads
-`etc/adminhtml/system.xml` declares the tab id `mage-os`, which Magento 2.4.9's XSD does not allow (`[a-zA-Z0-9_]` only). In developer mode open Stores > Configuration > MageOS > Google Tag Manager. If the admin errors with an invalid-XML message, rename the tab id to `mage_os` (the `<tab id>` and the section's `<tab>` reference) and keep it consistent with `MageOS_CookieConsent`.
+## 0b. First thing to check: admin tab
+The module creates the admin tab itself (`etc/adminhtml/system.xml`: tab id `mage_os`, label **Mage-OS**). Open Stores > Configuration and confirm **Mage-OS > Google Tag Manager** appears, also in developer mode. If `MageOS_CookieConsent` declares a differently named tab, two Mage-OS tabs will show; align the ids then.
 
 ## 1. Install the module
 ```bash
@@ -28,7 +28,7 @@ Check: `DESCRIBE mageos_gtm_server_event;` and that the FK to `sales_order` exis
 Run the unit suites from a **separate clone** of the module repository (not inside the Magento tree, so `dev/vendor` is never scanned by `setup:di:compile`): `(cd dev && composer install) && dev/check.sh`.
 
 ## 2. Configure
-Stores > Configuration > MageOS > Google Tag Manager.
+Stores > Configuration > Mage-OS > Google Tag Manager.
 - General: Enable = Yes, Google Tag ID = `GTM-…`, GA4 Measurement ID = `G-…`.
 - Try pasting the `G-…` ID into Google Tag ID: saving must be rejected with a clear message (and vice versa).
 - Server-side group: Enable, API Secret (check it is encrypted in `core_config_data`), leave Measurement ID empty to inherit, defaults otherwise.

@@ -44,7 +44,7 @@ The secret belongs to this one data stream: it must be used together with that s
 
 ### Enter the IDs in Magento
 
-1. In the Magento admin open **Stores > Configuration > MageOS > Google Tag Manager**.
+1. In the Magento admin open **Stores > Configuration > Mage-OS > Google Tag Manager**.
 2. Set **Enable** to *Yes*.
 3. Paste the Container ID into **Google Tag ID** and the Measurement ID into **GA4 Measurement ID**. Magento rejects a value in the wrong format (`GTM-…` vs `G-…`).
 4. Optional: under **Server-side Purchase Tracking** set **Enable** to *Yes* and paste the **API Secret** from step 3b. Leave *Measurement ID* empty to reuse the one above.

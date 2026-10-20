@@ -60,7 +60,7 @@ bin/magento cache:flush
 
 ## Configuration
 
-Go to **Stores > Configuration > MageOS > Google Tag Manager**. Use the store view scope if different store views need different containers.
+Go to **Stores > Configuration > Mage-OS > Google Tag Manager**. Use the store view scope if different store views need different containers.
 
 | Field | Value | Example |
 |---|---|---|
@@ -106,7 +106,7 @@ Optional. When an order is placed, Magento queues a second purchase event and a 
 
 It is a **comparison signal**: it is not counted as revenue in standard GA4 reports. Compare `purchase` and `purchase_server` for the same `transaction_id` (for example in a GA4 Exploration) to see how many orders client-side tracking misses because of ad blockers or abandoned tabs. Unique revenue is the union of the transaction IDs seen on either event, not their sum. Whether to use it beyond that comparison is up to whoever manages the GA4/GTM account.
 
-Setup: **Stores > Configuration > MageOS > Google Tag Manager > Server-side Purchase Tracking**. You need a Measurement Protocol **API secret** from the same GA4 data stream as the Measurement ID (see [docs/google-setup.md](docs/google-setup.md)). Magento **cron must be running**.
+Setup: **Stores > Configuration > Mage-OS > Google Tag Manager > Server-side Purchase Tracking**. You need a Measurement Protocol **API secret** from the same GA4 data stream as the Measurement ID (see [docs/google-setup.md](docs/google-setup.md)). Magento **cron must be running**.
 
 * Checkout is never blocked or slowed: the order only inserts a row into `mageos_gtm_server_event`; sending happens in cron with retries (growing delays, configurable maximum).
 * Delivery status per order (`pending`, `sent`, `failed`, `expired`, `skipped` with the reason) is stored in that table.

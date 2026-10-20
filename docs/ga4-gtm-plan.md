@@ -56,7 +56,7 @@ The module is developed in Claude cloud (unit tests only, no Magento install, no
 ### Manual acceptance checklist (local install)
 
 1. Install the module via Composer (path repository or VCS), run `module:enable`, `setup:upgrade`, `di:compile`, `cache:flush`; confirm no errors.
-2. Create the GA4 property and GTM container following the docs; paste IDs into **Stores > Configuration > MageOS > Google Tag Manager**.
+2. Create the GA4 property and GTM container following the docs; paste IDs into **Stores > Configuration > Mage-OS > Google Tag Manager**.
 3. Import the exported GTM container JSON (from the admin export button) into the new container; publish it.
 4. With GTM Preview and GA4 DebugView: verify `page_view`, `add_to_cart`, `remove_from_cart`, `view_cart`, `begin_checkout` (Hyvä Checkout), `login`, `sign_up`, `add_to_wishlist` arrive in GA4.
 5. Place a guest order and a logged-in order with sample-data products (including a configurable product and one with a coupon). Verify the client-side `purchase` event fires once, and does not re-fire on success-page reload.
@@ -157,7 +157,7 @@ Basic documentation, written for someone who has a fresh Magento 2.4.9 + Hyvä +
 
 ### IDs to copy from Google into Magento
 
-Configuration path: **Stores > Configuration > MageOS > Google Tag Manager** (store-view scope supported).
+Configuration path: **Stores > Configuration > Mage-OS > Google Tag Manager** (store-view scope supported).
 
 | Google value | Where it comes from | Magento field | Status |
 |---|---|---|---|

@@ -51,7 +51,7 @@ The tag `2.4.9` of github.com/magento/magento2 is cloned at `/home/user/magento/
 - `checkout_submit_all_after` is dispatched by `QuoteManagement::placeOrder()` (not `submit()`), by admin order creation, PayPal Express and multishipping (`orders` key); the observer handles `order` and `orders`.
 - Magento stores a configurable's order row with the *variant* SKU (`Configurable::getSku`), so the parent SKU must come from the catalog product; handled in `ItemIdResolver` / `OrderSnapshotFactory`.
 - Pre-existing: `Observer/AddToWishlist.php` called `array_last()` (PHP 8.5 only; Magento 2.4.9 supports 8.3/8.4) and could use an undefined `$item`; fixed. `composer.json` now requires PHP `~8.3.0||~8.4.0||~8.5.0` like Magento 2.4.9.
-- ⚠️ Not fixed, needs a decision/local check: `etc/adminhtml/system.xml` uses the tab id `mage-os`; Magento 2.4.9's XSD allows only `[a-zA-Z0-9_]` for tab ids, so it fails XSD validation. Validation is enforced in developer mode, where the admin configuration may error out. If it does, rename the tab id to `mage_os` (also the `<tab>` reference in the section), keeping it consistent with `MageOS_CookieConsent` if that module shares the tab.
+- ✅ Fixed on the user's instruction: the admin tab is created by this module as id `mage_os` (valid for Magento 2.4.9's XSD, which rejects hyphens in tab ids) with the label **Mage-OS**. Other modules that should share the tab must use the same id `mage_os`; a module declaring a different id creates a separate tab. 🧪 confirm the menu entry appears as Stores > Configuration > Mage-OS > Google Tag Manager, and check `MageOS_CookieConsent` for its tab id.
 - Other PHPStan notes are pre-existing magic-getter noise (`$observer->getEvent()->getProduct()` etc.) or classes not available without Composer (`Psr\Log`).
 
 ### Phase 5: docs
@@ -86,7 +86,7 @@ Everything under "Magento layer" above, in particular the risky items:
 
 ## Blocked / questions (❓)
 1. ~~Hyvä Checkout events~~ resolved: the user provided the Hyvä zip; events documented in `docs/hyva-checkout-notes.md` and wired in `checkout-steps.phtml`. Remaining: local verification (🧪 item 11).
-2. `system.xml` tab id `mage-os` vs Magento 2.4.9 XSD (see above).
+2. ~~`system.xml` tab id~~ resolved (tab `mage_os`, label Mage-OS).
 
 ## Decisions made
 | Decision | Choice | Date |
