@@ -69,6 +69,8 @@ If you change the Measurement ID in Magento later, export again and re-import it
    | Log in / out, register | `login` / `logout` / `sign_up` |
    | Add to wishlist | `add_to_wishlist` |
 
+   `add_shipping_info` and `add_payment_info` are not sent yet (Hyvä Checkout support is pending).
+
 5. Reload the order success page. `purchase` must **not** be sent a second time for the same order.
 6. Check that `page_view` is counted once per page. If you see it twice, tell the maintainers: the module's head script also issues a `gtag('config', ...)` call.
 

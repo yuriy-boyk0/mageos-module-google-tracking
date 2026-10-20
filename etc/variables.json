@@ -1,7 +1,5 @@
 [
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "269",
     "name": "Ga4-Event",
     "type": "v",
@@ -26,8 +24,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "270",
     "name": "Ga4-Ecommerce-Items",
     "type": "v",
@@ -52,8 +48,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "271",
     "name": "Ga4-Ecommerce-Discount",
     "type": "v",
@@ -78,8 +72,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "272",
     "name": "Ga4-Ecommerce-Coupon",
     "type": "v",
@@ -104,8 +96,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "273",
     "name": "Ga4-Ecommerce-Currency",
     "type": "v",
@@ -130,8 +120,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "274",
     "name": "Ga4-Ecommerce-Shipping",
     "type": "v",
@@ -156,8 +144,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "275",
     "name": "Ga4-Ecommerce-Tax",
     "type": "v",
@@ -182,8 +168,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "276",
     "name": "Ga4-Ecommerce-TransactionID",
     "type": "v",
@@ -208,8 +192,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "277",
     "name": "Ga4-Ecommerce-Value",
     "type": "v",
@@ -234,8 +216,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "278",
     "name": "Ga4-Ecommerce-ItemsViewCart",
     "type": "v",
@@ -260,8 +240,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "279",
     "name": "Ga4-Ecommerce-ItemsViewItem",
     "type": "v",
@@ -286,8 +264,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "280",
     "name": "Ga4-Ecommerce-Method",
     "type": "v",
@@ -312,8 +288,6 @@
     "formatValue": {}
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "variableId": "281",
     "name": "Ga4-Ecommerce-SearchTerm",
     "type": "v",

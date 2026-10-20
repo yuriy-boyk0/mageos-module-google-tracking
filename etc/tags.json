@@ -1,7 +1,5 @@
 [
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "268",
     "name": "GA4 Configuration",
     "type": "gaawc",
@@ -35,8 +33,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "279",
     "name": "GA4 Category",
     "type": "gaawe",
@@ -86,8 +82,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "281",
     "name": "GA4 Product",
     "type": "gaawe",
@@ -137,8 +131,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "283",
     "name": "GA4 Addtocart",
     "type": "gaawe",
@@ -188,8 +180,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "285",
     "name": "Ga4 Removefromcart",
     "type": "gaawe",
@@ -239,8 +229,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "275",
     "name": "Ga4 Updatecart",
     "type": "gaawe",
@@ -290,8 +278,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "232",
     "name": "Ga4 Viewcart",
     "type": "gaawe",
@@ -341,8 +327,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "287",
     "name": "GA4 Checkout",
     "type": "gaawe",
@@ -392,8 +376,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "288",
     "name": "GA4 Purchase",
     "type": "gaawe",
@@ -548,8 +530,6 @@
     }
   },
   {
-    "accountId": "6347675553",
-    "containerId": "248200730",
     "tagId": "289",
     "name": "GA4 Addpaymentinfo",
     "type": "gaawe",
@@ -599,8 +579,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "34",
     "name": "GA4 Addshippinginfo",
     "type": "gaawe",
@@ -650,8 +628,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "36",
     "name": "GA4 Login",
     "type": "gaawe",
@@ -701,8 +677,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "39",
     "name": "GA4 Sign Up",
     "type": "gaawe",
@@ -752,8 +726,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "27",
     "name": "GA4 Logout",
     "type": "gaawe",
@@ -803,8 +775,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "44",
     "name": "GA4 Search",
     "type": "gaawe",
@@ -854,8 +824,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "45",
     "name": "GA4 Addtowishlist",
     "type": "gaawe",
@@ -905,8 +873,6 @@
     }
   },
   {
-    "accountId": "6197872872",
-    "containerId": "166833513",
     "tagId": "46",
     "name": "GA4 Removefromwishlist",
     "type": "gaawe",

@@ -95,7 +95,7 @@ GTM is **not loaded** until the visitor accepts third-party tracking cookies in 
 | `add_to_wishlist` / `remove_from_wishlist` | Wishlist changes |
 | `login` / `logout` / `sign_up` | Customer account events |
 
-`page_view` is sent by the GA4 configuration tag of the exported GTM container, not by the module. The exported container also contains tags for `view_item`, `view_item_list`, `search`, `add_shipping_info` and `add_payment_info`; the module does not push those events yet.
+`page_view` is sent by the GA4 configuration tag of the exported GTM container, not by the module. The exported container also contains tags for `view_item`, `view_item_list`, `search`, `add_shipping_info` and `add_payment_info`; the module does not push those events yet, so those tags stay idle. `add_shipping_info` and `add_payment_info` are planned for Hyvä Checkout (see [docs/ga4-gtm-plan.md](docs/ga4-gtm-plan.md), Phase 1b).
 
 ---
 

@@ -91,6 +91,18 @@ Small, focused fix to the existing client-side push so it plays correctly with t
 | Duplicate-push prevention on reload | Guard against the success page firing `purchase` more than once per order on a page reload/back-navigation (e.g. a client-side flag keyed to `transaction_id` in session/local storage) — this was already a known gap and is unrelated to the new server-side event, but is the natural place to fix it while touching this code |
 | No other changes | This event otherwise keeps its existing client-side-only behavior (fires on success page render, depends on the browser reaching that page) — it remains the fast, real-time signal; it is not merged with or replaced by the server-side event |
 
+## Phase 1b: Hyvä Checkout `add_shipping_info` / `add_payment_info` (client-side, pending)
+
+**Status:** the GTM side is fixed (the exported `Add Shipping Info` and `Add Payment Info` triggers now fire on `ga4_event` = `add_shipping_info` / `add_payment_info` instead of the order success URL, where they used to send bogus events on every order). The **module does not push these two events yet**, so those tags currently never fire.
+
+**Work needed (adapt to Hyvä Checkout):**
+- Push `add_shipping_info` (with `shipping_tier` = selected shipping method, plus `currency`, `value`, `coupon`, `items`) when the customer's shipping method is submitted, and `add_payment_info` (with `payment_type` = selected payment method, same ecommerce fields) when the payment method is submitted.
+- Hyvä Checkout is built on Magewire and dispatches its frontend events on `window` as `CustomEvent`s (payload in `event.detail`). Known so far from Hyvä's public docs: `checkout:step:loaded` (`detail.route`, `detail.subsequent`) and `checkout:navigation:success`. **The exact events for "shipping method saved" and "payment method saved" were not confirmed** (the Hyvä docs site was not reachable from the cloud environment). Before implementing, check the Hyvä Checkout "Frontend API Events" and "Checkout Magento Events" doc pages, or inspect the events dispatched in the browser on the local test install.
+- Implementation options, to be decided once the events are known: (a) a small inline script in `hyva_checkout.xml` (CSP-registered) listening to the Hyvä events and building the payload from the quote; or (b) a server-side hook on shipping/payment being saved, feeding the existing `EventQueue` session-to-customer-data pipeline.
+- Test on the local 2.4.9 + Hyvä Checkout install: events fire once per submission, not on step load or on every method toggle without submit, and carry the right `shipping_tier` / `payment_type`.
+
+---
+
 ## Phase 2: Server-side purchase event
 
 The core new work: firing `purchase_server` (configurable name) via MP from the order-placement lifecycle, independent of the browser.
