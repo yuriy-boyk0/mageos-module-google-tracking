@@ -17,6 +17,8 @@ document.cookie = 'user_allowed_save_cookie=' + encodeURIComponent('{"1":1}') + 
 document.cookie = 'user_allowed_save_cookie=' + encodeURIComponent('{"1":0}') + '; path=/';
 // remove (= banner never answered)
 document.cookie = 'user_allowed_save_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+// the Hyvä banner sets this cookie with a Domain attribute: remove that one too
+document.cookie = 'user_allowed_save_cookie=; path=/; domain=' + location.hostname + '; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 // event fallback, without any cookie: GTM must load on this page view only
 window.dispatchEvent(new CustomEvent('user-allowed-save-cookie'));
 ```
@@ -103,7 +105,8 @@ Also verify:
 Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä Checkout 1.3.15 sources (see `docs/hyva-checkout-notes.md`); it has **not** been run in a browser. Verify with GTM Preview / DebugView and the console (`dataLayer`):
 - Default checkout (login → shipping → payment): nothing is pushed when the shipping step loads with a preselected method; `add_shipping_info` (`shipping_tier` = e.g. `flatrate_flatrate`) is pushed once when you continue to the payment step; `add_payment_info` (`payment_type` = e.g. `checkmo`) once when you place the order.
 - Change the shipping method before continuing: only the final method is pushed (or, if you go back and change it, a second push with the new value).
-- Mobile checkout (with the summary step) and the one-page checkout (both events at order placement).
+- Mobile checkout (steps shipping → payment → summary): `add_shipping_info` when leaving the shipping step, `add_payment_info` when leaving the payment step (*Proceed to Summary*), nothing new at *Place Order*. One-page checkout: both events once, at *Place Order*. To test without a phone, set *Hyvä Checkout > General > Checkout* to `mobile` / `onepage` (the same layouts Hyvä picks for mobile user agents), then back to `default`.
+- Virtual-only cart (create a temporary virtual product): no shipping step, `begin_checkout` then `add_payment_info` only (no `add_shipping_info`), purchase `shipping` 0.
 - Virtual-only cart: only `add_payment_info`.
 - Failed validation (e.g. missing address): no push. Rejected navigation after a passing validation is a known edge (docs/hyva-checkout-notes.md).
 - Confirm `window.dispatchEvent` logging still shows the events as documented, in case the installed Hyvä Checkout is newer than 1.3.15:
@@ -163,3 +166,16 @@ Same environment, no consent module or stub. Module at `c94fbcd` plus the two fi
 - Tip: in the Orders grid the mass action asks for confirmation first; the result messages appear after you confirm.
 - Not run yet: see the end of the "Verified locally, run 2" block in `docs/STATUS.md`.
 - Console / CSP check (Hyvä Checkout enforces CSP and uses the CSP build of Alpine): open `/checkout/` with a cart, walk the shipping and payment steps with the browser console open; there must be no Alpine "unable to interpret the following expression" warnings, no `Refused to ...` CSP violations and no exceptions. Found and fixed: the dataLayer component used `x-data="initGtmDatalayer()"`. In Hyvä all Alpine code must be CSP-style (named constructor registered with `Alpine.data()` on `alpine:init`, no calls or operators in directives, `$hyvaCsp->registerInlineScript()` after every inline script); `Test/js/phtml-scripts.test.js` lints the directives. Note the `collect` requests to `region1.google-analytics.com` answered 503 in this browser (not a CSP block: no violation was reported and CSP allows `*.google-analytics.com`); the server-side events are unaffected.
+
+### 2026-10-20: third local run (mobile, one-page and virtual-only checkout)
+Same environment. Checkouts selected through *Hyvä Checkout > General > Checkout* (`mobile`, `onepage`; the user agent based switch itself was not tried, the browser tool cannot change it), a temporary virtual product (created with a script, deleted afterwards), everything reset to `default` at the end.
+- One-page: both events once at Place Order (`shipping_tier` = `tablerate_bestway`, `payment_type` = `checkmo`), one `purchase`, clean console.
+- Mobile (shipping, payment, summary): `add_shipping_info` on *Proceed to Payment*, `add_payment_info` on *Proceed to Summary*, nothing more at Place Order, one `purchase`, clean console. This differs from the earlier note "both events at order placement": for the mobile checkout the payment event fires when the payment step is left.
+- Virtual-only cart: no shipping step, `begin_checkout` (value 10), `add_payment_info` once, no `add_shipping_info`, `purchase` (value 10); the server-side row has `shipping` 0 and was sent.
+- Also seen: `remove_from_cart` fires when removing a cart item.
+- Server side: the three orders were `sent` by cron with the visitor's `_ga` client id.
+
+### 2026-10-20: fourth local run (consent variants)
+Same environment, defaults restored afterwards. See "Verified locally, run 4" in `docs/STATUS.md` for the table.
+- *Require Consent* = No, event-only (with *When Consent Cannot Be Determined* = Send and Skip), custom cookie name and the Cookiebot-style accepted value all behave as described in "Simulating cookie consent" and in the order table of section 4; one order was enough per server-side case.
+- Gotcha: a cookie written by Hyvä's banner carries `Domain=<host>`; deleting it from the console needs `domain=<host>` as well, otherwise it silently stays and the next "no cookie" check is wrong.
