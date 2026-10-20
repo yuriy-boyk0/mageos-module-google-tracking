@@ -125,9 +125,11 @@ Same environment as run 1, module updated to `c94fbcd`. The consent stub was rem
 | Debug mode | 🟢 see item 9 |
 | Event log grid | 🟢 see item 15 |
 
-Bugs found by this run (both fixed, committed on the branch):
+Bugs found by this run (fixed and committed on the branch):
 1. **Credit memo never queued a `refund_server` event.** `TotalsResolver::resolveItemPrice()` took `?float $priceInclTax` under `strict_types`, but credit memo items (and orders loaded from the DB for an admin re-send) return decimals as strings, so it threw a `TypeError` that `FollowUpEnqueuer` logged as "could not queue refund". Fix: accept `float|string|null` and cast inside the pure resolver; unit test added. Order placement was not affected (items hold floats there), so the purchase path never showed it.
 2. **Order # in the event log grid was plain text instead of a link.** `OrderLink::prepareDataSource()` iterated `$dataSource['data']['items'] ?? []` by reference, which loops over a temporary copy. Fix: iterate the real array.
+
+3. **Console errors on `/checkout/` (Hyvä CSP).** Hyvä Checkout loads the CSP build of Alpine, which cannot evaluate `x-data="initGtmDatalayer()"` / `x-init="checkLogoutCookie()"`: three "Alpine is unable to interpret the following expression" warnings plus a `TypeError` (undefined `x-bind` object), and the component (event delivery from the customer-data section, logout cookie) did not initialise there. Fix: register with `Alpine.data()` on `alpine:init`, `x-data="initGtmDatalayer"` without parentheses, `init()` method; JS tests model the registration and lint every Alpine directive in `view/frontend/templates` for CSP-safe expressions. Verified afterwards: no console messages on cart, product, add to cart, checkout shipping and payment steps; a synthetic `private-content-loaded` on `/checkout/` (CSP build) pushes the event; `add_to_cart` still fires once on a normal page. Checkout CSP is enforced (nonce + hashes for the registered inline scripts, `*.googletagmanager.com` in `script-src`, `*.google-analytics.com` in `connect-src` from Magento's own whitelists): no violations.
 
 Not run yet in run 2: *Require Consent* = No, event-only setup, custom cookie name and accepted value, logged-in / admin-created / multishipping / redirect orders, configurable products and coupons, tax and SKU options, network blocked / wrong secret / expiry, mobile and one-page checkout, virtual cart, FPC/Varnish, search page, ACL, cleanup cron, GA4 Realtime/DebugView and GTM Preview checks by a person.
 
