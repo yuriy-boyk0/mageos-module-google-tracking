@@ -13,7 +13,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | 1 Client-side purchase fix | ✅ code + tests · 🧪 verify on real success page |
 | 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ implemented from Hyvä Checkout 1.3.15 source + JS tests · 🧪 verify in a real checkout |
 | 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
-| 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · only the fixed-conversion-rate option ⏳ |
+| 2 Server-side purchase event | ✅ core + tests · 🧪 observer/snapshot/config · reporting-currency option is a future improvement ⏳ |
 | 3 Refunds / cancellations / mass re-send | ⏳ not started |
 | 4 Admin visibility (grid column, reconciliation report) | ⏳ not started (debug mode is done as part of Phase 0) |
 | 5 Documentation | ✅ README, `google-setup.md`, `local-testing.md`, this file · 👤 docs acceptance (see below) |
