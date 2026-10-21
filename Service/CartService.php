@@ -36,7 +36,9 @@ class CartService extends AbstractGtmService
 
     public function removeFromCart(QuoteItem $quoteItem): void
     {
-        $items = [$this->buildProductData($quoteItem->getProduct(), (float) $quoteItem->getQty())];
+        // The row as it was in the cart (price the customer paid); the catalog product only as a fallback.
+        $items = $this->buildItemList([$quoteItem])
+            ?: [$this->buildProductData($quoteItem->getProduct(), (float) $quoteItem->getQty())];
         $this->eventQueue->enqueueSessionEvent(
             EventQueue::SESSION_KEY_REMOVE_FROM_CART,
             [
@@ -142,13 +144,40 @@ class CartService extends AbstractGtmService
             $qty = (float) ($isOrder ? $item->getQtyOrdered() : $item->getQty());
             $data = $this->buildProductData($product, $qty > 0 ? $qty : 1.0);
             // The row price is what the customer actually pays (configurable/custom options), not the catalog price.
-            if ((float) $item->getPrice() > 0) {
-                $data['price'] = round((float) $item->getPrice(), 2);
+            $price = $isOrder ? $this->orderItemPrice($item) : $this->quoteItemPrice($item, $qty);
+            if ($price > 0) {
+                $data['price'] = $price;
             }
             $list[] = $data;
         }
 
         return $list;
+    }
+
+    /**
+     * Order items are already in the order currency (and excluding tax).
+     */
+    private function orderItemPrice($item): float
+    {
+        return round((float) $item->getPrice(), 2);
+    }
+
+    /**
+     * Quote items keep `price` in the BASE currency; the unit price excluding tax in the quote (display) currency is
+     * `converted_price`, set by the tax collector. Falls back to row total / qty, then to converting the base price.
+     */
+    private function quoteItemPrice($item, float $qty): float
+    {
+        $converted = (float) $item->getConvertedPrice();
+        if ($converted > 0) {
+            return round($converted, 2);
+        }
+        $rowTotal = (float) $item->getRowTotal();
+        if ($rowTotal > 0 && $qty > 0) {
+            return round($rowTotal / $qty, 2);
+        }
+
+        return (float) $item->getPrice() > 0 ? $this->toDisplayCurrency((float) $item->getPrice()) : 0.0;
     }
 
     private function calculateValue(array $items): float
