@@ -10,11 +10,15 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Store\Model\ScopeInterface;
 use MageOS\GoogleTagManager\Service\DataLayer\PageContext;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\HoldPolicy;
 
 class CheckoutTagManager extends TagManager
 {
     private const XML_PATH_EXCLUDE_ZERO_VALUE = 'googletagmanager/general/exclude_zero_value';
     private const XML_PATH_MAX_TRANSACTION_VALUE = 'googletagmanager/general/max_transaction_value';
+    private const XML_PATH_SERVER_SIDE_ENABLED = 'googletagmanager/server_side/enabled';
+    private const XML_PATH_EXCLUDED_STATUSES = 'googletagmanager/server_side/excluded_statuses';
+    private const XML_PATH_SKIP_CLIENT_PURCHASE_WHEN_HELD = 'googletagmanager/server_side/skip_client_purchase_when_held';
 
     public function __construct(
         private readonly CartService $cartService,
@@ -69,6 +73,15 @@ class CheckoutTagManager extends TagManager
         // "Maximum Transaction Value" (base currency) applies to the client-side purchase too.
         $max = (float) $this->scopeConfig->getValue(self::XML_PATH_MAX_TRANSACTION_VALUE, ScopeInterface::SCOPE_STORE);
         if ($order->getId() && $max > 0 && (float) $order->getBaseGrandTotal() > $max) {
+            return 'null';
+        }
+        // "Skip Client-side purchase for Excluded Statuses": unpaid (held) orders get no client-side purchase.
+        if ($order->getId() && (new HoldPolicy())->skipsClientPurchase(
+            $this->scopeConfig->isSetFlag(self::XML_PATH_SKIP_CLIENT_PURCHASE_WHEN_HELD, ScopeInterface::SCOPE_STORE),
+            $this->scopeConfig->isSetFlag(self::XML_PATH_SERVER_SIDE_ENABLED, ScopeInterface::SCOPE_STORE),
+            (string) $order->getStatus(),
+            array_filter(array_map('trim', explode(',', (string) $this->scopeConfig->getValue(self::XML_PATH_EXCLUDED_STATUSES, ScopeInterface::SCOPE_STORE))), 'strlen')
+        )) {
             return 'null';
         }
 

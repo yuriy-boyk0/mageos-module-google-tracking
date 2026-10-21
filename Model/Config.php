@@ -7,6 +7,7 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\FollowUpPayloadBuilder;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\HoldPolicy;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\PayloadBuilder;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\SendSettings;
@@ -125,6 +126,17 @@ class Config implements SendSettingsProviderInterface
     public function getRetentionDays(): int
     {
         return max(0, (int) $this->scopeConfig->getValue(self::PATH . 'retention_days'));
+    }
+
+    /**
+     * Days a purchase may be held for an excluded order status before the daily cleanup closes it as expired
+     * (0 = no limit). Read at default scope, like the retention: the cleanup is global.
+     */
+    public function getMaxHoldDays(): int
+    {
+        $value = $this->scopeConfig->getValue(self::PATH . 'max_hold_days');
+
+        return $value === null || $value === '' ? HoldPolicy::DEFAULT_MAX_HOLD_DAYS : max(0, (int) $value);
     }
 
     public function getCurrencyBasis(int $storeId): string

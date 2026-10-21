@@ -60,6 +60,16 @@ interface QueueStorageInterface
      */
     public function markExpired(int $entityId, int $attempts, string $error, int $now): void;
 
+    /**
+     * Closes a row on purpose (e.g. a waiting purchase whose order was canceled); $reason is kept in last_error.
+     */
+    public function markSkipped(int $entityId, string $reason, int $now): void;
+
+    /**
+     * Closes `waiting` rows created before $createdBefore as `expired` with $note. Returns the number closed.
+     */
+    public function expireWaitingBefore(int $createdBefore, string $note, int $now): int;
+
     public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array;
 
     /**

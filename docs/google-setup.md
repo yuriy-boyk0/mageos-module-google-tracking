@@ -126,7 +126,7 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | No `purchase` for a large order | Above *Maximum Transaction Value* |
 | GTM does not load with a *Custom GTM Script URL* | The URL must serve `gtm.js` (first-party / server-side GTM); check the browser console for a 404 or a CSP error |
 | `purchase_server` is `expired` | Cron was not running for about 3 days; Google rejects events older than 72 hours, so it is kept for review but never sent |
-| `purchase_server` stays `waiting` | The order still has an excluded status (*Exclude Order Statuses*, e.g. `pending_payment`). It is sent automatically when the order moves on (e.g. payment confirmed, invoice); cancelled orders are never sent |
+| `purchase_server` stays `waiting` | The order still has an excluded status (*Exclude Order Statuses*, e.g. `pending_payment`). It is sent automatically when the order moves on (e.g. payment confirmed, invoice). If the order is cancelled or closed meanwhile, the row becomes `skipped` ("order canceled while held"); if it is still held after *Maximum Hold (days)* (default 30) it becomes `expired` (re-send from the order grid if needed) |
 | No client `purchase` for an order with total 0 | Expected with *Exclude Zero-value Orders* = Yes (General group) |
 | `purchase_server` is `skipped` | See `last_error`: consent not given, excluded status/payment method, zero value, or admin order |
 | No `begin_checkout` | Hyvä Checkout is required; the default Magento checkout is not wired |

@@ -239,7 +239,16 @@
                 </field>
                 <field id="excluded_statuses" translate="label" type="multiselect" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Exclude Order Statuses</label>
+                    <comment><![CDATA[The purchase of an order placed with one of these statuses (e.g. <code>pending_payment</code> of a redirect payment) is held (<em>Waiting</em>) and sent once the order reaches another status. If the order is canceled or closed while held, the purchase is closed as <em>Skipped</em> and never sent. Ctrl/Cmd-click to deselect.]]></comment>
                     <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="skip_client_purchase_when_held" translate="label comment" type="select" sortOrder="91" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Skip Client-side purchase for Excluded Statuses</label>
+                    <comment><![CDATA[Yes = no client-side <code>purchase</code> on the success page while the order still has one of the <em>Exclude Order Statuses</em> (e.g. an unpaid redirect payment). That purchase is <strong>not</strong> sent later from the browser: only <code>purchase_server</code> records the order once it is paid, and <code>purchase_server</code> is a comparison signal, not revenue. No (default) = the success page always sends <code>purchase</code>.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>
@@ -302,6 +311,14 @@
                     <label>Show in GA4 DebugView</label>
                     <comment><![CDATA[Adds <code>debug_mode</code> so server-side events appear in Analytics > Admin > DebugView. Unlike Debug Mode, events are really sent and recorded. Turn off after testing.]]></comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="max_hold_days" translate="label comment" type="text" sortOrder="125" showInDefault="1" canRestore="1">
+                    <label>Maximum Hold (days)</label>
+                    <comment><![CDATA[A purchase held for an excluded order status longer than this is closed as <em>Expired</em> by the daily cleanup (the order never left the excluded status). It can still be sent with the order grid's re-send action. 0 = hold without limit.]]></comment>
+                    <validate>validate-digits</validate>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

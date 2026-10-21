@@ -42,7 +42,7 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - **Page / visitor context** (`Service/DataLayer/PageContext`, `PageTypeResolver`): `{page_type, customer_group, logged_in}` pushed in `head.phtml` before GTM; customer group / login come from Magento's HTTP context (part of the FPC key, so safe in cached HTML). `TagManager::isEnabled()` is false for *Don't Track Customer Groups*. Custom GTM script URL + `Model/Csp/GtmScriptHostCollector`.
 - **Item options** in `Service/ItemDataResolver`: category depth / excluded categories (`Service/DataLayer/CategoryPathPicker`), up to five custom item parameters (`Service/DataLayer/CustomItemAttributes`, passed through by `PayloadBuilder`). Exclusions for customer groups and maximum transaction value apply client (`Block/CheckoutTagManager`) and server (`ExclusionPolicy`).
 - **Pending client events** in the session are merged, not overwritten (`EventQueue::appendSessionEvent`, `Service/DataLayer/EcommerceEventMerger`); grouped products add one item per child (`CartService::addGroupedToCart`).
-- **Excluded order status = hold**: the purchase row is stored as `waiting` with its payload and released by `Observer/ReleaseWaitingPurchase` (`sales_order_save_after`) → `Model/PurchaseReleaser` (`HoldPolicy`) when the status is no longer excluded.
+- **Excluded order status = hold**: the purchase row is stored as `waiting` with its payload and released by `Observer/ReleaseWaitingPurchase` (`sales_order_save_after`) → `Model/PurchaseReleaser` (`HoldPolicy`) when the status is no longer excluded. Canceled / closed while held → `skipped` (same observer, `HoldPolicy::closeReason`); held longer than `server_side/max_hold_days` (default 30) → `expired` by `Cron/Cleanup`. Optional `server_side/skip_client_purchase_when_held` leaves out the client `purchase` while the status is excluded (`Block/CheckoutTagManager`).
 - **Catalog events** `view_item`, `view_item_list`, `search`: `Block/CatalogTagManager` + `Service/CatalogService`, rendered into FPC-cached HTML (catalog data only) and placed `after="-"` so the list block has loaded its collection first.
   - `purchase_server` is a deliberately different event name from the client-side `purchase`: a comparison signal, not revenue. Do not "fix" this by deduplicating or renaming.
 - Only `purchase` goes server-side. Do not move other events server-side (see plan, non-goals).
@@ -68,7 +68,8 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - Multishipping is not supported or tested (no Hyvä UI); documented, no work planned.
 - *Exclude Zero-value Orders* is a General setting and also suppresses the client-side `purchase`.
 - Client items match the server items (variant, category path, item_id, per-item discount).
-- Excluded order statuses hold the purchase (`waiting`) until the order reaches an allowed status.
+- Excluded order statuses hold the purchase (`waiting`) until the order reaches an allowed status; canceled / closed while held → `skipped`; held > *Maximum Hold* (30 days) → `expired`.
+- Client `purchase` for an excluded (unpaid) status: sent by default; optional setting to skip it (never sent later from the browser).
 
 ## Open questions
 Listed in `docs/STATUS.md`. Ask the user when blocked by one; do not guess Hyvä Checkout event names.

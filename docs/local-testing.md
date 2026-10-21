@@ -2,6 +2,13 @@
 
 For a Claude Code session or a person with the real store. Cloud sessions cannot run any of this (see `CLAUDE.md`). Record results in `docs/STATUS.md` ("Needs local testing") as you go: tick items, note failures, and fix code or tell the user.
 
+## Next local run: what to test (run 22)
+Everything changed in cloud since run 21 and not verified on a real install yet. Run in this order and record the results in `docs/STATUS.md` (new "Verified locally, run 22" section, the Open issues table, "Needs local testing" items 20 and 21, "Local test coverage") and in the run log at the end of this file:
+1. `bin/magento setup:upgrade`, `setup:di:compile`, `cache:flush` (new constructor argument in `Cron/Cleanup` and `Observer/AddToCart`, new backend model, new config fields). Expected: no errors; the new fields appear under *Server-side Purchase Tracking*.
+2. Section **7e**: fixes of Open issues 15 to 18 (bundle net price, bundle discount, variant attributes, Custom GTM Script URL validation) and no `coupon: null`.
+3. Section **7f**: held purchases cancelled while held, maximum hold, *Skip Client-side purchase for Excluded Statuses*.
+4. Optional if time allows: the items listed under "Still missing" in `docs/STATUS.md` ("Local test coverage").
+
 ## 0. Prerequisites
 - Clean Magento Open Source 2.4.9 with sample data, Hyvä theme + Hyvä Checkout active. No consent module is needed (the former `mage-os/module-cookie-consent` dependency was dropped, it does not exist yet); consent is simulated with a cookie, see "Simulating cookie consent" below.
 - Developer or production mode; cron working (`bin/magento cron:run` twice schedules then executes jobs) or run it manually while testing.
@@ -196,6 +203,33 @@ Turn on *Allow dataLayer Debug Logging* and open the shop with `?gtm_debug=1`: t
 | *Custom Item Parameters* = `item_color:color`, hoodie Black / XS | `item_color` "Black" on add_to_cart, view_cart, begin_checkout, purchase, `purchase_server`, refund; *Brand Attribute* set on the variant only behaves the same |
 | *Custom GTM Script URL* validation | see the row in 7d |
 | Order without coupon | client `purchase` has no `coupon` key (was `"coupon": null`); with a coupon the code is sent as before |
+
+## 7f. Held purchases: cancelled while held, maximum hold, client purchase of unpaid orders (2026-10-21)
+New since run 21 (none of it verified locally yet). Settings, all under *Server-side Purchase Tracking*: *Exclude Order Statuses* (now with a help text), **Skip Client-side purchase for Excluded Statuses** (`googletagmanager/server_side/skip_client_purchase_when_held`, default No, store scope) and **Maximum Hold (days)** (`googletagmanager/server_side/max_hold_days`, default 30, default scope only). Code: `Service/MeasurementProtocol/HoldPolicy` (`closeReason`, `expiryCutoff`, `skipsClientPurchase`), `Model/PurchaseReleaser`, `Cron/Cleanup`, `Model/DbQueueStorage` (`markSkipped`, `expireWaitingBefore`), `Block/CheckoutTagManager`.
+
+Setup as in run 18: US store, server-side tracking on, *Exclude Order Statuses* = `pending` (Check / Money order starts as `pending`, so every checkmo order is held). Look at the rows with
+```sql
+SELECT entity_id, increment_id, event_type, status, last_error, FROM_UNIXTIME(created_at) created, FROM_UNIXTIME(updated_at) updated
+FROM mageos_gtm_server_event ORDER BY entity_id DESC LIMIT 10;
+```
+Remember the trap from run 18: `addCommentToStatusHistory()` + `save()` does not fire `sales_order_save_after`; change a real field (e.g. `customer_note`) when saving by script, or use the admin buttons.
+
+| # | Scenario | Steps | Expected |
+|---|---|---|---|
+| 1 | Held, then cancelled in the admin | Place a checkmo order (status `pending`); check the row is `waiting`; Sales > Orders > the order > **Cancel** | Purchase row `skipped`, `last_error` "order canceled while held", `updated_at` = cancel time; `cancel_server` row `skipped` (purchase not sent), as before; nothing sent by cron |
+| 2 | Re-send of that order | Order grid mass action *Re-send GA4 server-side purchase* on it | Ignored with "skipped on purpose: order canceled while held"; row unchanged |
+| 3 | Row left over from run 18 (order 000000044, cancelled while `waiting` before this fix) | Save the order once by script with a real change (e.g. `customer_note`), or leave it to the cleanup (row 5) | After the save: row `skipped` "order canceled while held". Rows of orders cancelled before the upgrade change only on their next save or by the maximum hold |
+| 4 | Held, then paid (regression of run 18) | Place a checkmo order; Invoice it (status `processing`) | Row `pending` "released: order status changed to "processing"", then `sent` by cron; not `skipped` |
+| 5 | Maximum hold | Place a checkmo order (row `waiting`); age it: `UPDATE mageos_gtm_server_event SET created_at = created_at - 31*86400 WHERE increment_id = '<order>' AND event_type = 'purchase';` run the cleanup: `bin/magento cron:run --group default` until `mageos_gtm_cleanup` ran, or call it directly: `php -r 'require "app/bootstrap.php"; $b = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER); $b->getObjectManager()->get(\MageOS\GoogleTagManager\Cron\Cleanup::class)->execute();'` | Row `expired`, `last_error` "held more than 30 days: the order never left an excluded status"; `var/log/system.log` has "cleanup: closed 1 held purchases older than 30 days as expired"; a younger `waiting` row (another order) stays `waiting`; `pending` / `sent` rows untouched |
+| 6 | Expired held row re-sent | Mass action *Re-send* on the order from row 5 | Row `pending` (manual re-send), then `sent`; the event is dated at sending time |
+| 7 | *Maximum Hold* = 0 | Set it to 0, repeat row 5 with another order | Row stays `waiting` (no limit) |
+| 8 | Client purchase, setting **No** (default) | Place a checkmo order with consent, GTM loaded; record `dataLayer` across the redirect (section 9) | Success page pushes `purchase` as before; server row `waiting` |
+| 9 | Client purchase, setting **Yes** | Set *Skip Client-side purchase for Excluded Statuses* = Yes, `cache:flush`, place a checkmo order | **No** `purchase` push on the success page (other pushes such as `page_view` still there); server row `waiting`; after invoicing: `purchase_server` sent; no client `purchase` ever arrives for this order |
+| 10 | Setting Yes, status not excluded | Remove `pending` from *Exclude Order Statuses* (or pay with a method whose order starts as `processing`), place an order | Client `purchase` pushed as usual |
+| 11 | Setting Yes, server-side tracking disabled | Server-side *Enabled* = No, `pending` still stored as excluded, place a checkmo order | Client `purchase` pushed (the setting only applies while server-side tracking is on) |
+| 12 | Real redirect payment (needs a person, optional) | *Exclude Order Statuses* = `pending_payment`, setting Yes, Stripe Checkout redirect paid by a person | No client `purchase` when the success page is reached while the order is still `pending_payment`; if Stripe already confirmed the payment before the success page (status `processing`), the client `purchase` is sent; `purchase_server` sent once, after the payment |
+
+Afterwards: setting back to No, *Maximum Hold* back to default (delete the `core_config_data` rows), *Exclude Order Statuses* back to `NULL`, `cache:flush`.
 
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).

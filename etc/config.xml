@@ -35,6 +35,8 @@
                 <track_cancellations>1</track_cancellations>
                 <cancel_event_name>cancel_server</cancel_event_name>
                 <retention_days>90</retention_days>
+                <max_hold_days>30</max_hold_days>
+                <skip_client_purchase_when_held>0</skip_client_purchase_when_held>
             </server_side>
         </googletagmanager>
     </default>

@@ -11,6 +11,7 @@ use MageOS\GoogleTagManager\Service\MeasurementProtocol\ResendPolicy;
 /**
  * Releases a purchase that was held (`waiting`) because the order status was excluded at placement, once the order
  * reaches a status that is not excluded (typically: redirect payment confirmed, pending_payment -> processing).
+ * An order canceled or closed while held closes the row as `skipped` instead (never sent automatically).
  *
  * The payload was built at placement with the visitor's consent and GA ids; its original timestamp is dropped, so
  * GA4 dates the event when it is released (the order may have waited longer than Google's 72 h window).
@@ -35,6 +36,13 @@ class PurchaseReleaser
             return false;
         }
         $row = $this->storage->findByOrder((int) $order->getEntityId(), QueueStorageInterface::EVENT_PURCHASE);
+        // Canceled / closed while held (payment failed or abandoned): the purchase never happened, close the row.
+        $closeReason = $this->holdPolicy->closeReason($row, (string) $order->getState());
+        if ($closeReason !== null) {
+            $this->storage->markSkipped((int) $row['entity_id'], $closeReason, $now);
+
+            return false;
+        }
         $excluded = $this->config->getExclusionRules($storeId)['excluded_statuses'];
         if (!$this->holdPolicy->shouldRelease($row, (string) $order->getState(), (string) $order->getStatus(), $excluded)) {
             return false;

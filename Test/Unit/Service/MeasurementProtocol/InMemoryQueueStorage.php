@@ -90,6 +90,25 @@ class InMemoryQueueStorage implements QueueStorageInterface
             + $this->rows[$entityId];
     }
 
+    public function markSkipped(int $entityId, string $reason, int $now): void
+    {
+        $this->rows[$entityId] = ['status' => self::STATUS_SKIPPED, 'last_error' => $reason, 'updated_at' => $now]
+            + $this->rows[$entityId];
+    }
+
+    public function expireWaitingBefore(int $createdBefore, string $note, int $now): int
+    {
+        $closed = 0;
+        foreach ($this->rows as $id => $row) {
+            if ($row['status'] === self::STATUS_WAITING && $row['created_at'] < $createdBefore) {
+                $this->rows[$id] = ['status' => self::STATUS_EXPIRED, 'last_error' => $note, 'updated_at' => $now] + $row;
+                $closed++;
+            }
+        }
+
+        return $closed;
+    }
+
     public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array
     {
         foreach ($this->rows as $row) {

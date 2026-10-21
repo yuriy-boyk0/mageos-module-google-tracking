@@ -131,6 +131,32 @@ class DbQueueStorage implements QueueStorageInterface
         );
     }
 
+    public function markSkipped(int $entityId, string $reason, int $now): void
+    {
+        $this->connection()->update(
+            $this->table(),
+            [
+                'status' => self::STATUS_SKIPPED,
+                'last_error' => mb_substr($reason, 0, 255),
+                'updated_at' => $now,
+            ],
+            ['entity_id = ?' => $entityId]
+        );
+    }
+
+    public function expireWaitingBefore(int $createdBefore, string $note, int $now): int
+    {
+        return $this->connection()->update(
+            $this->table(),
+            [
+                'status' => self::STATUS_EXPIRED,
+                'last_error' => mb_substr($note, 0, 255),
+                'updated_at' => $now,
+            ],
+            ['status = ?' => self::STATUS_WAITING, 'created_at < ?' => $createdBefore]
+        );
+    }
+
     public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array
     {
         $connection = $this->connection();

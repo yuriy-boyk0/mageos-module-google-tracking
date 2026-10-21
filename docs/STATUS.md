@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-21 (twenty-one local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage"; Open issues 15 to 18 and `coupon: null` fixed in cloud afterwards, not yet verified locally).
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-21 (twenty-one local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage"; Open issues 15 to 18, `coupon: null`, held-purchase cleanup and the optional client purchase skip done in cloud afterwards, not yet verified locally: next local run = `local-testing.md` "Next local run", sections 7e and 7f).
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -297,6 +297,14 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 | Full credit memo of that order | 🟢 `refund_server` EUR, value 102.12, item 24.13 × 3, `refund_type` `full`; both events sent (Debug Mode on, then off) |
 | *Tax in Totals* = Excluding | logic only (unit tests: `value` = grand total minus tax, shipping and tax unchanged); not run in the browser |
 
+### Held purchases end, optional client purchase skip for unpaid orders (2026-10-21, cloud; ✅ unit tests + PHPStan on the changed files; 🧪 not verified locally)
+Decided by the user after comparing WeltPixel GA4 Pro 1.17.5 (a cron re-checks every unsent order each minute with no limit, sends a cancelled order if `canceled` is not excluded, and skips the client `purchase` for excluded statuses with the same list) and Yireo GoogleTagManager2 (client `purchase` only for the configured order states, default includes `pending_payment`; no server sender in the free module).
+- **Cancelled / closed while held**: `Model/PurchaseReleaser` (on `sales_order_save_after`) closes a `waiting` purchase as `skipped` ("order canceled while held" / "order closed while held", `HoldPolicy::closeReason`, new `QueueStorageInterface::markSkipped`). The re-send action leaves it alone (skipped on purpose).
+- **Maximum hold**: new setting *Maximum Hold (days)* (`server_side/max_hold_days`, default 30, 0 = no limit, default scope); `Cron/Cleanup` closes older `waiting` rows as `expired` (`HoldPolicy::expiryCutoff`, `QueueStorageInterface::expireWaitingBefore`); they can be re-sent from the order grid.
+- **Client purchase of unpaid orders**: new setting *Skip Client-side purchase for Excluded Statuses* (`server_side/skip_client_purchase_when_held`, default No): `Block/CheckoutTagManager` renders no `purchase` while the order status is in *Exclude Order Statuses* and server-side tracking is enabled (`HoldPolicy::skipsClientPurchase`).
+- *Exclude Order Statuses* got a help text. Docs: README, google-setup troubleshooting, plan, CLAUDE.md, `local-testing.md` section 7f (step-by-step).
+- Tests: 221 PHPUnit (16 new in `HoldPolicyTest`), 51 JS.
+
 ### Fixes of Open issues 15 to 18 and `coupon: null` (2026-10-21, cloud; ✅ unit/JS tests + PHPStan on the changed files; 🧪 not verified locally)
 - **15 Bundle price** (`Service/AbstractGtmService::bundleNetPrice`): `view_item`, `view_item_list`, wishlist and similar events use the bundle price model's minimal total excluding tax, computed from the options (price index values left out), converted to the display currency. `add_to_cart` of a bundle (`Observer/AddToCart`) looks up the cart row (`Quote::getItemByProduct`) and sends its price, so it equals `view_cart` for the chosen options.
 - **16 Bundle discount**: when the bundle line has no discount, the children's discounts are summed (client `CartService::rowDiscount`, server `OrderSnapshotFactory::buildItem`).
@@ -467,7 +475,7 @@ Environment: US store, *Exclude Order Statuses* = `pending` (Check / Money order
 | Same order after allowing `processing` (re-save with a real change) | 🟢 purchase released (`pending`, no timestamp) **and** the skipped refund re-queued as a new `pending` row (same reference id, old skipped row replaced); cron sent both |
 | Status not excluded but state `pending_payment` (46) | 🟢 stays `waiting` (state check); then `processing` releases it |
 | Real Stripe Checkout redirect (`stripe_payments_checkout`) with a person paying | 🧪 not run |
-| A waiting row of a cancelled order | 🟡 stays `waiting` forever: the cleanup cron only deletes `sent` / `skipped` rows, so such rows accumulate (decision: expire them with the other rows, or leave them as evidence) |
+| A waiting row of a cancelled order | 🟡 stays `waiting` forever: the cleanup cron only deletes `sent` / `skipped` rows, so such rows accumulate (✅ fixed 2026-10-21 in cloud: `skipped` on cancel, `expired` after *Maximum Hold*; 🧪 `local-testing.md` section 7f) |
 
 Traps: `Order::addCommentToStatusHistory()` + `save()` does not fire `sales_order_save_after` (nothing changed on the order itself), change a field such as `customer_note` to trigger the release; an invoice created by script needs `$invoice->getOrder()->setIsInProcess(true)` before the transaction save, otherwise the order stays `new` / `pending` and nothing is released (the admin controller does this).
 
@@ -559,6 +567,7 @@ Cleanup: both test customers deleted (order 055 stays as a guest-order record), 
 - Admin: order grid column, event log grid (filters, sort, order link), ACL for two roles, FPC (MISS/HIT, sort, pagination)
 
 **Still missing (🧪 unless marked 👤):**
+- **Next run (22), changed in cloud after run 21:** `local-testing.md` "Next local run": section 7e (Open issues 15 to 18, `coupon` key) and section 7f (held purchases cancelled / expired, client purchase skip); items 20 and 21 under "Needs local testing"
 - Multi-currency / multi-tax (Italian store exists): the US store with EUR display and a real order (only the events were checked), per-website module settings, the settings *Currency basis* base / *Tax in Totals* excluding / *Item ID* child end to end in a real order (verified on existing orders through the snapshot factory only)
 - Orders: other redirect payment methods (Mollie, Braintree / PayPal are installed, not configured; Stripe's hosted page was not completed because card data is not typed on external pages), a downloadable refund, bundle with a non-default selection and fixed-price bundles, Stripe Checkout redirect completed by a person (does the order become paid and tracked once)
 - Follow-ups: a re-sent purchase combined with a partial memo, refunds of a configurable in the Italian store, a second partial memo on a discounted order
@@ -590,6 +599,7 @@ Everything under "Magento layer" above, in particular the risky items:
 18. Competitor-parity features (`local-testing.md` section 7c): Consent Mode Off / Basic / Advanced in the browser (debug logger shows the commands, GA4 `gcs` parameter) and in the server payload, granted signals, banner-managed mode; `select_item` and list fields on `add_to_cart` / `purchase`; promotions from a CMS block; `item_brand` / `affiliation`; re-imported container with the new tags and the fixed search term. 🟢 (runs 19 and 20) all browser and server cases; still open: GTM Preview of the new tags, GA4 side (a person), `view_item_list` list fields in GA4 reports
 19. Second competitor batch (`local-testing.md` section 7d): page context and GA4 user properties, custom GTM URL with CSP, customer-group exclusion with FPC, maximum value, add_to_compare, minicart view_cart and drawer remove/update delivery, category depth / exclusions, custom item parameters. 🟢 (run 21) all cases except the variant-level custom parameter (Open issue 17) and the quantity update in the drawer (no such control in Hyvä); still open: GTM Preview, a real first-party / server-side GTM container (👤), a customer-group order through the logged-in checkout of the excluded group
 20. Fixes of Open issues 15 to 18 and `coupon: null` (`local-testing.md` section 7e): bundle net price in a tax-inclusive store on view_item / listings / add_to_cart, bundle discount from its children (client and server), variant-level custom parameters and brand, Custom GTM Script URL validation on save and at runtime / CSP, no `coupon` key without a coupon. 🧪
+21. Held purchases (`local-testing.md` section 7f): cancelled / closed while held → `skipped`, *Maximum Hold* → `expired` by the cleanup cron and re-sendable, *Skip Client-side purchase for Excluded Statuses* Yes / No / status not excluded / server side disabled, `setup:di:compile` with the new constructor arguments. 🧪
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
@@ -623,6 +633,8 @@ Everything under "Magento layer" above, in particular the risky items:
 | Client item data | Client items match the server (item_id rule, variant, category path, per-item discount) | 2026-10-21 |
 | Competitor parity | Implement Consent Mode v2 (Off/Basic/Advanced), select_item + list attribution, promotions, brand/affiliation, debug logger | 2026-10-21 |
 | Second competitor batch | Custom GTM URL, page/visitor context, customer-group exclusion, max transaction value, add_to_compare, minicart view_cart, category depth / exclusions, custom item parameters | 2026-10-21 |
+| Held purchase of a cancelled / closed order | Closed as `skipped` on the order save; held longer than *Maximum Hold* (default 30 days) → `expired` | 2026-10-21 |
+| Client `purchase` of an unpaid (excluded-status) order | Sent by default; optional setting skips it (never sent from the browser later) | 2026-10-21 |
 | Admin report | Simple event log grid (order date, order #, event, status, error) instead of the per-day summary; intro text spaced from the grid | 2026-10-20 |
 
 ## Known risks / notes
@@ -633,8 +645,8 @@ Everything under "Magento layer" above, in particular the risky items:
 - Payment-gateway flows that cancel an order right after placement produce both `purchase_server` and `cancel_server`. Expected.
 - `view_item_list` on category pages reads the list block's collection; a theme that renames `category.products.list` / `search_result_list` gets no list event (🧪 Hyvä default theme uses these names, checked in the source).
 - The client-side events for `add_shipping_info` / `add_payment_info` fire on Hyvä's validation success, before the server confirms a step change (rare false positive, see `hyva-checkout-notes.md`).
-- **Unpaid orders on the client.** A redirect-based payment method that places the order as `pending_payment` (Stripe Checkout) gets the client `purchase` on the success page at once; this cannot wait for the payment. Server side: add `pending_payment` to *Exclude Order Statuses* and the purchase waits until the payment is confirmed (2026-10-21).
+- **Unpaid orders on the client.** A redirect-based payment method that places the order as `pending_payment` (Stripe Checkout) gets the client `purchase` on the success page at once by default; it cannot wait for the payment. Server side: add `pending_payment` to *Exclude Order Statuses* and the purchase waits until the payment is confirmed. Since 2026-10-21 (not verified locally) *Skip Client-side purchase for Excluded Statuses* = Yes leaves the client `purchase` out while the status is excluded; it is never sent from the browser later, so GA4 revenue reports miss those orders and only `purchase_server` (comparison only) records them.
+- **Held purchases end.** A held (`waiting`) purchase whose order is canceled or closed is closed as `skipped` on that order save; one held longer than *Maximum Hold (days)* (default 30) is closed as `expired` by the daily cleanup. Rows of orders canceled before this change move only on the order's next save or through the maximum hold.
 - One `item_id` per product across all events since 2026-10-21 (Open issues 5, 7, 10, 11), pending local verification.
-- The customer-data event slot is single: two `add_to_cart` events before the next section load deliver only the last one; harmless in normal browsing (Open issue 12).
 - Multishipping is not supported or tested (no Hyvä UI). If enabled anyway, the server tracks each resulting order separately; there are no client events.
 - Zero-value orders: excluded on both sides by default (*Exclude Zero-value Orders*, General group).
