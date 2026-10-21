@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (thirteen local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (fourteen local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -386,7 +386,19 @@ Environment: US store, one-page checkout, Stripe in **test mode** with the keys 
 
 Notes: the admin shows "Stripe webhooks could not be configured automatically … `bin/magento stripe:webhooks:configure`" (the Stripe module, not related to this module); the Stripe test page and error text follow the browser language (Italian here).
 
-### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 13)
+### Verified locally, run 14 (🟢/🔴, 2026-10-21): GTM container export of the new commits
+Pulled `9a5e02a..df71204` (four cloud commits), 185 PHPUnit + 51 JS tests pass in the local PHP 8.5 / Node, both stores answer 200, `setup:db:status` up to date (no schema change). The container was exported with the module's own `Service\Export` (same code as the admin button) and imported into GTM by the user.
+
+| Case | Result |
+|---|---|
+| Export of the new template (21 tags, 21 triggers, 22 variables) | 🟢 valid JSON; new tags *GA4 Addtocompare*, *Selectitem*, *Viewpromotion*, *Selectpromotion*; `Ga4 Viewcart/Updatecart/Removefromcart` renamed to `GA4 …` (merge-import can leave both spellings, see `google-setup.md`) |
+| **GTM import of the first export** | 🔴 GTM refused it ("invalid format on line 10, unknown column name"): the GA4 Configuration tag (`gaawc`) used the Universal Analytics key `fieldName` in `fieldsToSet` |
+| After changing the key to `name` in `etc/tags.json` | 🟢 imported by the user without error |
+| Tags firing in GTM Preview / events in GA4 | 🧪 not checked yet |
+
+Not run: any of the behaviour changes of the four commits (see "Needs local testing" items 17 to 19).
+
+### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 14)
 **Tested locally on Magento 2.4.9 + Hyvä + Hyvä Checkout (guest orders unless noted):**
 - Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 139 PHPUnit + 30 JS tests
 - Admin config rendering, ID validation both ways, encrypted API secret, container export generated

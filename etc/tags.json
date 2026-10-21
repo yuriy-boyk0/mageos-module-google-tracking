@@ -28,7 +28,7 @@
             "map": [
               {
                 "type": "TEMPLATE",
-                "key": "fieldName",
+                "key": "name",
                 "value": "page_type"
               },
               {
