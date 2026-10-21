@@ -47,10 +47,41 @@ abstract class AbstractGtmService
      */
     protected function unitPrice(Product $product): float
     {
+        if ($product->getTypeId() === 'bundle') {
+            $bundlePrice = $this->bundleNetPrice($product);
+            if ($bundlePrice > 0) {
+                return $bundlePrice;
+            }
+        }
         try {
             return round((float) $product->getPriceInfo()->getPrice(FinalPrice::PRICE_CODE)->getAmount()->getBaseAmount(), 2);
         } catch (\Throwable $e) {
             return $this->toDisplayCurrency((float) $product->getFinalPrice());
+        }
+    }
+
+    /**
+     * Minimal price of a bundle without tax. The price info amount of a bundle keeps the tax of a tax-inclusive
+     * catalog in its base amount (a dynamic bundle's own tax class is not its options' tax class), so it is gross
+     * where every other event is net. The bundle price model removes the tax per option with the option's own tax
+     * class. The price index values (min_price / max_price on listing products) are gross and taxed with the bundle's
+     * class, so they are left out and the options are summed instead. Base currency: converted for display.
+     */
+    private function bundleNetPrice(Product $product): float
+    {
+        try {
+            $priceModel = $product->getPriceModel();
+            if (!method_exists($priceModel, 'getTotalPrices')) {
+                return 0.0;
+            }
+            $copy = clone $product;
+            $copy->unsetData('min_price');
+            $copy->unsetData('max_price');
+            $min = $priceModel->getTotalPrices($copy, 'min', false);
+
+            return is_numeric($min) && (float) $min > 0 ? $this->toDisplayCurrency((float) $min) : 0.0;
+        } catch (\Throwable $e) {
+            return 0.0;
         }
     }
 

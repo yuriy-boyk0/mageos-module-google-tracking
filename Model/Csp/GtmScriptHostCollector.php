@@ -8,6 +8,7 @@ use Magento\Csp\Model\Policy\FetchPolicy;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Store\Model\ScopeInterface;
 use MageOS\GoogleTagManager\Block\TagManager;
+use MageOS\GoogleTagManager\Service\DataLayer\GtmScriptUrl;
 
 /**
  * Allows the host of a "Custom GTM Script URL" (first-party / server-side GTM) in the Content Security Policy,
@@ -21,8 +22,10 @@ class GtmScriptHostCollector implements PolicyCollectorInterface
 
     public function collect(array $defaultPolicies = []): array
     {
-        $url = trim((string) $this->scopeConfig->getValue(TagManager::XML_PATH_GTM_SCRIPT_URL, ScopeInterface::SCOPE_STORE));
-        $host = $url === '' ? '' : (string) parse_url($url, PHP_URL_HOST);
+        // Same rule as TagManager::getGtmBaseUrl(): an invalid value loads GTM from Google, so its host is not allowed.
+        $host = (new GtmScriptUrl())->host(
+            (string) $this->scopeConfig->getValue(TagManager::XML_PATH_GTM_SCRIPT_URL, ScopeInterface::SCOPE_STORE)
+        );
         if ($host === '') {
             return $defaultPolicies;
         }

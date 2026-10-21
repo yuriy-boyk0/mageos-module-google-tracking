@@ -77,7 +77,7 @@ class ItemDataResolver
 
         return $data
             + ($variant !== '' ? ['item_variant' => $variant] : [])
-            + $this->extras($product, $storeId, $allowLoad)
+            + $this->extras($product, $storeId, $allowLoad, $simple)
             + $this->categories($product, $storeId);
     }
 
@@ -88,15 +88,20 @@ class ItemDataResolver
     {
         $children = $item->getChildren();
         $product = $item->getProduct();
+        $type = (string) $item->getProductType();
+        // The chosen variant of a configurable (its only child row); bundle children are separate products, not variants.
+        $variantProduct = $type === 'configurable' && $children ? reset($children)->getProduct() : null;
 
         return $this->describe(
-            (string) $item->getProductType(),
+            $type,
             (string) $item->getSku(),
             $children ? (string) reset($children)->getSku() : null,
             (string) $product->getData('sku'),
             $this->productOptions($product),
             $product,
-            $storeId
+            $storeId,
+            null,
+            $variantProduct
         );
     }
 
@@ -107,16 +112,21 @@ class ItemDataResolver
     {
         $children = $item instanceof OrderItem ? $item->getChildrenItems() : [];
         $product = $this->loadProduct((int) $item->getProductId(), $storeId);
+        $type = (string) $item->getProductType();
+        $variantProduct = $type === 'configurable' && $children
+            ? $this->loadProduct((int) reset($children)->getProductId(), $storeId)
+            : null;
 
         return $this->describe(
-            (string) $item->getProductType(),
+            $type,
             (string) $item->getSku(),
             $children ? (string) reset($children)->getSku() : null,
             $product instanceof Product ? (string) $product->getData('sku') : null,
             $item instanceof OrderItem ? (array) $item->getProductOptions() : [],
             $product,
             $storeId,
-            $itemIdMode
+            $itemIdMode,
+            $variantProduct
         );
     }
 
@@ -192,7 +202,8 @@ class ItemDataResolver
         array $productOptions,
         ?ProductInterface $product,
         int $storeId,
-        ?string $itemIdMode = null
+        ?string $itemIdMode = null,
+        ?ProductInterface $variantProduct = null
     ): array {
         $data = [
             'item_id' => $this->itemIdResolver->resolve(
@@ -207,21 +218,23 @@ class ItemDataResolver
 
         return $data
             + ($variant !== '' ? ['item_variant' => $variant] : [])
-            + $this->extras($product, $storeId, true)
+            + $this->extras($product, $storeId, true, $variantProduct)
             + $this->categories($product, $storeId);
     }
 
     /**
      * item_brand (attribute configured under General > Brand Attribute) and affiliation (General > Affiliation).
+     * Brand and custom parameters are read from the chosen variant of a configurable first (attributes such as color
+     * or size live on the simple product), then from the product itself.
      */
-    private function extras(?ProductInterface $product, int $storeId, bool $allowLoad): array
+    private function extras(?ProductInterface $product, int $storeId, bool $allowLoad, ?ProductInterface $variantProduct = null): array
     {
         $result = [];
         $affiliation = trim((string) $this->scopeConfig->getValue(self::XML_PATH_AFFILIATION, ScopeInterface::SCOPE_STORE, $storeId));
         if ($affiliation !== '') {
             $result['affiliation'] = $affiliation;
         }
-        $brand = $this->brand($product, $storeId, $allowLoad);
+        $brand = $this->brand($product, $storeId, $allowLoad, $variantProduct);
         if ($brand !== '') {
             $result['item_brand'] = $brand;
         }
@@ -230,7 +243,7 @@ class ItemDataResolver
             (string) $this->scopeConfig->getValue(self::XML_PATH_CUSTOM_ATTRIBUTES, ScopeInterface::SCOPE_STORE, $storeId)
         );
         foreach ($custom as $param => $code) {
-            $value = $this->attributeOf($product, $code, $storeId, $allowLoad);
+            $value = $this->variantFirst($product, $variantProduct, $code, $storeId, $allowLoad);
             if ($value !== '') {
                 $result[$param] = $value;
             }
@@ -239,11 +252,18 @@ class ItemDataResolver
         return $result;
     }
 
-    private function brand(?ProductInterface $product, int $storeId, bool $allowLoad): string
+    private function brand(?ProductInterface $product, int $storeId, bool $allowLoad, ?ProductInterface $variantProduct): string
     {
         $code = trim((string) $this->scopeConfig->getValue(self::XML_PATH_BRAND_ATTRIBUTE, ScopeInterface::SCOPE_STORE, $storeId));
 
-        return $code === '' ? '' : $this->attributeOf($product, $code, $storeId, $allowLoad);
+        return $code === '' ? '' : $this->variantFirst($product, $variantProduct, $code, $storeId, $allowLoad);
+    }
+
+    private function variantFirst(?ProductInterface $product, ?ProductInterface $variantProduct, string $code, int $storeId, bool $allowLoad): string
+    {
+        $value = $variantProduct !== null ? $this->attributeOf($variantProduct, $code, $storeId, $allowLoad) : '';
+
+        return $value !== '' ? $value : $this->attributeOf($product, $code, $storeId, $allowLoad);
     }
 
     /**

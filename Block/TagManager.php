@@ -7,6 +7,7 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\DataLayer\GtmScriptUrl;
 use MageOS\GoogleTagManager\Service\DataLayer\PageContext;
 
 class TagManager extends Template
@@ -46,12 +47,13 @@ class TagManager extends Template
 
     /**
      * Base URL GTM is loaded from: Google's, or a first-party / server-side GTM domain ("Custom GTM Script URL").
+     * A value that is not an https origin (saved before the check existed, or set via config:set) falls back to Google.
      */
     public function getGtmBaseUrl(): string
     {
-        $url = rtrim(trim((string) $this->scopeConfig->getValue(self::XML_PATH_GTM_SCRIPT_URL, ScopeInterface::SCOPE_STORE)), '/');
+        $url = (string) $this->scopeConfig->getValue(self::XML_PATH_GTM_SCRIPT_URL, ScopeInterface::SCOPE_STORE);
 
-        return preg_match('#^https://[^/\s]+#', $url) === 1 ? $url : self::DEFAULT_GTM_URL;
+        return (new GtmScriptUrl())->normalize($url) ?? self::DEFAULT_GTM_URL;
     }
 
     /**

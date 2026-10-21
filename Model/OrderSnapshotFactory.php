@@ -5,6 +5,7 @@ namespace MageOS\GoogleTagManager\Model;
 
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\Data\OrderItemInterface;
+use Magento\Sales\Model\Order\Item as OrderItem;
 use MageOS\GoogleTagManager\Service\ItemDataResolver;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\TotalsResolver;
@@ -82,6 +83,12 @@ class OrderSnapshotFactory
     {
         $qty = max(1.0, (float) $item->getQtyOrdered());
         $discount = (float) ($useBase ? $item->getBaseDiscountAmount() : $item->getDiscountAmount());
+        // A dynamic-priced bundle books its discount on the option rows and keeps 0 on the bundle row (as the client).
+        if ($discount <= 0 && $item->getProductType() === 'bundle' && $item instanceof OrderItem) {
+            foreach ($item->getChildrenItems() as $child) {
+                $discount += (float) ($useBase ? $child->getBaseDiscountAmount() : $child->getDiscountAmount());
+            }
+        }
 
         // item_id / item_variant / categories: the same rules as the client-side events (ItemDataResolver).
         return $this->itemData->forOrderItem($item, $storeId, $itemIdMode) + [

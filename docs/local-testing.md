@@ -177,13 +177,25 @@ Turn on *Allow dataLayer Debug Logging* and open the shop with `?gtm_debug=1`: t
 | FPC: same category page as guest and as a logged-in customer of another group | each gets its own `customer_group` (separate cache entries) |
 | Re-imported container, GTM Preview | GA4 Configuration tag sends `page_type` and user properties `customer_group`, `logged_in` (GA4 request: `ep.page_type`, `up.customer_group`) |
 | *Custom GTM Script URL* = an address that serves gtm.js (e.g. a server-side GTM or a simple proxy) | `gtm.js` requested from that host; no CSP violation in the console (host added to script-src, connect-src, img-src, frame-src); empty = Google again |
+| *Custom GTM Script URL* = `https://host/path`, `http://host`, `host` | saving fails with "... is not a valid Custom GTM Script URL ..."; `https://GTM.example.com/` is saved as `https://gtm.example.com`. A bad value written with `config:set` (bypasses the check): `gtm.js` from Google and the host **not** in the CSP header |
 | *Don't Track Customer Groups* = NOT LOGGED IN | guest pages have no GTM script, no head/body dataLayer code; a guest order is `skipped` ("excluded: customer group"); a logged-in General customer is tracked |
 | *Maximum Transaction Value* = 50, order of 100 | no client `purchase` on the success page, server row `skipped` ("excluded: above the maximum transaction value") |
 | Add to compare (product page / listing) | `add_to_compare` with the item; GTM tag *GA4 Addtocompare* fires |
 | *view_cart When the Minicart Opens* = Yes | opening the cart drawer pushes `view_cart` with the current cart; after removing in the drawer `remove_from_cart` arrives and the next opening shows the new cart (the sidebar controllers refresh the `gtm` section); Hyvä's drawer has no quantity control, so a drawer `update_cart` cannot be tested (run 21) |
 | *Category Depth* = 2 | items have only `item_category` and `item_category2` |
 | *Excluded Categories* = id of a category the product is in (e.g. a "Sale" category) | that category never appears, the next level moves up |
-| *Custom Item Parameters* = `item_material:material` (an attribute that is set on the product itself, e.g. Strive Shoulder Pack) | `item_material` with the option labels on view_item, cart, purchase items and in `purchase_server`. An attribute that is only set on the variant of a configurable (`color` of the Chaz Kangeroo Hoodie) is **not** sent (STATUS.md Open issue 17, run 21); the configurable's own attributes (`material` "Wool") are |
+| *Custom Item Parameters* = `item_material:material` (an attribute that is set on the product itself, e.g. Strive Shoulder Pack) | `item_material` with the option labels on view_item, cart, purchase items and in `purchase_server`. Since the Open issue 17 fix: an attribute that is only set on the variant of a configurable (`color` of the Chaz Kangeroo Hoodie, Black) is sent from the chosen variant on add_to_cart, cart, checkout, purchase and `purchase_server`; `view_item` of the configurable (no variant chosen yet) sends the parent's value only (`material` "Wool") |
+
+## 7e. Fixes of Open issues 15 to 18 and `coupon: null` (2026-10-21)
+| Scenario | Expected |
+|---|---|
+| Italian (tax-inclusive) store, Sprite Yoga Companion Kit (dynamic bundle): category page, product page, add to cart with the default options, cart, checkout, order | `view_item_list` / `view_item` price = the cheapest option combination without VAT; `add_to_cart` price = `view_cart` = `begin_checkout` = `purchase` = `purchase_server` (48.33 for the run 15 combination, was 56.12); `add_to_cart` value = price × qty |
+| Same bundle with non-default options (a more expensive selection) | `add_to_cart` price equals the cart row (not the cheapest combination) |
+| Fixed-price bundle, tax-inclusive store | `view_item` price without tax, equal to the order line price |
+| Coupon (10 %) on a cart with the dynamic bundle | the bundle line has `discount` = sum of its children's discounts / bundle qty (6.1 for order 40's cart), in `begin_checkout`, client `purchase` and `purchase_server`; the item discounts add up to the order discount |
+| *Custom Item Parameters* = `item_color:color`, hoodie Black / XS | `item_color` "Black" on add_to_cart, view_cart, begin_checkout, purchase, `purchase_server`, refund; *Brand Attribute* set on the variant only behaves the same |
+| *Custom GTM Script URL* validation | see the row in 7d |
+| Order without coupon | client `purchase` has no `coupon` key (was `"coupon": null`); with a coupon the code is sent as before |
 
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).

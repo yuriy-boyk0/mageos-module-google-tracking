@@ -56,7 +56,8 @@
                 </field>
                 <field id="gtm_script_url" translate="label comment" type="text" sortOrder="21" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Custom GTM Script URL</label>
-                    <comment><![CDATA[Optional. Load <code>gtm.js</code> from a first-party or server-side GTM domain instead of <code>https://www.googletagmanager.com</code>, e.g. <code>https://gtm.example.com</code> (HTTPS, no path). The host is added to the Content Security Policy automatically. See README, "Custom GTM script URL".]]></comment>
+                    <comment><![CDATA[Optional. Load <code>gtm.js</code> from a first-party or server-side GTM domain instead of <code>https://www.googletagmanager.com</code>, e.g. <code>https://gtm.example.com</code>. Domain only: HTTPS, an optional port, no path; anything else is rejected on save. The host is added to the Content Security Policy automatically. See README, "Custom GTM script URL".]]></comment>
+                    <backend_model>MageOS\GoogleTagManager\Model\Config\Backend\GtmScriptUrl</backend_model>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

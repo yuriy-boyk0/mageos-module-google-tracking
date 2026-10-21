@@ -19,9 +19,20 @@ class CartService extends AbstractGtmService
         parent::__construct($storeManager, $categoryRepository, $itemData);
     }
 
-    public function addToCart(Product $product, float $qty): void
+    /**
+     * @param QuoteItem|null $quoteItem the cart row the product was added to; its price (what the customer pays for
+     *        the chosen options, without tax) replaces the catalog price, as in view_cart
+     */
+    public function addToCart(Product $product, float $qty, ?QuoteItem $quoteItem = null): void
     {
-        $this->queueAddToCart([$this->buildProductData($product, $qty)]);
+        $data = $this->buildProductData($product, $qty);
+        if ($quoteItem !== null) {
+            $price = $this->quoteItemPrice($quoteItem, max(1.0, (float) $quoteItem->getQty()));
+            if ($price > 0) {
+                $data['price'] = $price;
+            }
+        }
+        $this->queueAddToCart([$data]);
     }
 
     /**
@@ -145,9 +156,8 @@ class CartService extends AbstractGtmService
                 'value' => (float) $order->getGrandTotal(),
                 // Discounts are sent per item (positive, per unit), like the server-side purchase; GA4 has no
                 // event-level discount.
-                'coupon' => $order->getCouponCode(),
                 'items' => $orderItems,
-            ],
+            ] + ((string) $order->getCouponCode() !== '' ? ['coupon' => (string) $order->getCouponCode()] : []),
         ];
     }
 
@@ -186,7 +196,7 @@ class CartService extends AbstractGtmService
             if ($price > 0) {
                 $data['price'] = $price;
             }
-            $discount = (float) $item->getDiscountAmount();
+            $discount = $this->rowDiscount($item, $isOrder);
             if ($discount > 0) {
                 $data['discount'] = round($discount / $qty, 2);
             }
@@ -194,6 +204,23 @@ class CartService extends AbstractGtmService
         }
 
         return $list;
+    }
+
+    /**
+     * Discount of the row. A dynamic-priced bundle has its discount booked on the option rows, the bundle row itself
+     * stays 0: then the children's discounts are summed (same as OrderSnapshotFactory for the server-side purchase).
+     */
+    private function rowDiscount($item, bool $isOrder): float
+    {
+        $discount = (float) $item->getDiscountAmount();
+        if ($discount > 0 || $item->getProductType() !== 'bundle') {
+            return $discount;
+        }
+        foreach (($isOrder ? $item->getChildrenItems() : $item->getChildren()) ?? [] as $child) {
+            $discount += (float) $child->getDiscountAmount();
+        }
+
+        return $discount;
     }
 
     /**
