@@ -85,6 +85,16 @@ class Config implements SendSettingsProviderInterface
         return trim((string) $this->scopeConfig->getValue(self::PATH_CONSENT . 'granted_value', ScopeInterface::SCOPE_STORE, $storeId));
     }
 
+    public function getConsentMode(int $storeId): string
+    {
+        return (string) $this->scopeConfig->getValue(self::PATH_CONSENT . 'consent_mode', ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
+    public function getConsentModeGrantedSignals(int $storeId): string
+    {
+        return (string) $this->scopeConfig->getValue(self::PATH_CONSENT . 'granted_signals', ScopeInterface::SCOPE_STORE, $storeId);
+    }
+
     public function isRefundTrackingEnabled(int $storeId): bool
     {
         return $this->isEnabled($storeId) && $this->flag('track_refunds', $storeId);

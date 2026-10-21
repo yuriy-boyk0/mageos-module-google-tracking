@@ -18,6 +18,35 @@ use Hyva\Theme\ViewModel\HyvaCsp;
             // gtag('config') here: it made GA4 count a second page_view next to the container's own.
             window.dataLayer = window.dataLayer || [];
 
+            // Google Consent Mode v2 (README, "Google Consent Mode v2"). Only consent commands use gtag(); GA4 itself
+            // is configured in the container.
+            var SIGNALS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
+            var consentMode = config.consentMode === 'basic' || config.consentMode === 'advanced' ? config.consentMode : 'off';
+            var sendsConsentCommands = consentMode !== 'off' && !config.cmpManaged;
+            var granted = false;
+            function gtag() {
+                window.dataLayer.push(arguments);
+            }
+            function signals(value, analyticsOnly) {
+                var result = {};
+                SIGNALS.forEach(function (name) {
+                    result[name] = analyticsOnly && name !== 'analytics_storage' ? 'denied' : value;
+                });
+                return result;
+            }
+            function grantConsent() {
+                if (!sendsConsentCommands || granted) {
+                    return;
+                }
+                granted = true;
+                gtag('consent', 'update', signals('granted', config.grantedSignals === 'analytics'));
+            }
+            if (sendsConsentCommands) {
+                var defaults = signals('denied', false);
+                defaults.wait_for_update = 500;
+                gtag('consent', 'default', defaults);
+            }
+
             function readCookie(name) {
                 var parts = document.cookie ? document.cookie.split(';') : [];
                 for (var i = 0; i < parts.length; i++) {
@@ -67,14 +96,24 @@ use Hyva\Theme\ViewModel\HyvaCsp;
                 first.parentNode.insertBefore(script, first);
             }
 
-            if (!config.required) {
+            function accept() {
+                grantConsent();
                 loadGtm();
+            }
+
+            if (!config.required) {
+                accept();
                 return;
+            }
+
+            // Advanced Consent Mode: GTM loads at once with everything "denied" (cookieless pings only).
+            if (consentMode === 'advanced') {
+                loadGtm();
             }
 
             var cookie = consentCookie();
             if (cookie && isCookieGranted(cookie)) {
-                loadGtm();
+                accept();
                 return;
             }
 
@@ -87,7 +126,7 @@ use Hyva\Theme\ViewModel\HyvaCsp;
                     if (current && !isCookieGranted(current)) {
                         return;
                     }
-                    loadGtm();
+                    accept();
                 });
             });
         })();

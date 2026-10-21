@@ -152,6 +152,24 @@ For a configurable (e.g. Chaz Kangeroo Hoodie Black / XS) and a bundle (Sprite Y
 - Grouped product (e.g. Set of Sprite Yoga Straps): add two of the children with different quantities → one `add_to_cart` with two items (child SKUs `24-WG085`, `24-WG086`…, their own prices and quantities), `value` = sum.
 - On a category page, add two different products with the AJAX "Add to Cart" buttons quickly, before the minicart refreshes → one `add_to_cart` with both items and the summed value (previously only the last one arrived).
 
+## 7c. Consent Mode, select_item, promotions, brand, debug (2026-10-21)
+Turn on *Allow dataLayer Debug Logging* and open the shop with `?gtm_debug=1`: the console then shows every push, including `consent default` / `consent update`.
+| Scenario | Expected |
+|---|---|
+| Consent Mode = Off | no `consent` commands; GTM after consent (as before) |
+| Basic, no consent | `consent default` (all four denied, `wait_for_update` 500), no `gtm.js` request |
+| Basic, accept (console cookie or banner) | `consent update` (all granted) **before** `gtm.js`; GA4 requests carry `gcs=G111` |
+| Advanced, no consent | `gtm.js` loads at once, `consent default` denied; GA4 requests are cookieless pings (`gcs=G100`, no `_ga` cookie set) |
+| Advanced, then accept | `consent update` granted, `_ga` cookie appears, normal hits |
+| Signals Granted = Analytics only | update: only `analytics_storage` granted |
+| Banner Sends Consent Mode Signals = Yes | no module `consent` commands |
+| Server side with Basic/Advanced | `purchase_server` payload has `consent: {ad_user_data, ad_personalization}` = GRANTED after accept (all signals), DENIED with Analytics only or anonymous sends; refunds copy it |
+| Category page, click a product link | `select_item` with `item_list_id` `category_<id>`, `item_list_name`, `index`; then `add_to_cart` and `purchase` items carry the same list fields |
+| Category page, *Add to Cart* button in the list | no `select_item`, but the `add_to_cart` item carries the list |
+| CMS block with `<a data-gtm-promotion-id="T1" data-gtm-promotion-name="Test" href="#">` | `view_promotion` once when visible, `select_promotion` on click; GA4 *Promotions* reports after a day |
+| Brand Attribute = `manufacturer` (set a value on a product; *Used in Product Listing* = Yes for listings), Affiliation = "Test store" | `item_brand` and `affiliation` on items of all events and in `purchase_server` |
+| Re-imported container | new tags *GA4 Selectitem*, *GA4 Viewpromotion*, *GA4 Selectpromotion* fire in GTM Preview; *GA4 Search* now sends `search_term` |
+
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).
 

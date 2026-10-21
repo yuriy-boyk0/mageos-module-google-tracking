@@ -17,7 +17,8 @@ class PayloadBuilder
 
     private const MAX_ITEMS = 200;
     private const ITEM_STRING_KEYS = [
-        'item_id', 'item_name', 'item_variant',
+        'item_id', 'item_name', 'item_variant', 'item_brand', 'affiliation',
+        'item_list_id', 'item_list_name',
         'item_category', 'item_category2', 'item_category3', 'item_category4', 'item_category5',
     ];
 
@@ -26,7 +27,8 @@ class PayloadBuilder
         string $eventName,
         string $clientId,
         ?string $sessionId = null,
-        bool $includeUserId = false
+        bool $includeUserId = false,
+        ?array $consent = null
     ): array {
         $params = [
             'transaction_id' => (string) $snapshot['transaction_id'],
@@ -58,6 +60,10 @@ class PayloadBuilder
         }
         if ($includeUserId && !empty($snapshot['user_id'])) {
             $payload['user_id'] = (string) $snapshot['user_id'];
+        }
+        // Consent Mode v2 ad signals (ConsentModeSignals::measurementProtocolConsent), only when Consent Mode is on.
+        if ($consent !== null) {
+            $payload['consent'] = $consent;
         }
 
         return $payload;

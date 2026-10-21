@@ -1,0 +1,86 @@
+<?php
+use MageOS\GoogleTagManager\Block\TagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+
+/** @var TagManager $block */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled()): ?>
+<script>
+    /*
+     * view_promotion / select_promotion for content marked up with data attributes (README, "Promotions"):
+     *   <a href="/sale" data-gtm-promotion-id="SUMMER26" data-gtm-promotion-name="Summer sale"
+     *      data-gtm-creative-name="hero-banner" data-gtm-creative-slot="home-top"
+     *      data-gtm-promotion-items="MH01,WS12">...</a>
+     * WeltPixel's data-track-promo-id / -name / -creative / -position attributes are understood too.
+     * view_promotion is pushed once per element when at least half of it becomes visible; select_promotion on click.
+     */
+    (function () {
+        var SELECTOR = '[data-gtm-promotion-id],[data-gtm-promotion-name],[data-track-promo-id]';
+
+        function attr(el, ours, theirs) {
+            return (el.getAttribute(ours) || (theirs ? el.getAttribute(theirs) : '') || '').trim();
+        }
+
+        function promotion(el) {
+            var data = {
+                promotion_id: attr(el, 'data-gtm-promotion-id', 'data-track-promo-id'),
+                promotion_name: attr(el, 'data-gtm-promotion-name', 'data-track-promo-name'),
+                creative_name: attr(el, 'data-gtm-creative-name', 'data-track-promo-creative'),
+                creative_slot: attr(el, 'data-gtm-creative-slot', 'data-track-promo-position')
+            };
+            Object.keys(data).forEach(function (key) {
+                if (!data[key]) {
+                    delete data[key];
+                }
+            });
+            var skus = attr(el, 'data-gtm-promotion-items', null);
+            if (skus) {
+                data.items = skus.split(',').map(function (sku) { return sku.trim(); }).filter(Boolean)
+                    .map(function (sku) { return {item_id: sku}; });
+            }
+            return data;
+        }
+
+        function push(eventName, el) {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({ecommerce: null});
+            window.dataLayer.push({event: eventName, ga4_event: eventName, ecommerce: promotion(el)});
+        }
+
+        function init() {
+            var elements = Array.prototype.slice.call(document.querySelectorAll(SELECTOR));
+            if (!elements.length) {
+                return;
+            }
+            if (typeof IntersectionObserver === 'function') {
+                var observer = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            observer.unobserve(entry.target);
+                            push('view_promotion', entry.target);
+                        }
+                    });
+                }, {threshold: 0.5});
+                elements.forEach(function (el) { observer.observe(el); });
+            } else {
+                elements.forEach(function (el) { push('view_promotion', el); });
+            }
+        }
+
+        document.addEventListener('click', function (event) {
+            var el = event.target && event.target.closest ? event.target.closest(SELECTOR) : null;
+            if (el) {
+                push('select_promotion', el);
+            }
+        }, true);
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

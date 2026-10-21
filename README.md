@@ -91,13 +91,33 @@ The same cookie rules decide server-side whether `purchase_server` may use the v
 
 ---
 
+## Google Consent Mode v2
+
+Setting: **Cookie Consent > Google Consent Mode v2** (default **Off**). Consent Mode is Google's standard way to tell its tags what the visitor allowed, with four signals: `analytics_storage` (Analytics cookies), `ad_storage` (advertising cookies), `ad_user_data` (send user data to Google for ads) and `ad_personalization` (personalised ads / remarketing). Each is `granted` or `denied`.
+
+| Option | Before consent | After consent | Use it when |
+|---|---|---|---|
+| **Off** | GTM is not loaded, no signals | GTM loads, no signals (Google treats tags as fully consented) | You do not use Google Ads in the EEA and do not need Consent Mode; this is the original behaviour |
+| **Basic** | GTM is not loaded; the four signals are set to `denied` | Signals updated to `granted`, then GTM loads | You want Consent Mode reported to Google (required for Google Ads features with EEA traffic since March 2024) while nothing reaches Google before consent. Recommended default for EU stores |
+| **Advanced** | GTM **loads at once** with all signals `denied`: Google tags set no cookies and send anonymous "cookieless pings" | Signals updated to `granted`, tags work normally | You want GA4 to **model** the visitors who decline (behavioural / conversion modelling, needs enough traffic). Note: requests reach Google before consent; some EU data-protection authorities consider that problematic, so check with your privacy adviser first |
+
+Related settings:
+- **Signals Granted on Consent**: *All signals* (default), or *Analytics only*: `analytics_storage` becomes `granted`, the three ad signals stay `denied` (stores that do not use Google Ads).
+- **Banner Sends Consent Mode Signals**: set to Yes if your banner (Cookiebot, OneTrust, Usercentrics, ...) already sends Consent Mode commands itself. The module then sends none and only decides when GTM loads (Basic: after consent, Advanced: at once). Point *Consent Cookie Name* / *Cookie Value Meaning "Accepted"* at the banner's cookie so the server side reads the same decision.
+- Consent itself is detected exactly as before (consent cookie / fallback events, section *Cookie consent*).
+- **Server side**: with Basic or Advanced, `purchase_server`, `refund_server` and `cancel_server` carry the Measurement Protocol `consent` object (`ad_user_data`, `ad_personalization`): `GRANTED` when the visitor accepted and all signals are granted, otherwise `DENIED` (also for anonymous sends). Visitors who declined are still never sent server-side.
+
+---
+
 ## Events pushed to the dataLayer
 
 | Event | When |
 |---|---|
 | `view_item` | Product page viewed |
 | `view_item_list` | Category page or search results viewed (products of the current page, up to 50, with `item_list_id` / `item_list_name`) |
+| `select_item` | Click on a product link in a category / search listing (with `item_list_id`, `item_list_name`, `index`); see *Item list attribution* |
 | `search` | Search results page (`search_term`) |
+| `view_promotion` / `select_promotion` | A banner or link marked up as a promotion becomes visible / is clicked; see *Promotions* |
 | `add_to_cart` | Product added to cart. A **grouped** product sends one item per child added (child SKU, price, quantity), not the group. Several adds before the next page load are combined into one event with all items and the total `value` |
 | `remove_from_cart` | Product removed from cart |
 | `update_cart` | Cart item quantities updated |
@@ -110,9 +130,39 @@ The same cookie rules decide server-side whether `purchase_server` may use the v
 
 `page_view` is sent by the GA4 configuration tag of the exported GTM container (on *All Pages*), not by the module.
 
-All ecommerce events describe a product the same way as the server-side purchase: the same `item_id` (see *Item ID for Configurable Products*), `item_variant` for configurable options, the category path in `item_category` … `item_category5`, and a positive per-unit `discount` on the item (no event-level discount). All ecommerce events carry a flat GA4 `items` list (one entry per visible cart/order row, with the price actually paid), and `purchase` uses the order's own currency. The exported container fires every GA4 event tag on a **Custom Event** trigger matching the dataLayer event name, so events pushed after the page has loaded (cart, wishlist, checkout steps) are picked up. **If you imported the container before this version, export and import it again** (GTM: Import Container > Merge > Overwrite conflicting tags).
+All ecommerce events describe a product the same way as the server-side purchase: the same `item_id` (see *Item ID for Configurable Products*), `item_variant` for configurable options, the category path in `item_category` … `item_category5`, and a positive per-unit `discount` on the item (no event-level discount). All ecommerce events carry a flat GA4 `items` list (one entry per visible cart/order row, with the price actually paid), and `purchase` uses the order's own currency. The exported container fires every GA4 event tag on a **Custom Event** trigger matching the dataLayer event name, so events pushed after the page has loaded (cart, wishlist, checkout steps) are picked up. **If you imported the container before this version, export and import it again** (the 2026-10-21 version adds tags for `select_item`, `view_promotion`, `select_promotion`, list fields on `view_item_list`, and fixes the search term variable) (GTM: Import Container > Merge > Overwrite conflicting tags).
 
 `view_item`, `view_item_list` and `search` are rendered into the page HTML, which the full page cache stores and serves to every visitor of that page; they therefore only contain catalog data (prices as shown for the visitor's customer group, which the cache already varies by).
+
+---
+
+## Item list attribution (`select_item`)
+
+On category and search result pages, a click on a product link pushes `select_item` with the list (`item_list_id` = `category_<id>` or `search_results`, `item_list_name`) and the product's position (`index`). The module remembers the list for that product in the browser (7 days, last 100 products) and adds it to the product's items in later `add_to_cart` and client `purchase` events, which feeds GA4's item list reports. A click on the listing's own *Add to Cart* button also remembers the list (without `select_item`). Works with Hyvä's product list markup (each item is a form with the hidden input `product`). Limits: other lists (related products, widgets) are not tracked; with *Item ID for Configurable Products* = Child, an `add_to_cart` of a configurable uses the variant SKU and therefore does not pick up the list remembered for the parent.
+
+## Promotions (`view_promotion`, `select_promotion`)
+
+Mark banners or links in CMS content with data attributes; nothing else is needed:
+
+```html
+<a href="/sale"
+   data-gtm-promotion-id="SUMMER26"
+   data-gtm-promotion-name="Summer sale"
+   data-gtm-creative-name="hero-banner"
+   data-gtm-creative-slot="home-top"
+   data-gtm-promotion-items="MH01,WS12">...</a>
+```
+
+`view_promotion` is pushed once per element when at least half of it is visible, `select_promotion` on click. Only `data-gtm-promotion-id` or `data-gtm-promotion-name` is required; `data-gtm-promotion-items` (comma-separated SKUs) is optional. WeltPixel's attributes `data-track-promo-id`, `-name`, `-creative`, `-position` are understood as well, so existing content keeps working after a switch. Elements are collected once when the page has loaded; content inserted later (e.g. by a slider after load) is not observed.
+
+## Brand and affiliation
+
+- **Brand Attribute** (General): product attribute code sent as `item_brand` on every item, client and server side (e.g. `manufacturer`). For listings, set the attribute's *Used in Product Listing* = Yes; listings never load products one by one, so without it they send no brand.
+- **Affiliation** (General): text sent as `affiliation` on every item, e.g. your store name, to tell stores apart in one GA4 property.
+
+## Debugging
+
+Set **Allow dataLayer Debug Logging** = Yes (General). Then open any storefront page with `?gtm_debug=1`: every dataLayer push (events, ecommerce resets, Consent Mode commands) is logged to the browser console, in that browser only, until you open a page with `?gtm_debug=0`. Other visitors see nothing, and the full page cache is not affected. Use GTM Preview and GA4 DebugView for what reaches Google.
 
 ---
 

@@ -21,6 +21,9 @@ use MageOS\GoogleTagManager\Service\CatalogService;
  */
 class CatalogTagManager extends TagManager
 {
+    /** Set while building a list event: what the select_item click handler needs. */
+    private ?array $listClickConfig = null;
+
     public function __construct(
         Context $context,
         ScopeConfigInterface $scopeConfig,
@@ -69,11 +72,7 @@ class CatalogTagManager extends TagManager
             return [];
         }
 
-        return [$this->catalogService->viewItemList(
-            $products,
-            'category_' . $category->getId(),
-            (string) $category->getName()
-        )];
+        return [$this->listEvent($products, 'category_' . $category->getId(), (string) $category->getName())];
     }
 
     private function searchEvents(): array
@@ -85,10 +84,32 @@ class CatalogTagManager extends TagManager
         }
         $products = $this->listedProducts('search_result_list');
         if ($products !== null) {
-            $events[] = $this->catalogService->viewItemList($products, 'search_results', 'Search Results');
+            $events[] = $this->listEvent($products, 'search_results', 'Search Results');
         }
 
         return $events;
+    }
+
+    /**
+     * JSON for the select_item click handler of a listing page ({item_list_id, item_list_name, items, productIds}),
+     * or '' on other pages. Call after getJsonEvents().
+     */
+    public function getJsonListClickConfig(): string
+    {
+        return $this->listClickConfig === null ? '' : (string) $this->serializer->serialize($this->listClickConfig);
+    }
+
+    private function listEvent(iterable $products, string $listId, string $listName): array
+    {
+        $event = $this->catalogService->viewItemList($products, $listId, $listName);
+        $this->listClickConfig = [
+            'item_list_id' => $listId,
+            'item_list_name' => $listName,
+            'items' => $event['ecommerce']['items'],
+            'productIds' => $this->catalogService->listedProductIds($products),
+        ];
+
+        return $event;
     }
 
     private function listedProducts(string $blockName): ?iterable

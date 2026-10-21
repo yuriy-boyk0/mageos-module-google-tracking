@@ -50,6 +50,10 @@ class FollowUpPayloadBuilder
         if (!empty($purchasePayload['user_id'])) {
             $payload['user_id'] = (string) $purchasePayload['user_id'];
         }
+        // Same Consent Mode ad signals as the purchase.
+        if (isset($purchasePayload['consent']) && is_array($purchasePayload['consent'])) {
+            $payload['consent'] = $purchasePayload['consent'];
+        }
 
         return $payload;
     }

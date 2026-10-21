@@ -8,6 +8,14 @@
                    as="gtm.head"
                    template="MageOS_GoogleTagManager::head.phtml"
                    before="-"/>
+            <block class="MageOS\GoogleTagManager\Block\TagManager"
+                   name="mage-os-gtm-list-attribution"
+                   template="MageOS_GoogleTagManager::gtm/list-attribution.phtml"
+                   after="mage-os-gtm-head"/>
+            <block class="MageOS\GoogleTagManager\Block\TagManager"
+                   name="mage-os-gtm-debug"
+                   template="MageOS_GoogleTagManager::gtm/debug.phtml"
+                   after="mage-os-gtm-list-attribution"/>
         </referenceBlock>
         <referenceContainer name="after.body.start">
             <block class="MageOS\GoogleTagManager\Block\TagManager"
@@ -15,6 +23,11 @@
                    as="gtm.body"
                    template="MageOS_GoogleTagManager::body.phtml"
                    before="-"/>
+        </referenceContainer>
+        <referenceContainer name="before.body.end">
+            <block class="MageOS\GoogleTagManager\Block\TagManager"
+                   name="mage-os-gtm-promotions"
+                   template="MageOS_GoogleTagManager::gtm/promotions.phtml"/>
         </referenceContainer>
     </body>
 </page>

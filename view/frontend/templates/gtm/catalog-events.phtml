@@ -16,4 +16,46 @@ use Hyva\Theme\ViewModel\HyvaCsp;
     })();
 </script>
 <?php $hyvaCsp->registerInlineScript() ?>
+<?php if ($listConfig = $block->getJsonListClickConfig()): ?>
+<script>
+    /*
+     * select_item: a click on a product link in this listing. Hyvä's list item is a <form> with a hidden
+     * input "product" (the product id); its position in productIds gives the item of view_item_list.
+     * A click on the item's add-to-cart button only remembers the list, so the add_to_cart item carries it.
+     */
+    (function () {
+        var list = <?= /* @noEscape */ $listConfig ?>;
+
+        function itemForElement(element) {
+            var form = element && element.closest ? element.closest('form') : null;
+            var input = form ? form.querySelector('input[name="product"]') : null;
+            var position = input ? list.productIds.indexOf(String(input.value)) : -1;
+            return position === -1 ? null : list.items[position];
+        }
+
+        document.addEventListener('click', function (event) {
+            var target = event.target;
+            var item = itemForElement(target);
+            if (!item) {
+                return;
+            }
+            var attribution = {item_list_id: list.item_list_id, item_list_name: list.item_list_name, index: item.index};
+            if (window.mageosGtmListAttribution) {
+                window.mageosGtmListAttribution.remember(item.item_id, attribution);
+            }
+            if (!target.closest('a[href]')) {
+                return;
+            }
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({ecommerce: null});
+            window.dataLayer.push({
+                event: 'select_item',
+                ga4_event: 'select_item',
+                ecommerce: {item_list_id: list.item_list_id, item_list_name: list.item_list_name, items: [item]}
+            });
+        }, true);
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>
 <?php endif; ?>

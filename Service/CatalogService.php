@@ -39,7 +39,8 @@ class CatalogService extends AbstractGtmService
             if (!$product instanceof Product || $index >= self::MAX_LIST_ITEMS) {
                 continue;
             }
-            $items[] = $this->buildProductData($product, 1.0) + [
+            // allowLoad = false: never load each listed product (brand only if loaded with the collection)
+            $items[] = $this->buildProductData($product, 1.0, false) + [
                 'index' => $index++,
                 'item_list_id' => $listId,
                 'item_list_name' => $listName,
@@ -56,6 +57,26 @@ class CatalogService extends AbstractGtmService
                 'items' => $items,
             ],
         ];
+    }
+
+    /**
+     * Product ids in the same order and with the same limit as the items of viewItemList(), so a click on a listed
+     * product (identified by its id in the Hyvä list markup) can be mapped to its item.
+     *
+     * @param iterable<Product> $products
+     * @return string[]
+     */
+    public function listedProductIds(iterable $products): array
+    {
+        $ids = [];
+        foreach ($products as $product) {
+            if (!$product instanceof Product || count($ids) >= self::MAX_LIST_ITEMS) {
+                continue;
+            }
+            $ids[] = (string) $product->getId();
+        }
+
+        return $ids;
     }
 
     public function search(string $term): array

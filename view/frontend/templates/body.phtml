@@ -33,6 +33,10 @@ use Magento\Framework\Escaper;
 
         function pushEcommerceEvent(eventData) {
             window.dataLayer = window.dataLayer || [];
+            // Items selected from a category / search list carry that list (gtm/list-attribution.phtml).
+            if (eventData.event === 'add_to_cart' && eventData.ecommerce && window.mageosGtmListAttribution) {
+                window.mageosGtmListAttribution.apply(eventData.ecommerce.items);
+            }
             window.dataLayer.push({
                 event: eventData.event,
                 ga4_event: eventData.event,

@@ -305,10 +305,154 @@
       {
         "type": "TEMPLATE",
         "key": "name",
-        "value": "ecommerce.searchterm"
+        "value": "search_term"
       }
     ],
     "fingerprint": "1656037166450",
+    "formatValue": {}
+  },
+  {
+    "variableId": "282",
+    "name": "GA4-Ecommerce-ItemListId",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.item_list_id"
+      }
+    ],
+    "fingerprint": "1761004800000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "283",
+    "name": "GA4-Ecommerce-ItemListName",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.item_list_name"
+      }
+    ],
+    "fingerprint": "1761004800000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "284",
+    "name": "GA4-Ecommerce-PromotionId",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.promotion_id"
+      }
+    ],
+    "fingerprint": "1761004800000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "285",
+    "name": "GA4-Ecommerce-PromotionName",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.promotion_name"
+      }
+    ],
+    "fingerprint": "1761004800000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "286",
+    "name": "GA4-Ecommerce-CreativeName",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.creative_name"
+      }
+    ],
+    "fingerprint": "1761004800000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "287",
+    "name": "GA4-Ecommerce-CreativeSlot",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "ecommerce.creative_slot"
+      }
+    ],
+    "fingerprint": "1761004800000",
     "formatValue": {}
   }
 ]

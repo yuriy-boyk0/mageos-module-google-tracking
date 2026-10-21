@@ -1,0 +1,61 @@
+<?php
+use MageOS\GoogleTagManager\Block\TagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+
+/** @var TagManager $block */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled() && $block->isDebugLoggerAllowed()): ?>
+<script>
+    /*
+     * dataLayer debug logger (README, "Debugging"). Rendered for every visitor while allowed in the configuration,
+     * but silent until switched on in this browser with ?gtm_debug=1 (off again with ?gtm_debug=0). That keeps it
+     * compatible with the full page cache: the cached HTML is the same for everyone.
+     */
+    (function () {
+        var KEY = 'mageos_gtm_debug';
+        var on = false;
+        try {
+            var match = /[?&]gtm_debug=([01])/.exec(window.location.search || '');
+            if (match) {
+                match[1] === '1' ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY);
+            }
+            on = localStorage.getItem(KEY) === '1';
+        } catch (e) {
+            on = false;
+        }
+        if (!on) {
+            return;
+        }
+
+        window.dataLayer = window.dataLayer || [];
+        var logged = 0;
+
+        function label(entry) {
+            if (entry && entry.event) {
+                return entry.event;
+            }
+            if (entry && entry[0] === 'consent') {
+                return 'consent ' + entry[1];
+            }
+            if (entry && entry.ecommerce === null) {
+                return 'ecommerce reset';
+            }
+            return 'push';
+        }
+
+        function flush() {
+            while (logged < window.dataLayer.length) {
+                var entry = window.dataLayer[logged++];
+                console.log('%c[GTM dataLayer #' + logged + '] ' + label(entry), 'color:#1a73e8;font-weight:bold', entry);
+            }
+        }
+
+        console.log('%c[GTM dataLayer] debug logging is on (disable with ?gtm_debug=0)', 'color:#1a73e8');
+        flush();
+        // Polling instead of wrapping push(): GTM replaces dataLayer.push when it loads.
+        setInterval(flush, 250);
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

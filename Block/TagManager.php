@@ -17,6 +17,10 @@ class TagManager extends Template
     private const XML_PATH_CONSENT_COOKIE = 'googletagmanager/consent/cookie_name';
     private const XML_PATH_CONSENT_GRANTED_VALUE = 'googletagmanager/consent/granted_value';
     private const XML_PATH_CONSENT_EVENTS = 'googletagmanager/consent/event_names';
+    private const XML_PATH_CONSENT_MODE = 'googletagmanager/consent/consent_mode';
+    private const XML_PATH_DEBUG_LOGGER = 'googletagmanager/general/debug_logger';
+    private const XML_PATH_CONSENT_CMP = 'googletagmanager/consent/cmp_managed';
+    private const XML_PATH_CONSENT_SIGNALS = 'googletagmanager/consent/granted_signals';
 
     public function __construct(
         Context $context,
@@ -70,8 +74,19 @@ class TagManager extends Template
             'cookieName' => trim((string) $this->scopeConfig->getValue(self::XML_PATH_CONSENT_COOKIE, ScopeInterface::SCOPE_STORE)),
             'grantedValue' => trim((string) $this->scopeConfig->getValue(self::XML_PATH_CONSENT_GRANTED_VALUE, ScopeInterface::SCOPE_STORE)),
             'events' => $events,
+            'consentMode' => (string) $this->scopeConfig->getValue(self::XML_PATH_CONSENT_MODE, ScopeInterface::SCOPE_STORE) ?: 'off',
+            'cmpManaged' => $this->scopeConfig->isSetFlag(self::XML_PATH_CONSENT_CMP, ScopeInterface::SCOPE_STORE),
+            'grantedSignals' => (string) $this->scopeConfig->getValue(self::XML_PATH_CONSENT_SIGNALS, ScopeInterface::SCOPE_STORE) ?: 'all',
             'websiteId' => (int) $this->_storeManager->getStore()->getWebsiteId(),
             'containerId' => $this->getTagId(),
         ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    }
+
+    /**
+     * The debug logger script is rendered; it only logs in browsers switched on with ?gtm_debug=1.
+     */
+    public function isDebugLoggerAllowed(): bool
+    {
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_DEBUG_LOGGER, ScopeInterface::SCOPE_STORE);
     }
 }

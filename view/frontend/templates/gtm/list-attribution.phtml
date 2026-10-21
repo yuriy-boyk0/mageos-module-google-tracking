@@ -1,0 +1,84 @@
+<?php
+use MageOS\GoogleTagManager\Block\TagManager;
+use Hyva\Theme\ViewModel\HyvaCsp;
+
+/** @var TagManager $block */
+/** @var HyvaCsp $hyvaCsp */
+?>
+<?php if ($block->isEnabled()): ?>
+<script>
+    /*
+     * Item list attribution: remembers from which list (category, search results) a product was selected, so the
+     * later add_to_cart and purchase items carry the same item_list_id / item_list_name / index as select_item
+     * (GA4 "item list" reports). Kept in localStorage for 7 days, at most 100 products.
+     */
+    (function () {
+        var KEY = 'mageos_gtm_item_lists';
+        var MAX_AGE_MS = 7 * 24 * 3600 * 1000;
+        var MAX_ENTRIES = 100;
+
+        function read() {
+            try {
+                var data = JSON.parse(localStorage.getItem(KEY) || '{}');
+                return data && typeof data === 'object' ? data : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function write(data) {
+            try {
+                localStorage.setItem(KEY, JSON.stringify(data));
+            } catch (e) {
+                // storage unavailable: attribution is a nice-to-have
+            }
+        }
+
+        function fresh(entry, now) {
+            return entry && typeof entry.t === 'number' && now - entry.t < MAX_AGE_MS;
+        }
+
+        window.mageosGtmListAttribution = {
+            remember: function (itemId, list) {
+                if (!itemId || !list || !list.item_list_id) {
+                    return;
+                }
+                var now = Date.now();
+                var data = read();
+                data[itemId] = {
+                    item_list_id: list.item_list_id,
+                    item_list_name: list.item_list_name,
+                    index: list.index,
+                    t: now
+                };
+                var ids = Object.keys(data).filter(function (id) { return fresh(data[id], now); });
+                ids.sort(function (a, b) { return data[b].t - data[a].t; });
+                var kept = {};
+                ids.slice(0, MAX_ENTRIES).forEach(function (id) { kept[id] = data[id]; });
+                write(kept);
+            },
+            // Adds the remembered list fields to items that do not have them yet; returns the items.
+            apply: function (items) {
+                if (!Array.isArray(items)) {
+                    return items;
+                }
+                var now = Date.now();
+                var data = read();
+                items.forEach(function (item) {
+                    var entry = item && data[item.item_id];
+                    if (!fresh(entry, now) || item.item_list_id) {
+                        return;
+                    }
+                    item.item_list_id = entry.item_list_id;
+                    item.item_list_name = entry.item_list_name;
+                    if (typeof entry.index === 'number' && typeof item.index !== 'number') {
+                        item.index = entry.index;
+                    }
+                });
+                return items;
+            }
+        };
+    })();
+</script>
+<?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>

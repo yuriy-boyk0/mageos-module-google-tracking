@@ -144,4 +144,23 @@ class PayloadBuilderTest extends TestCase
         $payload = $this->builder->build($this->snapshot(), 'bad name!', '1.2');
         $this->assertSame('purchase_server', $payload['events'][0]['name']);
     }
+
+    public function testConsentModeSignalsAreAddedOnlyWhenGiven(): void
+    {
+        $this->assertArrayNotHasKey('consent', $this->builder->build($this->snapshot(), 'purchase_server', '1.2'));
+        $consent = ['ad_user_data' => 'DENIED', 'ad_personalization' => 'DENIED'];
+        $this->assertSame($consent, $this->builder->build($this->snapshot(), 'purchase_server', '1.2', null, false, $consent)['consent']);
+    }
+
+    public function testBrandAffiliationAndListFieldsArePassedThrough(): void
+    {
+        $snapshot = $this->snapshot(['items' => [[
+            'item_id' => 'A', 'price' => 1, 'quantity' => 1,
+            'item_brand' => 'Luma', 'affiliation' => 'Luma Store', 'item_list_id' => 'category_12', 'item_list_name' => 'Tops',
+        ]]]);
+        $item = $this->builder->build($snapshot, 'purchase_server', '1.2')['events'][0]['params']['items'][0];
+        $this->assertSame('Luma', $item['item_brand']);
+        $this->assertSame('Luma Store', $item['affiliation']);
+        $this->assertSame('category_12', $item['item_list_id']);
+    }
 }

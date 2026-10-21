@@ -6,12 +6,16 @@
             <general>
                 <enabled>0</enabled>
                 <exclude_zero_value>1</exclude_zero_value>
+                <debug_logger>0</debug_logger>
             </general>
             <consent>
                 <required>1</required>
                 <cookie_name>user_allowed_save_cookie</cookie_name>
                 <granted_value/>
                 <event_names>user-allowed-save-cookie</event_names>
+                <consent_mode>off</consent_mode>
+                <granted_signals>all</granted_signals>
+                <cmp_managed>0</cmp_managed>
             </consent>
             <server_side>
                 <enabled>0</enabled>

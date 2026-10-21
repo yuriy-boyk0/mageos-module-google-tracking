@@ -32,6 +32,28 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
+                <field id="brand_attribute" translate="label comment" type="text" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Brand Attribute</label>
+                    <comment><![CDATA[Product attribute code sent as <code>item_brand</code> in every event, e.g. <code>manufacturer</code>. Empty = no brand. For category/search listings set the attribute's <em>Used in Product Listing</em> to Yes, otherwise listings send no brand.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="affiliation" translate="label comment" type="text" sortOrder="36" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Affiliation</label>
+                    <comment><![CDATA[Sent as <code>affiliation</code> on every item (client and server side), e.g. your store name. Useful to tell several stores apart in one GA4 property. Empty = not sent.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="debug_logger" translate="label comment" type="select" sortOrder="38" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Allow dataLayer Debug Logging</label>
+                    <comment><![CDATA[When Yes, open any storefront page with <code>?gtm_debug=1</code> to log every dataLayer push (events, consent commands) to the browser console in that browser; <code>?gtm_debug=0</code> switches it off. Other visitors see nothing. Turn off in production when not needed.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
                 <field id="exclude_zero_value" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Exclude Zero-value Orders</label>
                     <comment><![CDATA[Orders with a grand total of 0 (100 % coupons, free samples) are not tracked as purchases: no client-side <code>purchase</code> event on the success page and no server-side <code>purchase_server</code>.]]></comment>
@@ -68,6 +90,27 @@
                     <comment><![CDATA[Comma-separated browser (window) events that mean "accepted", for banners that announce consent with an event. Default <code>user-allowed-save-cookie</code> (Hyvä's built-in banner). When the event fires, GTM loads on that page unless the consent cookie is present and says "declined". Event-only banners must fire the event on every page load.]]></comment>
                     <depends>
                         <field id="required">1</field>
+                    </depends>
+                </field>
+                <field id="consent_mode" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Google Consent Mode v2</label>
+                    <comment><![CDATA[<strong>Off</strong>: GTM loads only after consent, no consent signals (original behaviour). <strong>Basic</strong>: same, plus "denied" defaults before and "granted" signals after consent. <strong>Advanced</strong>: GTM loads at once with everything "denied" (Google sends cookieless pings and models declined visitors), "granted" after consent; check with your privacy adviser first. Details: README, section "Google Consent Mode v2".]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\ConsentMode</source_model>
+                </field>
+                <field id="granted_signals" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Signals Granted on Consent</label>
+                    <comment><![CDATA[All four signals, or only <code>analytics_storage</code> (ads signals stay "denied", for stores without Google Ads). See README.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\GrantedSignals</source_model>
+                    <depends>
+                        <field id="consent_mode" separator=",">basic,advanced</field>
+                    </depends>
+                </field>
+                <field id="cmp_managed" translate="label comment" type="select" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Banner Sends Consent Mode Signals</label>
+                    <comment><![CDATA[Yes if your banner (Cookiebot, OneTrust, Usercentrics, ...) sets Consent Mode itself: the module then sends no consent commands and only decides when GTM loads. See README.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="consent_mode" separator=",">basic,advanced</field>
                     </depends>
                 </field>
             </group>

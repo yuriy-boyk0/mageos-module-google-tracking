@@ -69,4 +69,16 @@ class FollowUpPayloadBuilderTest extends TestCase
         $this->assertSame('refund_server', $this->builder->build($this->purchase, '', 'refund_server', $amounts)['events'][0]['name']);
         $this->assertSame('my_refund', $this->builder->build($this->purchase, 'my_refund', 'refund_server', $amounts)['events'][0]['name']);
     }
+
+    public function testConsentSignalsOfThePurchaseAreCopied(): void
+    {
+        $purchase = $this->purchase + ['consent' => ['ad_user_data' => 'GRANTED', 'ad_personalization' => 'GRANTED']];
+        $payload = $this->builder->build($purchase, 'refund_server', FollowUpPayloadBuilder::DEFAULT_REFUND_EVENT, [
+            'transaction_id' => '1', 'currency' => 'USD', 'value' => 5,
+        ]);
+        $this->assertSame($purchase['consent'], $payload['consent']);
+        $this->assertArrayNotHasKey('consent', $this->builder->build($this->purchase, 'refund_server', 'refund_server', [
+            'transaction_id' => '1', 'currency' => 'USD', 'value' => 5,
+        ]));
+    }
 }

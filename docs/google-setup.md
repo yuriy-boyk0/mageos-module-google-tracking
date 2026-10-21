@@ -44,7 +44,7 @@ The secret belongs to this one data stream: it must be used together with that s
 
 ### Enter the IDs in Magento
 
-(Before going live, also check **Cookie Consent** in the same configuration section: by default the module waits for Magento's own consent cookie, written by Hyvä's built-in banner when *Cookie Restriction Mode* is enabled.)
+(Before going live, also check **Cookie Consent** in the same configuration section, including **Google Consent Mode v2** (Off / Basic / Advanced, explained in the README; Basic is the usual choice for EU stores that use Google Ads): by default the module waits for Magento's own consent cookie, written by Hyvä's built-in banner when *Cookie Restriction Mode* is enabled.)
 
 1. In the Magento admin open **Stores > Configuration > Mage-OS > Google Tag Manager**.
 2. Set **Enable** to *Yes*.
@@ -78,6 +78,8 @@ If you change the Measurement ID in Magento later, export again and re-import it
    |---|---|
    | Open a product page | `view_item` |
    | Open a category, or search | `view_item_list` (and `search`) |
+   | Click a product in the list | `select_item` (later `add_to_cart` / `purchase` items carry the same list) |
+   | A marked-up banner becomes visible / is clicked | `view_promotion` / `select_promotion` |
    | Add a product to cart | `add_to_cart` |
    | Change quantity / remove | `update_cart` / `remove_from_cart` |
    | Open the cart page | `view_cart` |
@@ -91,6 +93,8 @@ If you change the Measurement ID in Magento later, export again and re-import it
 
 5. Reload the order success page. `purchase` must **not** be sent a second time for the same order.
 6. Check that `page_view` is counted once per page.
+
+Tip: with *Allow dataLayer Debug Logging* = Yes, add `?gtm_debug=1` to a storefront URL to see every dataLayer push in the browser console (`?gtm_debug=0` to stop).
 
 Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; DebugView and Realtime are immediate.
 

@@ -5,6 +5,7 @@ namespace MageOS\GoogleTagManager\Model;
 
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use MageOS\GoogleTagManager\Service\MeasurementProtocol\ConsentModeSignals;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ConsentState;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ExclusionPolicy;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\PayloadBuilder;
@@ -35,7 +36,8 @@ class PurchaseEnqueuer
         private readonly ExclusionPolicy $exclusionPolicy,
         private readonly PayloadBuilder $payloadBuilder,
         private readonly QueueStorageInterface $storage,
-        private readonly StoreManagerInterface $storeManager
+        private readonly StoreManagerInterface $storeManager,
+        private readonly ConsentModeSignals $consentModeSignals
     ) {}
 
     /**
@@ -109,7 +111,12 @@ class PurchaseEnqueuer
             $this->config->getEventName($storeId),
             $clientId,
             $sessionId,
-            $granted
+            $granted,
+            $this->consentModeSignals->measurementProtocolConsent(
+                $this->config->getConsentMode($storeId),
+                $this->config->getConsentModeGrantedSignals($storeId),
+                $consent
+            )
         );
 
         $queued = $this->storage->enqueue(

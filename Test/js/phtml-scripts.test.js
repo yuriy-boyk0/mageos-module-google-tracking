@@ -328,3 +328,249 @@ test('templates: Alpine directives are CSP-safe (no calls, operators or assignme
     }
     assert.ok(checked >= 2, 'expected to find the Alpine directives in body.phtml');
 });
+
+// head.phtml: Google Consent Mode v2
+const consentCommands = (h) => JSON.parse(JSON.stringify(h.window.dataLayer))
+    .filter((e) => e['0'] === 'consent')
+    .map((e) => [e['1'], e['2']]);
+const ALL = (value) => ({ad_storage: value, analytics_storage: value, ad_user_data: value, ad_personalization: value});
+
+test('consent mode off: no consent commands at all', () => {
+    const h = head({consentMode: 'off'}, magentoCookie({1: 1}));
+    assert.deepStrictEqual(consentCommands(h), []);
+    assert.strictEqual(h.inserted.length, 1);
+});
+
+test('consent mode basic: denied default, GTM waits, granted update before GTM loads on consent', () => {
+    const h = head({consentMode: 'basic'});
+    assert.deepStrictEqual(consentCommands(h), [['default', Object.assign(ALL('denied'), {wait_for_update: 500})]]);
+    assert.strictEqual(h.inserted.length, 0);
+    h.fire('user-allowed-save-cookie');
+    const commands = consentCommands(h);
+    assert.deepStrictEqual(commands[1], ['update', ALL('granted')]);
+    assert.strictEqual(h.inserted.length, 1);
+    const layer = JSON.parse(JSON.stringify(h.window.dataLayer));
+    assert.ok(layer.findIndex((e) => e['1'] === 'update') < layer.findIndex((e) => e.event === 'gtm.js'), 'update before gtm.js');
+});
+
+test('consent mode basic with an accepted cookie: default + update + GTM on page load', () => {
+    const h = head({consentMode: 'basic'}, magentoCookie({1: 1}));
+    assert.deepStrictEqual(consentCommands(h).map((c) => c[0]), ['default', 'update']);
+    assert.strictEqual(h.inserted.length, 1);
+});
+
+test('consent mode advanced: GTM loads without consent, everything denied; update after consent', () => {
+    const h = head({consentMode: 'advanced'});
+    assert.strictEqual(h.inserted.length, 1);
+    assert.deepStrictEqual(consentCommands(h).map((c) => c[0]), ['default']);
+    h.fire('user-allowed-save-cookie');
+    assert.deepStrictEqual(consentCommands(h).map((c) => c[0]), ['default', 'update']);
+    assert.strictEqual(h.inserted.length, 1, 'GTM is not loaded twice');
+});
+
+test('consent mode advanced with a declined cookie: GTM loaded, no update', () => {
+    const h = head({consentMode: 'advanced'}, magentoCookie({1: 0}));
+    assert.strictEqual(h.inserted.length, 1);
+    assert.deepStrictEqual(consentCommands(h).map((c) => c[0]), ['default']);
+});
+
+test('granted signals = analytics only keeps the ad signals denied', () => {
+    const h = head({consentMode: 'basic', grantedSignals: 'analytics'}, magentoCookie({1: 1}));
+    assert.deepStrictEqual(consentCommands(h)[1], ['update',
+        {ad_storage: 'denied', analytics_storage: 'granted', ad_user_data: 'denied', ad_personalization: 'denied'}]);
+});
+
+test('banner sends Consent Mode itself: no module commands, advanced still loads GTM at once', () => {
+    const h = head({consentMode: 'advanced', cmpManaged: true});
+    assert.deepStrictEqual(consentCommands(h), []);
+    assert.strictEqual(h.inserted.length, 1);
+    const b = head({consentMode: 'basic', cmpManaged: true});
+    assert.strictEqual(b.inserted.length, 0);
+    b.fire('user-allowed-save-cookie');
+    assert.deepStrictEqual(consentCommands(b), []);
+    assert.strictEqual(b.inserted.length, 1);
+});
+
+// gtm/list-attribution.phtml + the select_item handler in gtm/catalog-events.phtml
+function allScripts(file) {
+    const src = fs.readFileSync(path.join(__dirname, '../../view/frontend/templates', file), 'utf8');
+    return [...src.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+}
+const attributionJs = allScripts('gtm/list-attribution.phtml')[0];
+
+function listPage(storage = new Map(), now = Date.now()) {
+    const listeners = {};
+    const window = {dataLayer: []};
+    const localStorage = {getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, v)};
+    const document = {addEventListener: (name, fn) => ((listeners[name] ||= []).push(fn))};
+    const DateStub = {now: () => now};
+    const context = {window, document, localStorage, JSON, Date: DateStub, String, Array, Object};
+    vm.runInNewContext(attributionJs, context);
+    const config = {
+        item_list_id: 'category_12', item_list_name: 'Tops',
+        items: [{item_id: 'MH01', index: 0}, {item_id: 'MH02', index: 1}],
+        productIds: ['101', '102'],
+    };
+    const handlerJs = allScripts('gtm/catalog-events.phtml')[1]
+        .replace('<?= /* @noEscape */ $listConfig ?>', JSON.stringify(config));
+    vm.runInNewContext(handlerJs, context);
+    // DOM stubs: a list item form with its product id; a link or a button inside it
+    const element = (productId, kind) => {
+        const form = {querySelector: () => ({value: productId})};
+        return {closest: (sel) => (sel === 'form' ? form : (sel === 'a[href]' ? (kind === 'link' ? {} : null) : null))};
+    };
+    return {
+        window, storage,
+        click: (productId, kind) => (listeners.click || []).forEach((fn) => fn({target: element(productId, kind)})),
+        events: () => JSON.parse(JSON.stringify(window.dataLayer)).filter((e) => e.event),
+    };
+}
+
+test('select_item: a link click in a listing pushes select_item with the list and the item', () => {
+    const page = listPage();
+    page.click('102', 'link');
+    assert.deepStrictEqual(page.events(), [{
+        event: 'select_item', ga4_event: 'select_item',
+        ecommerce: {item_list_id: 'category_12', item_list_name: 'Tops', items: [{item_id: 'MH02', index: 1}]},
+    }]);
+});
+
+test('select_item: an add-to-cart button click only remembers the list; unknown products are ignored', () => {
+    const page = listPage();
+    page.click('101', 'button');
+    page.click('999', 'link');
+    assert.deepStrictEqual(page.events(), []);
+    const stored = JSON.parse(page.storage.get('mageos_gtm_item_lists'));
+    assert.strictEqual(stored.MH01.item_list_id, 'category_12');
+    assert.strictEqual(stored.MH01.index, 0);
+});
+
+test('list attribution is applied to later items, not overriding an existing list, and expires after 7 days', () => {
+    const storage = new Map();
+    listPage(storage, 1700000000000).click('101', 'link');
+
+    const later = listPage(storage, 1700000000000 + 3600 * 1000);
+    const items = [{item_id: 'MH01'}, {item_id: 'OTHER'}, {item_id: 'MH01', item_list_id: 'search_results'}];
+    later.window.mageosGtmListAttribution.apply(items);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(items)), [
+        {item_id: 'MH01', item_list_id: 'category_12', item_list_name: 'Tops', index: 0},
+        {item_id: 'OTHER'},
+        {item_id: 'MH01', item_list_id: 'search_results'},
+    ]);
+
+    const expired = listPage(storage, 1700000000000 + 8 * 24 * 3600 * 1000);
+    const old = [{item_id: 'MH01'}];
+    expired.window.mageosGtmListAttribution.apply(old);
+    assert.strictEqual(old[0].item_list_id, undefined);
+});
+
+test('purchase items get the remembered list', () => {
+    const storage = new Map();
+    listPage(storage).click('102', 'link');
+    const win = run(attributionJs + '\n' + purchaseJs({
+        event: 'purchase', ecommerce: {transaction_id: '9', items: [{item_id: 'MH02'}]},
+    }), storage);
+    const purchase = win.dataLayer.find((e) => e.event === 'purchase');
+    assert.strictEqual(purchase.ecommerce.items[0].item_list_name, 'Tops');
+});
+
+// gtm/promotions.phtml
+function promoPage(elements, {intersection = true} = {}) {
+    const listeners = {};
+    const window = {dataLayer: []};
+    let observerCallback = null;
+    const observed = [];
+    class IO {
+        constructor(cb) { observerCallback = cb; }
+        observe(el) { observed.push(el); }
+        unobserve() {}
+    }
+    const document = {
+        readyState: 'complete',
+        querySelectorAll: () => elements,
+        addEventListener: (name, fn) => ((listeners[name] ||= []).push(fn)),
+    };
+    const context = {window, document, Array, Object};
+    if (intersection) {
+        context.IntersectionObserver = IO;
+    }
+    vm.runInNewContext(allScripts('gtm/promotions.phtml')[0], context);
+    return {
+        observed,
+        see: (el) => observerCallback([{isIntersecting: true, target: el}]),
+        click: (target) => (listeners.click || []).forEach((fn) => fn({target})),
+        events: () => JSON.parse(JSON.stringify(window.dataLayer)).filter((e) => e.event),
+    };
+}
+const promoEl = (attrs) => {
+    const el = {getAttribute: (name) => (name in attrs ? attrs[name] : null)};
+    el.closest = () => el;
+    return el;
+};
+
+test('promotions: view_promotion once when visible, select_promotion on click', () => {
+    const banner = promoEl({
+        'data-gtm-promotion-id': 'SUMMER26', 'data-gtm-promotion-name': 'Summer sale',
+        'data-gtm-creative-name': 'hero', 'data-gtm-creative-slot': 'home-top', 'data-gtm-promotion-items': 'MH01, WS12',
+    });
+    const page = promoPage([banner]);
+    assert.strictEqual(page.observed.length, 1);
+    assert.deepStrictEqual(page.events(), []);
+    page.see(banner);
+    page.click(banner);
+    const [view, select] = page.events();
+    assert.strictEqual(view.event, 'view_promotion');
+    assert.deepStrictEqual(view.ecommerce, {
+        promotion_id: 'SUMMER26', promotion_name: 'Summer sale', creative_name: 'hero', creative_slot: 'home-top',
+        items: [{item_id: 'MH01'}, {item_id: 'WS12'}],
+    });
+    assert.strictEqual(select.event, 'select_promotion');
+});
+
+test('promotions: WeltPixel attributes are understood, empty fields omitted, no IntersectionObserver = on load', () => {
+    const banner = promoEl({'data-track-promo-id': 'P1', 'data-track-promo-name': 'Old banner', 'data-track-promo-position': 'slot2'});
+    const page = promoPage([banner], {intersection: false});
+    assert.deepStrictEqual(page.events()[0].ecommerce, {promotion_id: 'P1', promotion_name: 'Old banner', creative_slot: 'slot2'});
+});
+
+test('promotions: clicks outside promotions push nothing', () => {
+    const page = promoPage([]);
+    page.click({closest: () => null});
+    assert.deepStrictEqual(page.events(), []);
+});
+
+// gtm/debug.phtml
+function debugPage(search, storage = new Map(), dataLayer = []) {
+    const logs = [];
+    let interval = null;
+    const window = {location: {search}, dataLayer};
+    const localStorage = {
+        getItem: (k) => (storage.has(k) ? storage.get(k) : null),
+        setItem: (k, v) => storage.set(k, v),
+        removeItem: (k) => storage.delete(k),
+    };
+    vm.runInNewContext(allScripts('gtm/debug.phtml')[0], {
+        window, localStorage, console: {log: (...a) => logs.push(a[0])}, setInterval: (fn) => { interval = fn; },
+    });
+    return {logs, tick: () => interval && interval(), window, storage};
+}
+
+test('debug logger: silent unless switched on with ?gtm_debug=1', () => {
+    assert.deepStrictEqual(debugPage('').logs, []);
+});
+
+test('debug logger: ?gtm_debug=1 logs existing and later pushes, and remembers the switch', () => {
+    const storage = new Map();
+    const page = debugPage('?gtm_debug=1', storage, [['consent', 'default', {}], {event: 'view_item'}]);
+    assert.strictEqual(page.logs.length, 3);
+    assert.match(page.logs[1], /consent default/);
+    assert.match(page.logs[2], /view_item/);
+    page.window.dataLayer.push({ecommerce: null}, {event: 'add_to_cart'});
+    page.tick();
+    assert.match(page.logs[3], /ecommerce reset/);
+    assert.match(page.logs[4], /add_to_cart/);
+
+    assert.ok(debugPage('', storage).logs.length > 0, 'still on without the parameter');
+    assert.deepStrictEqual(debugPage('?a=1&gtm_debug=0', storage).logs, [], 'switched off');
+    assert.deepStrictEqual(debugPage('', storage).logs, []);
+});

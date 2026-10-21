@@ -372,5 +372,74 @@
         ]
       }
     ]
+  },
+  {
+    "triggerId": "295",
+    "name": "Select Item",
+    "type": "CUSTOM_EVENT",
+    "fingerprint": "1761004800000",
+    "customEventFilter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{_event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "select_item"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "triggerId": "296",
+    "name": "View Promotion",
+    "type": "CUSTOM_EVENT",
+    "fingerprint": "1761004800000",
+    "customEventFilter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{_event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "view_promotion"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "triggerId": "297",
+    "name": "Select Promotion",
+    "type": "CUSTOM_EVENT",
+    "fingerprint": "1761004800000",
+    "customEventFilter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{_event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "select_promotion"
+          }
+        ]
+      }
+    ]
   }
 ]

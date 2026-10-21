@@ -189,6 +189,17 @@ Found while reviewing the existing module; fixed because they distort the data t
 - Exported GTM triggers were *Window Loaded* + `ga4_event` filters, which miss events pushed after load; every event trigger is now a *Custom Event* on the event name, and the GA4 Configuration tag fires on *All Pages*. Containers must be re-imported.
 - `view_item` (product page), `view_item_list` (category and search results) and `search` are now pushed (`Block/CatalogTagManager`, `Service/CatalogService`), so the tags already in the export are no longer idle. Still client-side only, per the architecture rule.
 
+## Competitor parity (2026-10-21, user decision after comparing Yireo GoogleTagManager2 and WeltPixel GA4 Pro 1.17.5)
+
+| Feature | Implementation |
+|---|---|
+| Google Consent Mode v2 | Setting Off / Basic / Advanced (+ granted signals all / analytics only, + "banner sends Consent Mode itself"); `head.phtml` sends `consent default` / `update`; server-side MP `consent` object (`ConsentModeSignals`) |
+| `select_item` + item list attribution | Click handler on Hyvä list items (`gtm/catalog-events.phtml`), list remembered in localStorage (`gtm/list-attribution.phtml`) and added to `add_to_cart` and client `purchase` items |
+| `view_promotion` / `select_promotion` | Data attributes in content (`gtm/promotions.phtml`), WeltPixel attributes accepted |
+| `item_brand`, `affiliation` | General settings, applied by `Service/ItemDataResolver` to every item, client and server |
+| Debugging | `?gtm_debug=1` console logger (`gtm/debug.phtml`), FPC-safe |
+| GTM export | Tags/triggers/variables for the new events; search-term variable fixed |
+
 ## Explicit non-goals of this plan
 
 - **Multishipping** (checkout with multiple addresses) is not supported or tested (user decision 2026-10-21; Hyvä has no multishipping UI). The server side happens to create one purchase per resulting order; no client-side events exist for it.

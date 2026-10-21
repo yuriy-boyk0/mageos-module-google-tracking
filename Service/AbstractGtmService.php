@@ -20,9 +20,9 @@ abstract class AbstractGtmService
      * Item of a catalog product. item_id / item_variant / item_category.. come from ItemDataResolver, the same rules
      * as the server-side purchase, so one product is one GA4 item in every event.
      */
-    protected function buildProductData(Product $product, float $quantity = 1.0): array
+    protected function buildProductData(Product $product, float $quantity = 1.0, bool $allowLoad = true): array
     {
-        return $this->itemData->forProduct($product, $this->currentStoreId()) + [
+        return $this->itemData->forProduct($product, $this->currentStoreId(), $allowLoad) + [
             'item_name' => $product->getName(),
             'price' => $this->unitPrice($product),
             'quantity' => $quantity,

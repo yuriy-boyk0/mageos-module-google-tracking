@@ -36,6 +36,10 @@ use Magento\Framework\Escaper;
         }
 
         window.dataLayer = window.dataLayer || [];
+        // Items selected from a category / search list carry that list (gtm/list-attribution.phtml).
+        if (window.mageosGtmListAttribution && eventData.ecommerce) {
+            window.mageosGtmListAttribution.apply(eventData.ecommerce.items);
+        }
         window.dataLayer.push({ecommerce: null});
         window.dataLayer.push(eventData);
 

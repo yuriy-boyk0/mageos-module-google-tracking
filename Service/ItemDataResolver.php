@@ -22,6 +22,8 @@ use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 class ItemDataResolver
 {
     public const XML_PATH_ITEM_ID_MODE = 'googletagmanager/server_side/item_id_mode';
+    public const XML_PATH_BRAND_ATTRIBUTE = 'googletagmanager/general/brand_attribute';
+    public const XML_PATH_AFFILIATION = 'googletagmanager/general/affiliation';
     private const MAX_CATEGORY_LEVELS = 5;
 
     /** @var array<string, string> */
@@ -45,10 +47,12 @@ class ItemDataResolver
 
     /**
      * A catalog product on its own (product page, listings, add to cart, wishlist).
+     * $allowLoad = false for listings: the brand is then only read if the attribute is loaded with the collection
+     * ("Used in Product Listing" = Yes), never by loading each product.
      *
      * @return array{item_id: string, item_variant?: string, item_category?: string}
      */
-    public function forProduct(Product $product, int $storeId): array
+    public function forProduct(Product $product, int $storeId, bool $allowLoad = true): array
     {
         // A configurable added to the cart carries the chosen variant as custom option "simple_product".
         $simple = $product->getCustomOption('simple_product')?->getProduct();
@@ -64,7 +68,10 @@ class ItemDataResolver
         ];
         $variant = $this->variant($this->productOptions($product));
 
-        return $data + ($variant !== '' ? ['item_variant' => $variant] : []) + $this->categories($product, $storeId);
+        return $data
+            + ($variant !== '' ? ['item_variant' => $variant] : [])
+            + $this->extras($product, $storeId, $allowLoad)
+            + $this->categories($product, $storeId);
     }
 
     /**
@@ -189,7 +196,67 @@ class ItemDataResolver
         ];
         $variant = $this->variant($productOptions);
 
-        return $data + ($variant !== '' ? ['item_variant' => $variant] : []) + $this->categories($product, $storeId);
+        return $data
+            + ($variant !== '' ? ['item_variant' => $variant] : [])
+            + $this->extras($product, $storeId, true)
+            + $this->categories($product, $storeId);
+    }
+
+    /**
+     * item_brand (attribute configured under General > Brand Attribute) and affiliation (General > Affiliation).
+     */
+    private function extras(?ProductInterface $product, int $storeId, bool $allowLoad): array
+    {
+        $result = [];
+        $affiliation = trim((string) $this->scopeConfig->getValue(self::XML_PATH_AFFILIATION, ScopeInterface::SCOPE_STORE, $storeId));
+        if ($affiliation !== '') {
+            $result['affiliation'] = $affiliation;
+        }
+        $brand = $this->brand($product, $storeId, $allowLoad);
+        if ($brand !== '') {
+            $result['item_brand'] = $brand;
+        }
+
+        return $result;
+    }
+
+    private function brand(?ProductInterface $product, int $storeId, bool $allowLoad): string
+    {
+        $code = trim((string) $this->scopeConfig->getValue(self::XML_PATH_BRAND_ATTRIBUTE, ScopeInterface::SCOPE_STORE, $storeId));
+        if ($code === '' || !$product instanceof Product) {
+            return '';
+        }
+        $brand = $this->attributeValue($product, $code);
+        // Cart rows and some listings carry a product without the attribute loaded: read it from the full product.
+        if ($brand === '' && $allowLoad && !$product->hasData($code) && $product->getId()) {
+            $full = $this->loadProduct((int) $product->getId(), $storeId);
+            $brand = $full instanceof Product ? $this->attributeValue($full, $code) : '';
+        }
+
+        return $brand;
+    }
+
+    private function attributeValue(Product $product, string $code): string
+    {
+        try {
+            $text = $product->getAttributeText($code);
+            if (is_array($text)) {
+                $text = implode(', ', $text);
+            }
+            if ($text !== false && $text !== null && (string) $text !== '') {
+                return (string) $text;
+            }
+        } catch (\Throwable $e) {
+            // not an option attribute
+        }
+        // Option attributes (select / multiselect) without a label stay empty instead of sending the option id.
+        $attribute = $product->getResource()->getAttribute($code);
+        if ($attribute && $attribute->usesSource()) {
+            return '';
+        }
+        $raw = $product->getData($code);
+
+        return is_scalar($raw) ? trim((string) $raw) : '';
     }
 
     /**
