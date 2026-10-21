@@ -22,7 +22,7 @@ class WishlistService extends AbstractGtmService
     {
         $qty = (float) ($wishlistItem->getQty() ?: 1);
         $items = [$this->buildProductData($wishlistItem->getProduct(), $qty)];
-        $this->eventQueue->enqueueSessionEvent(
+        $this->eventQueue->appendSessionEvent(
             EventQueue::SESSION_KEY_ADD_TO_WISHLIST,
             [
                 'event'     => 'add_to_wishlist',
@@ -39,7 +39,7 @@ class WishlistService extends AbstractGtmService
     {
         $qty = (float) ($wishlistItem->getQty() ?: 1);
         $items = [$this->buildProductData($wishlistItem->getProduct(), $qty)];
-        $this->eventQueue->enqueueSessionEvent(
+        $this->eventQueue->appendSessionEvent(
             EventQueue::SESSION_KEY_REMOVE_WISHLIST,
             [
                 'event'     => 'remove_from_wishlist',

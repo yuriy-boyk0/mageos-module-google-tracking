@@ -21,8 +21,33 @@ class CartService extends AbstractGtmService
 
     public function addToCart(Product $product, float $qty): void
     {
-        $items = [$this->buildProductData($product, $qty)];
-        $this->eventQueue->enqueueSessionEvent(
+        $this->queueAddToCart([$this->buildProductData($product, $qty)]);
+    }
+
+    /**
+     * A grouped product is not an item itself: it adds its children. One add_to_cart with one item per child added
+     * (its own SKU, price and quantity), the same lines the cart, checkout and purchase events show afterwards.
+     *
+     * @param array<int|string, mixed> $superGroup request param super_group: child product id => quantity
+     */
+    public function addGroupedToCart(Product $group, array $superGroup): void
+    {
+        $items = [];
+        foreach ($group->getTypeInstance()->getAssociatedProducts($group) as $child) {
+            $qty = (float) ($superGroup[$child->getId()] ?? 0);
+            if ($child instanceof Product && $qty > 0) {
+                $items[] = $this->buildProductData($child, $qty);
+            }
+        }
+        if ($items !== []) {
+            $this->queueAddToCart($items);
+        }
+    }
+
+    private function queueAddToCart(array $items): void
+    {
+        // Appended, not overwritten: several adds before the next customer-data load each reach the dataLayer.
+        $this->eventQueue->appendSessionEvent(
             EventQueue::SESSION_KEY_ADD_TO_CART,
             [
                 'event' => 'add_to_cart',
@@ -40,7 +65,7 @@ class CartService extends AbstractGtmService
         // The row as it was in the cart (price the customer paid); the catalog product only as a fallback.
         $items = $this->buildItemList([$quoteItem])
             ?: [$this->buildProductData($quoteItem->getProduct(), (float) $quoteItem->getQty())];
-        $this->eventQueue->enqueueSessionEvent(
+        $this->eventQueue->appendSessionEvent(
             EventQueue::SESSION_KEY_REMOVE_FROM_CART,
             [
                 'event' => 'remove_from_cart',

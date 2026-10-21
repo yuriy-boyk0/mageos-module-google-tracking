@@ -7,6 +7,7 @@ use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Framework\Stdlib\Cookie\CookieMetadataFactory;
 use Magento\Framework\Stdlib\CookieManagerInterface;
+use MageOS\GoogleTagManager\Service\DataLayer\EcommerceEventMerger;
 
 class EventQueue
 {
@@ -26,12 +27,27 @@ class EventQueue
         private readonly CheckoutSession $checkoutSession,
         private readonly CookieManagerInterface $cookieManager,
         private readonly CookieMetadataFactory $cookieMetadataFactory,
-        private readonly SerializerInterface $serializer
+        private readonly SerializerInterface $serializer,
+        private readonly EcommerceEventMerger $merger
     ) {}
 
     public function enqueueSessionEvent(string $sessionKey, array $eventData): void
     {
         $this->checkoutSession->setData($sessionKey, $eventData);
+    }
+
+    /**
+     * Like enqueueSessionEvent(), but a still-pending event of the same type is combined with the new one (items
+     * appended, value recomputed) instead of being overwritten: several adds before the next customer-data load
+     * all reach the dataLayer.
+     */
+    public function appendSessionEvent(string $sessionKey, array $eventData): void
+    {
+        $pending = $this->checkoutSession->getData($sessionKey);
+        $this->checkoutSession->setData(
+            $sessionKey,
+            $this->merger->merge(is_array($pending) ? $pending : null, $eventData)
+        );
     }
 
     public function dequeueSessionEvent(string $sessionKey): ?array

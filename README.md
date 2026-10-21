@@ -98,7 +98,7 @@ The same cookie rules decide server-side whether `purchase_server` may use the v
 | `view_item` | Product page viewed |
 | `view_item_list` | Category page or search results viewed (products of the current page, up to 50, with `item_list_id` / `item_list_name`) |
 | `search` | Search results page (`search_term`) |
-| `add_to_cart` | Product added to cart |
+| `add_to_cart` | Product added to cart. A **grouped** product sends one item per child added (child SKU, price, quantity), not the group. Several adds before the next page load are combined into one event with all items and the total `value` |
 | `remove_from_cart` | Product removed from cart |
 | `update_cart` | Cart item quantities updated |
 | `view_cart` | Cart page viewed |

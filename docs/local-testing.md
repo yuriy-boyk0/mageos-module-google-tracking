@@ -148,6 +148,10 @@ For a configurable (e.g. Chaz Kangeroo Hoodie Black / XS) and a bundle (Sprite Y
 - Category path (`item_category` = top level, `item_category2` …) identical on client and server.
 - Coupon: client `purchase` has a positive per-item `discount`, no event-level `discount`.
 
+### Grouped products and several adds
+- Grouped product (e.g. Set of Sprite Yoga Straps): add two of the children with different quantities → one `add_to_cart` with two items (child SKUs `24-WG085`, `24-WG086`…, their own prices and quantities), `value` = sum.
+- On a category page, add two different products with the AJAX "Add to Cart" buttons quickly, before the minicart refreshes → one `add_to_cart` with both items and the summed value (previously only the last one arrived).
+
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).
 

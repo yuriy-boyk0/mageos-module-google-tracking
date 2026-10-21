@@ -17,7 +17,13 @@ class AddToCart implements ObserverInterface
     {
         /** @var \Magento\Catalog\Model\Product $product */
         $product = $observer->getEvent()->getProduct();
-        $qty     = (float) ($observer->getEvent()->getRequest()->getParam('qty') ?: 1);
+        $request = $observer->getEvent()->getRequest();
+        if ($product->getTypeId() === 'grouped') {
+            $superGroup = $request->getParam('super_group');
+            $this->cartService->addGroupedToCart($product, is_array($superGroup) ? $superGroup : []);
+            return;
+        }
+        $qty = (float) ($request->getParam('qty') ?: 1);
         $this->cartService->addToCart($product, $qty);
     }
 }
