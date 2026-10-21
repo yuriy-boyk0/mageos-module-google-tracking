@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (eleven local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (thirteen local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -133,6 +133,18 @@ Bugs found by this run (fixed and committed on the branch):
 
 Run 3 (mobile, one-page and virtual-only checkout) found no bugs; see item 11 and `local-testing.md`.
 
+### Verified locally, run 3 (🟢, 2026-10-20): mobile, one-page and virtual-only checkout
+Same environment as run 2 (no consent module); checkouts selected through *Hyvä Checkout > General > Checkout* (`mobile`, `onepage`; the user agent based switch itself was not tried, the browser tool cannot change it); a temporary virtual product created by script and deleted afterwards; everything reset to `default` at the end.
+
+| Checkout | Result |
+|---|---|
+| One-page (physical item, order 7) | 🟢 `add_shipping_info` (`tablerate_bestway`) and `add_payment_info` (`checkmo`) once each at *Place Order*, one `purchase`, clean console |
+| Mobile (shipping, payment, summary; order 8) | 🟢 `add_shipping_info` on *Proceed to Payment*, `add_payment_info` on *Proceed to Summary*, nothing more at *Place Order*, one `purchase`, clean console (differs from the earlier note "both events at order placement") |
+| Virtual-only cart (order 6, value 10) | 🟢 no shipping step; `begin_checkout`, `add_payment_info` once, no `add_shipping_info`; `purchase`; server row with shipping 0, sent |
+| Also seen | 🟢 `remove_from_cart` fires when a cart item is removed; the three server rows were `sent` with the visitor's `_ga` client id |
+
+No bugs found in run 3.
+
 ### Verified locally, run 4 (🟢, 2026-10-20): consent variants
 Same environment; each variant set with `bin/magento config:set googletagmanager/consent/...`, cache flushed, one guest order per server-side case, config rows deleted afterwards (defaults confirmed by behaviour).
 
@@ -218,6 +230,16 @@ Not exercised in run 8: *Currency basis* = base currency, *Tax in Totals* = excl
 | 2 | `view_cart`, `begin_checkout` sent the **base-currency, tax-exclusive quote item price** labelled with the store currency | Italian store: `value`/`price` 26.23 EUR = 32 / 1.22 (not a rate effect, see run 9) | 🟢 fixed and verified in run 9 |
 | 3 | Client `purchase` and `purchase_server` represented lines differently (client = Google's net convention, server = *Tax in Totals* setting) (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟢 resolved in run 11: server lines now the same as the client's |
 | 4 | A refund or cancel skipped because the purchase had not been sent was not re-queued when the purchase was re-sent | run 7 | 🟢 fixed and verified in run 10 |
+| 5 | Client `item_id` of a configurable switches from child SKU (`add_to_cart`, `view_cart`, `begin_checkout`) to parent (`purchase`) inside one visit | run 12, order 21 | 🔴 open |
+| 6 | Client `purchase` `discount` is negative (−5.2) and event-level; GA4 expects positive item-level discounts | run 12 | 🔴 open |
+| 7 | `refund_server` item_id is the child SKU of a configurable, the purchase uses the parent (or child per *Item ID*) | run 12, credit memo of order 21 | 🔴 open |
+| 8 | Client items lack `item_variant`; client `item_category` is the first category found, the server sends the category path | run 12 | 🟡 to decide |
+| 9 | Client sends `purchase` for zero-value orders, the server excludes them | run 12, order 24 | 🟡 to decide |
+| 10 | **Bundle `item_id`** is the composed cart SKU (`24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088`) in the client cart events and in `purchase_server`, but `24-WG080` in the client `purchase`; the composed SKU changes with the selected options, so one product shows up as many items in GA4 | run 13, order 31 | 🔴 open |
+| 11 | **`refund_server` of a bundle**: `quantity` 4 (the credit memo's bundle row counts its children), purchase 1, and the composed `item_id` | run 13, credit memo of order 31 | 🔴 open |
+| 12 | Client `add_to_cart` for a **grouped** product describes the group parent (14 × 1) instead of the child lines added; only one `add_to_cart` is delivered when several adds happen before the next customer-data load (single session slot) | run 13 | 🟡 to decide |
+| 13 | **Orders that are not paid yet** (redirect-based methods, `pending_payment`) are tracked at placement; the client `purchase` cannot be excluded; a server row skipped by *Excluded Order Statuses* is never re-queued when the order is paid later (no status-change observer, re-send ignores skipped rows) | run 13, orders 37, 38 | 🟡 to decide (e.g. track on payment / invoice, or allow re-queue of status-excluded rows) |
+| 14 | No client `purchase` / events on the **multishipping** success page (not wired); multishipping has no UI on Hyvä anyway | run 13 | 🟡 to decide |
 
 ### Verified locally, run 9 (🟢, 2026-10-21): client-side prices in multi-currency / tax-inclusive stores (Open issues 1 and 2 fixed)
 **Root cause (one bug, two symptoms).** The browsing and cart events took Magento's *base-currency* amounts but labelled them with the store's *current* currency:
@@ -267,7 +289,71 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 | Full credit memo of that order | 🟢 `refund_server` EUR, value 102.12, item 24.13 × 3, `refund_type` `full`; both events sent (Debug Mode on, then off) |
 | *Tax in Totals* = Excluding | logic only (unit tests: `value` = grand total minus tax, shipping and tax unchanged); not run in the browser |
 
-### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 11)
+### Verified locally, run 12 (🟢/🔴, 2026-10-21): follow-ups, client events, exclusion rules, configurable product, coupons / discounts
+Environment for this run: US store, Hyvä one-page checkout, two temporary sales rules (`GTM10` 10 % off, `GTM100` 100 % off with free shipping), a temporary customer account; all removed afterwards.
+
+**Exclusion rules** (each with one order; the client `purchase` is never affected, only the server row)
+
+| Rule | Result |
+|---|---|
+| Excluded payment method (`checkmo`) | 🟢 order 22: purchase row `skipped`, "excluded: payment method", no payload |
+| Excluded order status (`pending`) | 🟢 order 23: `skipped`, "excluded: order status" |
+| Zero-value order (coupon `GTM100`, payment method `free`; `checkmo` is refused at zero total) | 🟢 order 24: `skipped`, "excluded: zero value order". The client still sends a `purchase` with value 0, discount −32 |
+| Admin-created order, *Track Admin-created Orders* = No (default) | 🟢 `skipped`, "excluded: admin-created order" (order created through Magento's admin order model) |
+| Admin-created order, *Track Admin-created Orders* = Yes | 🟢 sent anonymously: random `client_id`, no `user_id`, no `session_id`, although the order belongs to a registered customer |
+
+**Configurable product and coupon** (order 21: Chaz Kangeroo Hoodie, Black / XS, $52, coupon `GTM10` −$5.20, shipping $5, tax 3.86, total $55.66)
+
+| Check | Result |
+|---|---|
+| `purchase_server` | 🟢 `item_id` `MH01` (parent mode), `item_variant` "Black, XS", `price` 52, `discount` 5.2 per unit (positive), `coupon` `GTM10`, value 55.66, tax 3.86, shipping 5, categories Men / Tops / Hoodies & Sweatshirts |
+| Client `purchase` | 🟢 same value, tax, shipping, coupon and price; 🔴 differences listed under Open issues 5 to 8 |
+| *Item ID* parent / child, *Tax in Totals* excluding, *Currency basis* base (built from real orders with the snapshot factory, no new orders) | 🟢 `MH01` vs `MH01-XS-Black`; value 55.66 → 51.80 and Italian order 102.12 → 83.70 (tax and shipping unchanged); Italian order in base currency: USD, value 111.00, tax 20.02, shipping 12.29, item 26.23 |
+| Partial credit memo with the discount (adjustment fee 6) | 🟢 `refund_server` value 49.66, `partial`; 🔴 item_id is the child SKU (Open issue 7) |
+
+**Follow-ups**
+- 🟢 A refund created while its purchase is still `pending` is queued as `pending` (not skipped). With the purchase pushed an hour ahead (as if retrying) the refund was sent **first**, the purchase later: GA4 can receive `refund_server` before `purchase_server`. Behaviour as documented in the risks; both were sent once the purchase was due.
+- 🟢 Refund with a coupon and with a partial memo: see above. Refund in EUR: run 11. A re-sent purchase with a partial memo: not run.
+
+**Client events**
+
+| Event | Result |
+|---|---|
+| `sign_up` | 🟢 once, `user_id` 2, `method` Magento; preceded by `login` (the new account is logged in automatically) |
+| `login` | 🟢 once, `user_id` 2 |
+| `logout` | 🟢 once, on the "signed out" page (cookie `gtm_logout_event` consumed); the GA4 request carries `ep.method=false` (a GTM tag parameter, the dataLayer event has an empty method) |
+| `add_to_wishlist`, `remove_from_wishlist` | 🟢 USD 32, item `24-MB04` |
+| `page_view` | 🟢 exactly one `page_view` and one `view_item_list` request per page load (category page); no duplicates |
+| Logged-in order | 🟢 order 29: `user_id` "2" and the visitor's `_ga` client id in `purchase_server` |
+
+**New findings (🔴, not fixed; they are about the same product being described differently by different events)**
+5. Client `item_id` of a configurable product changes inside one visit: `add_to_cart`, `view_cart`, `begin_checkout` use the **child SKU** (`MH01-XS-Black`, the quote item's product SKU) but `purchase` and `purchase_server` use the **parent** (`MH01`). (runs 12 and 13) 🟢 configurable (`item_variant`, parent / child `item_id`), coupon (per-unit `discount`, `coupon`), bundle (one line, children folded), grouped (one line per child), downloadable, categories as path; differences from the client events are Open issues 5 to 12
+6. Client `purchase` sends `discount` as a **negative** number at event level (−5.2); GA4 has no event-level `discount` and expects positive item-level discounts, which only the server event sends.
+7. `refund_server` items use the credit memo item's SKU: the **child SKU** for configurables, while the purchase uses the parent (or the child, depending on *Item ID*), so GA4 cannot match the refunded item to the purchased one.
+8. Client item data is poorer than the server's: no `item_variant`, and `item_category` is the first category found (`Hoodies & Sweatshirts`) where the server sends the path (`Men`, `Tops`, `Hoodies & Sweatshirts`).
+9. 🟡 The client sends a `purchase` for zero-value orders (value 0) that the server excludes; decide whether that is wanted.
+
+Method pitfalls found: a bare `QuoteManagement::submit()` does not dispatch `checkout_submit_all_after` (only `placeOrder()` and the admin order model do), so scripted orders must use the right path; the free payment method must be chosen at zero total.
+
+### Verified locally, run 13 (🟢/🔴, 2026-10-21): no consent cookie, bundle / grouped / downloadable, multishipping, Stripe (embedded, 3D Secure, redirect)
+Environment: US store, one-page checkout, Stripe in **test mode** with the keys already configured (Stripe's published test cards only), temporary downloadable product + whitelisted domain `example.com` + a temporary customer with two addresses; everything removed afterwards (`app/etc/env.php` byte-identical to the backup).
+
+| Case | Result |
+|---|---|
+| **No consent cookie at all**, consent required (guest order 30) | 🟢 purchase row `skipped`, "tracking consent not given"; GTM not loaded, the client still pushes `purchase` to `dataLayer` (nothing leaves the browser) |
+| **Bundle** (Sprite Yoga Companion Kit, 4 default options, $61) + **grouped** (2 of the 3 straps) in one order (31) | 🟢 values, tax and shipping match in client and server; the bundle is one line (children folded in), the grouped product becomes one line per child (14 × 1 and 17 × 2); server also sends categories. 🔴 `item_id` problems and a refund quantity bug, Open issues 10 to 12 |
+| **Downloadable** (logged in, as guest checkout is disabled for downloadables) (order 32) | 🟢 no shipping step, `add_payment_info` only, client and server `purchase` agree (15 × 1, value 16.24), `user_id` in the server payload |
+| **Multishipping** | 🟡 Hyvä has no multishipping templates: `/multishipping/checkout/` renders an empty page and the cart has no "multiple addresses" link, so the UI cannot be used. Through Magento's multishipping model (2 items, 2 addresses, flat rate each): 🟢 two orders (33, 34) and **one purchase row per order** with its own value, shipping, items and transaction id (the observer handles `orders`). 🔴 the module has no client-side code for the multishipping success page (no `purchase` there) |
+| **Stripe, embedded card** (test card 4242, order 35) | 🟢 order `processing`, paid and invoiced; `add_payment_info` with `payment_type` `stripe_payments`; one client `purchase`; server row with `user_id` |
+| **Stripe, 3D Secure test card, authentication failed** | 🟢 no order, no `purchase` event, no queue row; an error message only. `add_payment_info` had already fired when *Place Order* was pressed (identical repeats are dropped) |
+| **Stripe, 3D Secure completed** (order 36) | 🟢 the order is only created after authentication; `processing`, paid; one client `purchase`, one server row |
+| **Stripe Checkout (redirect) mode** (orders 37, 38) | 🔴 the order is created as `pending_payment` and the purchase is tracked immediately (client `purchase` on the success page, server row `pending`), although nothing has been paid. In this installation the automated flow did not leave the shop (no redirect to stripe.com was observed, the success page was shown), which looks like a Hyvä-Stripe compatibility matter, not the module; the module tracks whatever Magento reports as placed |
+| Mitigation: *Excluded Order Statuses* = `pending_payment` | 🟢 server row `skipped` ("excluded: order status"); the client `purchase` cannot be excluded. A skipped row is never re-queued: re-sending the order is ignored ("skipped on purpose"), so an order that is paid later is **never tracked server-side** (limitation, Open issue 13) |
+| Refund of order 31 (bundle + grouped), full credit memo | 🟢 value 135.68, `full`; 🔴 bundle line `quantity` 4 (purchase: 1) and the composed `item_id` (Open issue 11) |
+
+Notes: the admin shows "Stripe webhooks could not be configured automatically … `bin/magento stripe:webhooks:configure`" (the Stripe module, not related to this module); the Stripe test page and error text follow the browser language (Italian here).
+
+### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 13)
 **Tested locally on Magento 2.4.9 + Hyvä + Hyvä Checkout (guest orders unless noted):**
 - Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 139 PHPUnit + 30 JS tests
 - Admin config rendering, ID validation both ways, encrypted API secret, container export generated
@@ -276,13 +362,15 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 - Server side: purchase queue, cron send, `_ga` client/session ids, consent skip, anonymous send, full and two partial refunds, re-saving a memo (dedupe and recovery of a lost row), refund / cancel after an expired, a skipped and a failed purchase, cancellation of a sent purchase, the full default retry schedule (8 attempts), expiry (> 71 h) and mass re-send of an expired order, Debug Mode, retries / failed with blocked network, wrong secret, cleanup cron
 - Hyvä one-page checkout (also used for the run 6 orders), default, mobile and virtual-only checkouts
 - Multi-store environment: second website (Italy, EUR, 22 % VAT included, `it_IT`) selected by host, US tax rates, tax and currency math, one Italian order end to end (client and server events, consent per website); client-side item prices in USD, EUR-on-Italy (VAT included) and EUR-on-US (run 9, after the fix)
+- Run 12: exclusion rules (payment method, status, zero value, admin orders No and Yes), configurable product with coupon (server payload, *Item ID* modes, *Tax in Totals* excluding and *Currency basis* base through real orders), partial refund with discount, refund queued while the purchase is pending, logged-in order (`user_id`), `sign_up`, `login`, `logout`, wishlist add / remove, one `page_view` per page
+- Run 13: order without a consent cookie, bundle + grouped + downloadable products (orders, refund), multishipping through the multishipping model (one row per order), Stripe embedded card, 3D Secure (failed and completed) and Stripe Checkout redirect mode with the `pending_payment` exclusion
 - Admin: order grid column, event log grid (filters, sort, order link), ACL for two roles, FPC (MISS/HIT, sort, pagination)
 
 **Still missing (🧪 unless marked 👤):**
-- Multi-currency / multi-tax (Italian store exists): *Currency basis* = base currency (the default order currency is tested), *Tax in Totals* = Excluding in the browser (including is tested, excluding only by unit tests), *Item ID* parent / child with a configurable product, the US store with EUR display and a real order (only the events were checked), per-website module settings
-- Orders: logged-in customer (`user_id`), admin-created order (*Track Admin-created Orders* No/Yes), multishipping, redirect-based payment methods (Mollie, Braintree are installed), configurable products (`item_variant`), coupons / discounts, excluded statuses / payment methods / zero-value orders, a real order with no consent cookie at all while consent is required
-- Follow-ups: refunds with coupons / discounts / multi-currency / tax options, a refund whose purchase is still `pending` (can reach Google first), refund / cancel after a re-sent purchase with a coupon / partial memo (only full memo and cancel tried)
-- Client events not yet exercised: `login`, `logout`, `sign_up`, `add_to_wishlist`/`remove_from_wishlist`, single `page_view`, `select_item`-style events (not implemented)
+- Multi-currency / multi-tax (Italian store exists): the US store with EUR display and a real order (only the events were checked), per-website module settings, the settings *Currency basis* base / *Tax in Totals* excluding / *Item ID* child end to end in a real order (verified on existing orders through the snapshot factory only)
+- Orders: other redirect payment methods (Mollie, Braintree / PayPal are installed, not configured; Stripe's hosted page was not completed because card data is not typed on external pages), a configurable product on the Italian store (EUR), a downloadable refund, bundle with a non-default selection and fixed-price bundles, Stripe Checkout redirect completed by a person (does the order become paid and tracked once)
+- Follow-ups: a re-sent purchase combined with a partial memo, refunds of a configurable in the Italian store, a second partial memo on a discounted order
+- Client events not yet exercised: `update_cart` for a configurable, `remove_from_cart` for a configurable, events on mobile / Safari, `select_item`-style events (not implemented)
 - Google side (👤 a person): `purchase_server`/`refund_server`/`cancel_server` and client events in GA4 Realtime/DebugView, GTM container import (Merge) acceptance, GTM Preview, whether server and client `transaction_id`s line up in an Exploration, the 503 seen on `collect` requests in the test browser
 - Platform: Varnish, logged-in customer group prices with FPC, multi-website / multi-store, real `MageOS_CookieConsent` (does not exist yet), user-agent based switch to the mobile checkout, upgrade from the earlier table version (item 16), production mode (`di:compile` + static content deploy)
 - Tooling: `dev/check.sh` inside the Warden container (`php -l` segfault), `dev/check-magento.sh` (PHPStan/XSD against the Magento sources)
@@ -293,16 +381,16 @@ Everything under "Magento layer" above, in particular the risky items:
 1. `setup:upgrade` creates the table; the hand-written `db_schema_whitelist.json` is accepted (else regenerate it); FK to `sales_order` OK. 🟢 (2026-10-20)
 2. `setup:di:compile` passes (constructor types, nullable defaults). 🟢 (2026-10-20)
 3. Admin config renders; saving a swapped ID shows the validation error; API secret is stored encrypted. 🟢 (2026-10-20)
-4. Observer fires for: guest order, logged-in order, admin-created order, multishipping, order placed via payment redirect/callback. Check `$order->getEntityId()` is set at `checkout_submit_all_after`. 🟢 guest order only (observer fires, order id set); logged-in, admin, multishipping and redirect payments still open
+4. Observer fires for: guest order, logged-in order, admin-created order, multishipping, order placed via payment redirect/callback. Check `$order->getEntityId()` is set at `checkout_submit_all_after`. 🟢 guest order only (observer fires, order id set); logged-in, admin, multishipping and redirect payments still open (runs 12 and 13) 🟢 now also logged-in customer (`user_id` in the payload), admin-created order (excluded by default; sent anonymously with *Track Admin-created Orders*), multishipping through the multishipping model (one row per order), Stripe embedded card and 3D Secure; redirect payment (Stripe Checkout) places the order as `pending_payment` and is tracked at once (Open issue 13)
 5. `OrderSnapshotFactory`: values/currency match the client-side `purchase` for the same order; configurable products show one item with `item_variant`; categories fill `item_category..5`; discount per unit. 🟢 guest order, simple products only; configurable/coupon/discount still open
 6. Configurable consent (2026-10-20, replaces the `MageOS_CookieConsent` dependency): defaults with the console cookie / Hyvä built-in banner, decline, no cookie, fallback event, custom cookie name, "accepted" value (Cookiebot style), *Require Consent* = No, event-only setup on the server side; session cookie name `PHPSESSID`. Browser gate and server must agree (`local-testing.md`, "Simulating cookie consent") 🟢 (run 2) tested without any consent module: defaults with a console cookie, decline, no cookie, fallback event (also after a decline: GTM stays off), and Hyvä's built-in banner (Cookie Restriction Mode on, "Allow Cookies" loads GTM on that page via the event and on the next page via the cookie; server rows use the same rules: accepted = real `_ga` client id, declined = `skipped`). (run 4) *Require Consent* = No, event-only setup (empty cookie name, both *When Consent Cannot Be Determined* actions), custom cookie name and a Cookiebot-style accepted value `statistics:true` behave as documented in the browser and on real orders, see "Verified locally, run 4". Still open: a real order with no consent cookie at all while consent is required (expected `skipped`)
 7. `_ga` / `_ga_<ID>` parsing against real cookies (both `GS1` and `GS2` formats), and that the server event joins the browser session in GA4. 🟡 `client_id` and `session_id` were taken from the real `_ga` / `_ga_<ID>` cookies of a guest order; which GS format Google sent and joining the browser session in GA4 are still to check
 8. Cron picks up pending rows; retry/backoff against a blocked network; permanent-error path with a wrong API secret. 🟢 cron sends once the `curl_close()` bug was fixed; retry/backoff with a blocked network and the wrong-secret path still open (run 5) 🟢 retry/backoff and `failed` with a blocked network, and the wrong-secret path (accepted with 2xx, not detectable even in Debug Mode) (run 7) 🟢 the full default schedule with 8 attempts measured: 60, 120, 240, 480, 960, 1920, 3840 s, then `failed`
 9. Debug mode: validation messages are logged to `var/log`. 🟢 (run 2) log shows "Payload valid (debug endpoint, event not recorded)"; no GA4 check needed
 10. `purchase_server` visible in GA4 Realtime / DebugView with correct value, currency, items. 🟢 queue side (row reaches `sent`); GA4 Realtime/DebugView check still needs a person
-11. Hyvä Checkout shipping/payment events (`local-testing.md` section 5): once per submission, right method codes, default/mobile/onepage checkouts, virtual cart. 🟢 default, mobile (`add_payment_info` fires when leaving the payment step), one-page (both at Place Order) and a virtual-only cart (only `add_payment_info`), guest orders, each event once with the right method code. Still open: the user agent switch to the mobile checkout, logged-in customers, multiple addresses
-12. Client-side fixes: flat `items`, purchase currency, single `page_view`, custom-event triggers after re-importing the container, `view_item` / `view_item_list` / `search` on product, category and search pages (also with FPC/Varnish on, second visitor gets the same events). 🟡 partly: `view_item_list`, `view_item`, `view_cart`, `begin_checkout` seen in `dataLayer`; GTM Preview, search page, FPC/Varnish still open (run 5) 🟢 search page (`search` + `view_item_list`), FPC MISS/HIT with identical events, sort and pagination; still open: Varnish, GTM Preview, logged-in customer group prices with FPC
-13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired. 🟡 (run 2) partial credit memo (adjustment fee) → one `refund_server` row, value 112, `refund_type` partial, same `client_id`, sent by cron; cancelling an order whose purchase was skipped → `cancel` row skipped with the reason. Bug found and fixed (full credit memo never queued). Still open: full credit memo after the fix, two partial memos, re-saving a memo, refund after a failed/expired purchase, cancel of a sent order (run 6) 🟢 full credit memo, two partial memos, re-save (dedupe and recovery of a lost row), refund after an expired purchase (skipped) and cancel of a sent order; still open: refund after a *failed* purchase (run 7) 🟢 refund and cancel after a *failed* purchase are `skipped`; a skipped follow-up is not re-queued when the purchase is re-sent
+11. Hyvä Checkout shipping/payment events (`local-testing.md` section 5): once per submission, right method codes, default/mobile/onepage checkouts, virtual cart. 🟢 default, mobile (`add_payment_info` fires when leaving the payment step), one-page (both at Place Order) and a virtual-only cart (only `add_payment_info`), guest orders, each event once with the right method code. Still open: the user agent switch to the mobile checkout, logged-in customers, multiple addresses (runs 12 and 13) 🟢 also logged-in customers and downloadable / Stripe orders; user agent switch to the mobile checkout still open
+12. Client-side fixes: flat `items`, purchase currency, single `page_view`, custom-event triggers after re-importing the container, `view_item` / `view_item_list` / `search` on product, category and search pages (also with FPC/Varnish on, second visitor gets the same events). 🟡 partly: `view_item_list`, `view_item`, `view_cart`, `begin_checkout` seen in `dataLayer`; GTM Preview, search page, FPC/Varnish still open (run 5) 🟢 search page (`search` + `view_item_list`), FPC MISS/HIT with identical events, sort and pagination; still open: Varnish, GTM Preview, logged-in customer group prices with FPC (runs 12 and 13) 🟢 `sign_up`, `login`, `logout`, wishlist add / remove, exactly one `page_view` per page; still open: Varnish, GTM Preview, configurable `update_cart`
+13. Refunds (full and partial credit memos, re-saving a credit memo does not duplicate) and cancellations; skipped when the purchase was skipped/failed/expired. 🟡 (run 2) partial credit memo (adjustment fee) → one `refund_server` row, value 112, `refund_type` partial, same `client_id`, sent by cron; cancelling an order whose purchase was skipped → `cancel` row skipped with the reason. Bug found and fixed (full credit memo never queued). Still open: full credit memo after the fix, two partial memos, re-saving a memo, refund after a failed/expired purchase, cancel of a sent order (run 6) 🟢 full credit memo, two partial memos, re-save (dedupe and recovery of a lost row), refund after an expired purchase (skipped) and cancel of a sent order; still open: refund after a *failed* purchase (run 7) 🟢 refund and cancel after a *failed* purchase are `skipped`; a skipped follow-up is not re-queued when the purchase is re-sent (runs 6, 7, 11, 12, 13) 🟢 full, two partial, partial with a discount, bundle + grouped refund, re-save, refund / cancel after skipped / failed / expired purchases, refund while the purchase is pending
 14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open 🟢 (run 2) mass re-send: confirmation text, 2 queued (anonymous client ids, no timestamp) and 1 not queued with the reason ("skipped on purpose"); the 2 queued orders were sent by cron
 15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check 🟢 (run 2) event log renders with intro, 7 rows, filters by Order # work, sorting by order date; order # links to the order (was plain text, fixed). Still open: date/status/event/error filters, ACL, cleanup cron (run 5) 🟢 ACL (menu, mass action denied, config section scoped) and cleanup cron (only old sent/skipped rows, retention 0 keeps all); direct URL / export download as a restricted user not exercised
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
@@ -344,3 +432,8 @@ Everything under "Magento layer" above, in particular the risky items:
 - Payment-gateway flows that cancel an order right after placement produce both `purchase_server` and `cancel_server`. Expected.
 - `view_item_list` on category pages reads the list block's collection; a theme that renames `category.products.list` / `search_result_list` gets no list event (🧪 Hyvä default theme uses these names, checked in the source).
 - The client-side events for `add_shipping_info` / `add_payment_info` fire on Hyvä's validation success, before the server confirms a step change (rare false positive, see `hyva-checkout-notes.md`).
+- **Unpaid orders are tracked.** Tracking happens at order placement (`checkout_submit_all_after`). A redirect-based payment method that places the order as `pending_payment` (Stripe Checkout) is tracked at once, on the client (`purchase` on the success page) and on the server. *Excluded Order Statuses* = `pending_payment` skips the server row, but such a row is never re-queued when the order is paid later, and the client event cannot be excluded (Open issue 13).
+- **Several client `item_id` forms for one product** (configurable child / parent, bundle composed SKU, refund of a configurable or bundle): GA4 item reports can split one product into several items (Open issues 5, 7, 10, 11).
+- The customer-data event slot is single: two `add_to_cart` events before the next section load deliver only the last one; harmless in normal browsing (Open issue 12).
+- Multishipping: the server tracks every order of the checkout separately (one `transaction_id` each, no link between them); the client has no event on the multishipping success page (Open issue 14).
+- Zero-value orders: excluded on the server by default, still sent by the client `purchase` (Open issue 9).
