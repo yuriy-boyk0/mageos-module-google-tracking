@@ -2,12 +2,12 @@
 
 For a Claude Code session or a person with the real store. Cloud sessions cannot run any of this (see `CLAUDE.md`). Record results in `docs/STATUS.md` ("Needs local testing") as you go: tick items, note failures, and fix code or tell the user.
 
-## Next local run: what to test (run 22)
-Everything changed in cloud since run 21 and not verified on a real install yet. Run in this order and record the results in `docs/STATUS.md` (new "Verified locally, run 22" section, the Open issues table, "Needs local testing" items 20 and 21, "Local test coverage") and in the run log at the end of this file:
-1. `bin/magento setup:upgrade`, `setup:di:compile`, `cache:flush` (new constructor argument in `Cron/Cleanup` and `Observer/AddToCart`, new backend model, new config fields). Expected: no errors; the new fields appear under *Server-side Purchase Tracking*.
-2. Section **7e**: fixes of Open issues 15 to 18 (bundle net price, bundle discount, variant attributes, Custom GTM Script URL validation) and no `coupon: null`.
-3. Section **7f**: held purchases cancelled while held, maximum hold, *Skip Client-side purchase for Excluded Statuses*.
-4. Optional if time allows: the items listed under "Still missing" in `docs/STATUS.md` ("Local test coverage").
+## Next local run: what is left (run 23)
+Everything the cloud sessions changed up to the commit `14002f3` has been verified locally (runs 14 to 22, see `docs/STATUS.md`). What is open, in the order it is worth doing:
+1. 👤 **A person:** GTM Preview of the new tags (Selectitem, Viewpromotion, Selectpromotion, Addtocompare), GA4 Realtime / DebugView for the new events, consent signals and user properties; the real Stripe Checkout redirect (section 7f row 12); a real first-party / server-side GTM container for *Custom GTM Script URL*; docs acceptance of `google-setup.md`.
+2. 🧪 Not covered yet: a fixed-price bundle in a tax-inclusive store (the sample data has none: temporarily switch product 46's price type or create one), the admin *Cancel* button and grid mass action in the UI, the cleanup through the real daily cron schedule, `update_cart` / `remove_from_cart` for a configurable from the cart page, wishlist event merging (needs a logged-in customer).
+3. 🧪 Platform: Varnish, production mode, user-agent switch to the mobile checkout, upgrade from the earlier table version, Mollie / Braintree once configured, tooling `dev/check.sh` / `dev/check-magento.sh` inside Warden.
+Record results in `docs/STATUS.md` ("Verified locally, run 23", Open issues, "Local test coverage") and in the run log at the end of this file.
 
 ## 0. Prerequisites
 - Clean Magento Open Source 2.4.9 with sample data, Hyvä theme + Hyvä Checkout active. No consent module is needed (the former `mage-os/module-cookie-consent` dependency was dropped, it does not exist yet); consent is simulated with a cookie, see "Simulating cookie consent" below.
@@ -394,3 +394,12 @@ Results are in `docs/STATUS.md` ("Verified locally, run 21"). Methods:
 - **Compare:** the *Add to Compare* button posts and reloads; read `dataLayer` after the reload.
 - **Custom GTM URL stand-in:** `pub/gtm.js` that sets `window.__customGtmStub` and appends Google's `gtm.js?id=<id>`; `pub/ns.html` an empty page; set `googletagmanager/general/gtm_script_url` with `--scope=stores --scope-code=default` to `https://ita.magento249.test` (a second host that already routes to the same Magento), flush the cache. Read the network tool (`gtm.js`), the CSP header with `curl -skI` (`content-security-policy-report-only` on the storefront, enforced `content-security-policy` on the checkout), and on the checkout inject `<script src>` elements for the custom host (loads) and for an unlisted host (`securitypolicyviolation` with `script-src-elem`). Remove the two files and the config rows afterwards.
 - **Settings used:** `view_cart_on_minicart 1`, `category_depth 2`, `excluded_categories 4`, `custom_item_attributes` with one `name:code` per line (`item_material:material`, `item_activity:activity`).
+
+### 2026-10-21: twenty-second local run: cloud fixes of Open issues 15 to 18, held purchases end, client purchase skip
+Results are in `docs/STATUS.md` ("Verified locally, run 22"). Methods and traps:
+- After a pull with constructor changes: `bin/magento setup:upgrade --keep-generated`, `setup:di:compile` (about 40 s), then **remove the compiled output** (`rm -rf generated/metadata generated/code/*`) and flush, otherwise developer mode keeps using the compiled DI configuration for later modules.
+- **Admin form check without typing in the page:** after `location.href = <system_config link from the admin menu>` open the module section, read the field ids (`googletagmanager_server_side_max_hold_days`, ...). *Use system value* checkboxes need a real click (screenshot coordinates), the field a real click and `type`; *Save Config* at the top right. A rejected value shows the red message and stores nothing; `bin/magento config:set` runs the same backend model.
+- **Legacy values:** write the config row with SQL (`insert into core_config_data ...`) to see how old stored values behave at runtime; flush the cache after each change.
+- **Bundle on the Italian store:** `bundle_option[1]` 1 / 3, `[2]` 4, `[3]` 5 / 7, `[4]` 8 (selection ids) give the default and a more expensive combination; read `add_to_cart` after `window.dispatchEvent(new CustomEvent('reload-customer-section-data'))`, then `view_cart` on the cart page. A cart with a coupon can differ by a cent from the same cart without (tax rounding).
+- **Held purchases by script** (`CartManagementInterface::placeOrder` with `$_COOKIE['user_allowed_save_cookie']` set before bootstrapping; helper scripts for invoice / cancel / touch / full credit memo / `PurchaseResender::resend` / `Cron\Cleanup::execute()` under `setup:upgrade`-free `adminhtml` or `crontab` area): age a row with `UPDATE mageos_gtm_server_event SET created_at = created_at - 31*86400 WHERE increment_id = '<order>' AND event_type = 'purchase'`.
+- **Browser orders in one go:** `fetch` empty cart + add (JS call 1), navigate to `/checkout/` and wait 5 s, JS call 2 fills the form, picks `checkmo` and waits 4.5 s, **JS call 3 clicks Place Order** (a `setTimeout` click scheduled in the previous call never fires), wait 9 s, read `dataLayer` on the success page; the server row with SQL.
