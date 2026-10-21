@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (fourteen local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-21 (twenty-one local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -13,13 +13,14 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | 1 Client-side purchase fix | ✅ code + tests · 🟢 one `purchase` per order, no replay on reload (runs 1 to 13) |
 | 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ · 🟢 default, mobile, one-page, virtual-only, logged in, Stripe (runs 1 to 13) · 🧪 user-agent switch to the mobile checkout |
 | 0 Measurement Protocol foundation | ✅ · 🟢 queue, cron, retries, expiry, wrong secret, debug mode (runs 1 to 7) |
-| 2 Server-side purchase event | ✅ · 🟢 guest / logged-in / admin / Stripe orders, consent variants, exclusions, product types (runs 1 to 13) · 🆕 2026-10-21: excluded status = hold + release, zero-value setting moved to General (🧪) · reporting currency ⏳ future |
-| 3 Refunds / cancellations / mass re-send | ✅ · 🟢 full / partial / discounted / bundle refunds, cancel, re-send, follow-up re-queue (runs 2 to 13) · 🆕 2026-10-21: refund item ids and bundle quantity (🧪) |
+| 2 Server-side purchase event | ✅ · 🟢 guest / logged-in / admin / Stripe orders, consent variants, exclusions, product types (runs 1 to 13) · 🟢 2026-10-21 changes: excluded status = hold + release (run 18, simulated `pending_payment`; real Stripe redirect 🧪), zero-value setting in General (run 17), consent object (run 19) · reporting currency ⏳ future |
+| 3 Refunds / cancellations / mass re-send | ✅ · 🟢 full / partial / discounted / bundle refunds, cancel, re-send, follow-up re-queue (runs 2 to 13) · 🟢 refund item ids and bundle quantity (run 15), consent copied to refunds (run 19) |
 | 4 Admin visibility (grid column, event log, DebugView flag, retention) | ✅ · 🟢 grid column, event log, ACL, cleanup (runs 2, 5) · 🧪 DebugView flag in GA4 (needs a person) |
-| Client-side fixes | ✅ · 🟢 prices in multi-currency / tax-inclusive stores (run 9), single `page_view`, FPC · 🆕 2026-10-21: client items described like the server (🧪) · 🧪 GTM Preview, Varnish |
-| Competitor parity (Consent Mode v2, select_item + list attribution, promotions, brand/affiliation, debug logger) | ✅ code + 6 PHP / 16 JS tests + static checks (2026-10-21) · 🧪 local (`local-testing.md` 7c) |
-| Second competitor batch (custom GTM URL, page/visitor context, customer-group exclusion, max transaction value, add_to_compare, minicart view_cart, category depth / exclusions, custom item parameters) | ✅ code + 19 PHP / 6 JS tests + static checks (2026-10-21) · 🧪 local (`local-testing.md` 7d) |
+| Client-side fixes | ✅ · 🟢 prices in multi-currency / tax-inclusive stores (run 9), single `page_view`, FPC · 🟢 client items described like the server (run 15), grouped / merged cart events (run 16) · 🧪 GTM Preview, Varnish |
+| Competitor parity (Consent Mode v2, select_item + list attribution, promotions, brand/affiliation, debug logger) | ✅ code + tests + static checks (2026-10-21) · 🟢 local runs 19 and 20 (Consent Mode Off / Basic / Advanced, select_item + list attribution, promotions, brand / affiliation, debug logger) · 🧪 GTM Preview and GA4 side (needs a person) |
+| Second competitor batch (custom GTM URL, page/visitor context, customer-group exclusion, max transaction value, add_to_compare, minicart view_cart, category depth / exclusions, custom item parameters) | ✅ code + tests + static checks (2026-10-21) · 🟢 local run 21 (page context, customer groups + FPC, max value, compare, minicart view_cart, category options, custom item parameters, custom GTM URL with CSP) · 🔴 variant-level custom parameter (Open issue 17), 🟡 URL edge cases (18) · 👤 a real first-party / server-side GTM container |
 | Multishipping | ⛔ not supported or tested (user decision 2026-10-21), documented |
+| GTM container export | ✅ · 🟢 imported by the user after the `fieldsToSet` key fix (run 14) · 🧪 GTM Preview of the new tags |
 | 5 Documentation | ✅ · 👤 docs acceptance |
 
 ## Done
@@ -226,23 +227,27 @@ Environment prepared in this run (see "Test environment" above and the project `
 
 Not exercised in run 8: *Currency basis* = base currency, *Tax in Totals* = excluding, *Item ID* modes, refunds / cancellations in EUR, switching the US store to EUR, per-website module settings, FPC with two websites.
 
-### Open issues found locally (all addressed; the 2026-10-21 fixes need a local run)
+### Open issues found locally (1 to 14 fixed and verified, 15 to 18 found in runs 15 and 21 and not fixed)
 | # | Issue | Evidence | Status |
 |---|---|---|---|
 | 1 | `view_item`, `view_item_list`, `add_to_cart` sent the **base-currency price labelled with the store currency** | Italian store: `view_item` and `add_to_cart` `value` 32 with `currency` EUR; shop shows €29.44 (net €24.13) | 🟢 fixed and verified in run 9 |
 | 2 | `view_cart`, `begin_checkout` sent the **base-currency, tax-exclusive quote item price** labelled with the store currency | Italian store: `value`/`price` 26.23 EUR = 32 / 1.22 (not a rate effect, see run 9) | 🟢 fixed and verified in run 9 |
 | 3 | Client `purchase` and `purchase_server` represented lines differently (client = Google's net convention, server = *Tax in Totals* setting) (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟢 resolved in run 11: server lines now the same as the client's |
 | 4 | A refund or cancel skipped because the purchase had not been sent was not re-queued when the purchase was re-sent | run 7 | 🟢 fixed and verified in run 10 |
-| 5 | Client `item_id` of a configurable switches from child SKU (`add_to_cart`, `view_cart`, `begin_checkout`) to parent (`purchase`) inside one visit | run 12, order 21 | ✅ fixed 2026-10-21 (`Service/ItemDataResolver`: every event follows *Item ID*), 🧪 verify |
-| 6 | Client `purchase` `discount` is negative (−5.2) and event-level; GA4 expects positive item-level discounts | run 12 | ✅ fixed 2026-10-21: positive per-unit `discount` on each client item (cart, checkout, purchase), event-level field removed, 🧪 verify |
-| 7 | `refund_server` item_id is the child SKU of a configurable, the purchase uses the parent (or child per *Item ID*) | run 12, credit memo of order 21 | ✅ fixed 2026-10-21 (refund items described from the order item, same rule), 🧪 verify |
-| 8 | Client items lack `item_variant`; client `item_category` is the first category found, the server sends the category path | run 12 | ✅ user decision "client matches server", implemented 2026-10-21, 🧪 verify |
-| 9 | Client sends `purchase` for zero-value orders, the server excludes them | run 12, order 24 | ✅ user decision: *Exclude Zero-value Orders* moved to the General group and applies to the client `purchase` too (2026-10-21), 🧪 verify |
-| 10 | **Bundle `item_id`** is the composed cart SKU (`24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088`) in the client cart events and in `purchase_server`, but `24-WG080` in the client `purchase`; the composed SKU changes with the selected options, so one product shows up as many items in GA4 | run 13, order 31 | ✅ fixed 2026-10-21: bundles always use the bundle's catalog SKU (`ItemIdResolver`), 🧪 verify |
-| 11 | **`refund_server` of a bundle**: `quantity` 4 (the credit memo's bundle row counts its children), purchase 1, and the composed `item_id` | run 13, credit memo of order 31 | ✅ fixed 2026-10-21: bundle quantity derived from the children (`RefundQuantity`), catalog SKU, 🧪 verify |
-| 12 | Client `add_to_cart` for a **grouped** product describes the group parent (14 × 1) instead of the child lines added; only one `add_to_cart` is delivered when several adds happen before the next customer-data load (single session slot) | run 13 | ✅ fixed 2026-10-21 after comparing Yireo GoogleTagManager2 and WeltPixel GA4 Pro 1.17.5: one `add_to_cart` with one item per child added (as WeltPixel); pending add/remove-from-cart and wishlist events are merged (items appended, `value` recomputed, unlike WeltPixel which keeps the first value) instead of overwritten. 🧪 verify |
-| 13 | **Orders that are not paid yet** (redirect-based methods, `pending_payment`) are tracked at placement; the client `purchase` cannot be excluded; a server row skipped by *Excluded Order Statuses* is never re-queued when the order is paid later (no status-change observer, re-send ignores skipped rows) | run 13, orders 37, 38 | ✅ user decision "re-queue when an allowed status is reached", implemented 2026-10-21: status-excluded purchases are stored as `waiting` (payload with consent and GA ids) and released on `sales_order_save_after`; client `purchase` still at placement (documented). 🧪 verify with Stripe Checkout + `pending_payment` excluded |
+| 5 | Client `item_id` of a configurable switches from child SKU (`add_to_cart`, `view_cart`, `begin_checkout`) to parent (`purchase`) inside one visit | run 12, order 21 | ✅ fixed 2026-10-21 (`Service/ItemDataResolver`: every event follows *Item ID*), 🟢 verified run 15 |
+| 6 | Client `purchase` `discount` is negative (−5.2) and event-level; GA4 expects positive item-level discounts | run 12 | ✅ fixed 2026-10-21: positive per-unit `discount` on each client item (cart, checkout, purchase), event-level field removed, 🟢 verified run 15 |
+| 7 | `refund_server` item_id is the child SKU of a configurable, the purchase uses the parent (or child per *Item ID*) | run 12, credit memo of order 21 | ✅ fixed 2026-10-21 (refund items described from the order item, same rule), 🟢 verified run 15 |
+| 8 | Client items lack `item_variant`; client `item_category` is the first category found, the server sends the category path | run 12 | ✅ user decision "client matches server", implemented 2026-10-21, 🟢 verified run 15 |
+| 9 | Client sends `purchase` for zero-value orders, the server excludes them | run 12, order 24 | ✅ user decision: *Exclude Zero-value Orders* moved to the General group and applies to the client `purchase` too (2026-10-21), 🟢 verified run 17 |
+| 10 | **Bundle `item_id`** is the composed cart SKU (`24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088`) in the client cart events and in `purchase_server`, but `24-WG080` in the client `purchase`; the composed SKU changes with the selected options, so one product shows up as many items in GA4 | run 13, order 31 | ✅ fixed 2026-10-21: bundles always use the bundle's catalog SKU (`ItemIdResolver`), 🟢 verified run 15 |
+| 11 | **`refund_server` of a bundle**: `quantity` 4 (the credit memo's bundle row counts its children), purchase 1, and the composed `item_id` | run 13, credit memo of order 31 | ✅ fixed 2026-10-21: bundle quantity derived from the children (`RefundQuantity`), catalog SKU, 🟢 verified run 15 |
+| 12 | Client `add_to_cart` for a **grouped** product describes the group parent (14 × 1) instead of the child lines added; only one `add_to_cart` is delivered when several adds happen before the next customer-data load (single session slot) | run 13 | ✅ fixed 2026-10-21 after comparing Yireo GoogleTagManager2 and WeltPixel GA4 Pro 1.17.5: one `add_to_cart` with one item per child added (as WeltPixel); pending add/remove-from-cart and wishlist events are merged (items appended, `value` recomputed, unlike WeltPixel which keeps the first value) instead of overwritten. 🟢 verified run 16 |
+| 13 | **Orders that are not paid yet** (redirect-based methods, `pending_payment`) are tracked at placement; the client `purchase` cannot be excluded; a server row skipped by *Excluded Order Statuses* is never re-queued when the order is paid later (no status-change observer, re-send ignores skipped rows) | run 13, orders 37, 38 | ✅ user decision "re-queue when an allowed status is reached", implemented 2026-10-21: status-excluded purchases are stored as `waiting` (payload with consent and GA ids) and released on `sales_order_save_after`; client `purchase` still at placement (documented). 🟢 verified run 18 (invoice / status changes and a simulated `pending_payment`); 🧪 the real Stripe Checkout redirect with a person paying |
 | 14 | No client `purchase` / events on the **multishipping** success page (not wired); multishipping has no UI on Hyvä anyway | run 13 | ⛔ won't do: multishipping is not supported or tested (user decision 2026-10-21, documented in README and plan) |
+| 15 | **Bundle price in a tax-inclusive store is gross in `view_item` / `add_to_cart` and net in `view_cart` / `begin_checkout` / `purchase` / `purchase_server`**: Italian store, Sprite Yoga Companion Kit: 56.12 vs 48.33 (the same cart, 87.54 vs 95.33 event value). The bundle's own tax class does not match its children (one child has no tax class), so the PriceInfo amount used for catalog and add-to-cart events still contains VAT | run 15, order 2000000003 | 🔴 found, not fixed (documented only) |
+| 16 | **A coupon on a dynamic-priced bundle gives the bundle line no `discount`**: Magento books the discount on the bundle's children (6.1 of the 11.3 discount of order 000000040), the bundle line carries 0; the event `value` is right (113 − 11.3 + 5 + 7.35 = 114.05), the sum of the item discounts (5.2) is not | run 15, orders 000000040, 2000000003 (client and server identical) | 🟡 to decide (sum the children's discounts into the bundle line) |
+| 17 | **Custom Item Parameters read the configurable parent only**: `item_color:color` gives nothing for the Chaz Kangeroo Hoodie because `color` is set on the simple variant (Black), not on the configurable (parent `material` "Wool" works). Variant-level attributes are therefore never sent for configurables, client or server | run 21 (view_cart, add_to_cart; DB: parent 62 has no `color`, child 47 has Black) | 🟡 to decide (read the chosen variant first, then the parent) |
+| 18 | *Custom GTM Script URL*: a value with a path (`https://host/custom/path`) is accepted and used although the help text says "no path"; an invalid `http://host` value falls back to Google for `gtm.js` but the host is still added to the CSP | run 21 | 🟡 to decide (fix the text or the validation) |
 
 ### Verified locally, run 9 (🟢, 2026-10-21): client-side prices in multi-currency / tax-inclusive stores (Open issues 1 and 2 fixed)
 **Root cause (one bug, two symptoms).** The browsing and cart events took Magento's *base-currency* amounts but labelled them with the store's *current* currency:
@@ -292,7 +297,7 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 | Full credit memo of that order | 🟢 `refund_server` EUR, value 102.12, item 24.13 × 3, `refund_type` `full`; both events sent (Debug Mode on, then off) |
 | *Tax in Totals* = Excluding | logic only (unit tests: `value` = grand total minus tax, shipping and tax unchanged); not run in the browser |
 
-### Changes of 2026-10-21 (cloud; ✅ unit/JS tests + PHPStan/XSD, 🧪 not run locally yet)
+### Changes of 2026-10-21 (cloud; ✅ unit/JS tests + PHPStan/XSD; verified locally in runs 15 to 18)
 - **Client items match the server** (Open issues 5 to 8, 10): new `Service/ItemDataResolver` describes every item for all events: `item_id` via `ItemIdResolver` and the *Item ID for Configurable Products* setting (now applies to client and server; `add_to_cart` reads the selected variant from the product's `simple_product` option), `item_variant` (configurable options), category path `item_category` … `item_category5`. Client cart / checkout / purchase items carry a positive per-unit `discount`; the client `purchase` has no event-level `discount` any more. Bundles always use their catalog SKU.
 - **Refunds** (Open issues 7, 11): items are described from their order item with the same rule; a bundle's refunded quantity is derived from its children (`Service/MeasurementProtocol/RefundQuantity`, 4 tests).
 - **Excluded status = hold** (Open issue 13): `Model/PurchaseEnqueuer` stores such a purchase as `waiting` (new status) with its payload; `Observer/ReleaseWaitingPurchase` on `sales_order_save_after` → `Model/PurchaseReleaser` → `HoldPolicy` (11 tests) queues it once the status is no longer excluded and the state is not canceled / closed / pending_payment / payment_review; the timestamp is dropped (dated at release), follow-ups skipped meanwhile are re-queued. Re-send ignores waiting rows; grid label "Waiting (order status)". Rows skipped by the old rule (before this change) are not converted.
@@ -301,7 +306,7 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 - Tests: 155 PHPUnit, 31 JS.
 - **Grouped products / several adds** (Open issue 12): `CartService::addGroupedToCart()` builds one item per child with a quantity from `super_group`; `EventQueue::appendSessionEvent()` + `Service/DataLayer/EcommerceEventMerger` (5 tests) combine pending add_to_cart / remove_from_cart / wishlist events. Compared with Yireo GoogleTagManager2 (sends the group parent with quantity 1, single slot) and WeltPixel GA4 Pro 1.17.5 (one item per child, merges only some cases, keeps the first value). Tests now 160 PHPUnit.
 
-### Second competitor batch (2026-10-21, cloud; ✅ tests + PHPStan/XSD, 🧪 not run locally)
+### Second competitor batch (2026-10-21, cloud; ✅ tests + PHPStan/XSD; verified locally in run 21)
 - **Custom GTM Script URL** (General): `gtm.js` / `ns.html` from a first-party or server-side GTM host; `Model/Csp/GtmScriptHostCollector` adds the host to script-src, connect-src, img-src, frame-src.
 - **Page and visitor context**: `{page_type, customer_group, logged_in}` pushed before GTM on every page (`PageTypeResolver`, 13 tests; `PageContext` from the HTTP context, FPC-safe). Exported GA4 Configuration tag: `fieldsToSet` page_type, `userProperties` customer_group / logged_in.
 - **Don't Track Customer Groups** (General multiselect incl. NOT LOGGED IN): `TagManager::isEnabled()` false (no GTM, no events), server exclusion "excluded: customer group".
@@ -312,7 +317,7 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 - **Custom Item Parameters** (up to five `name:attribute` pairs, `CustomItemAttributes`, tests): on every item, client and server (`PayloadBuilder` passes valid extra item keys through, test).
 - Tests now 185 PHPUnit, 51 JS. GTM container must be re-imported.
 
-### Competitor parity (2026-10-21, cloud; ✅ tests + PHPStan/XSD, 🧪 not run locally)
+### Competitor parity (2026-10-21, cloud; ✅ tests + PHPStan/XSD; verified locally in runs 19 and 20)
 After comparing Yireo GoogleTagManager2 and WeltPixel GA4 Pro 1.17.5 the user chose items 1, 2, 3, 4 and 6:
 - **Google Consent Mode v2**: *Cookie Consent > Google Consent Mode v2* = Off (default) / Basic / Advanced, *Signals Granted on Consent* = all / analytics only, *Banner Sends Consent Mode Signals*. `head.phtml` pushes `consent default` (all denied, `wait_for_update` 500) and `consent update` before GTM loads; Advanced loads GTM at once. Server side: Measurement Protocol `consent` object (`ConsentModeSignals`, 4 tests) on purchases, copied to refunds/cancellations. 7 JS tests. Options documented in the README with the legal note on Advanced.
 - **`select_item` + list attribution**: click on a product link in category / search lists pushes `select_item`; the list (id, name, index) is remembered in localStorage (7 days, 100 products) and added to `add_to_cart` and client `purchase` items; the list's add-to-cart button only remembers. 4 JS tests. Server-side `purchase_server` does not carry list fields (browser-only knowledge).
@@ -398,7 +403,134 @@ Pulled `9a5e02a..df71204` (four cloud commits), 185 PHPUnit + 51 JS tests pass i
 
 Not run: any of the behaviour changes of the four commits (see "Needs local testing" items 17 to 19).
 
-### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 14)
+### Verified locally, run 15 (🟢/🔴, 2026-10-21): item data identical in every event (group 1 of the 2026-10-21 changes)
+Environment: one-page checkout, guest, Check / Money order, temporary 10 % coupon `GTM10` (rule deleted afterwards), consent cookie set, GTM loaded. Products: Chaz Kangeroo Hoodie (configurable, Black / XS) and Sprite Yoga Companion Kit (dynamic bundle). Orders 000000039 (Item ID = Parent), 000000040 (Child, hoodie + bundle) and 2000000003 (Italian store, Parent, hoodie + bundle).
+
+| Case | Result |
+|---|---|
+| Parent mode, US store, hoodie + coupon (order 39): `view_item`, `add_to_cart`, `view_cart`, `begin_checkout`, client `purchase`, `purchase_server` | 🟢 `item_id` `MH01` everywhere (previously the child SKU in cart events, Open issue 5); `item_variant` "Black, XS" and the category path `Men / Tops / Hoodies & Sweatshirts` identical on every event; per-item `discount` 5.2 (positive, per unit) on `begin_checkout`, client `purchase` and `purchase_server`; no event-level discount; `value` 55.66 on both |
+| Child mode, US store, hoodie + bundle + coupon (order 40) | 🟢 `MH01-XS-Black` in `add_to_cart`, `view_cart`, `begin_checkout`, `purchase` and `purchase_server`; bundle `24-WG080` everywhere (before: the composed SKU in cart events and the server payload, Open issue 10); client and server items identical |
+| Full credit memo of order 40 (Child) | 🟢 `refund_server` `MH01-XS-Black` + `24-WG080`, bundle `quantity` **1** (was 4, Open issues 7 and 11), `variant` and categories as in the purchase; refund items carry no `discount` (by design: value only) |
+| Full credit memo of order 39 (Parent) | 🟢 `refund_server` `MH01`, `item_variant` "Black, XS" |
+| Italian store (EUR, VAT included), order 2000000003 | 🟢 hoodie 39.21 EUR net (52 USD incl. VAT: 52 × 0.92 / 1.22) in every event, discount 3.92, client `purchase` = `purchase_server` = `refund_server` (value 104.41); 🔴 bundle price differs between events (Open issue 15) |
+| Discounted bundle | 🟡 bundle line has no `discount` although the coupon applies to its children (Open issue 16) |
+| Settings value used at event time | 🟢 the Item ID mode in force when the refund is created decides the refund `item_id`; an order placed in Parent mode and refunded after switching to Child would show the child SKU (not exercised, follows from the code) |
+
+Cleanup: rule `GTM10` deleted, `item_id_mode` row removed (default Parent), `var/tmp_gtm` deleted. Left behind: orders 000000039, 000000040, 2000000003 with credit memos and their events in GA4 (`purchase_server`, `refund_server`).
+
+### Verified locally, run 16 (🟢, 2026-10-21): grouped products and several quick cart events (group 2 of the 2026-10-21 changes)
+Environment: US store, guest, consent cookie set, no orders placed (cart emptied afterwards). Set of Sprite Yoga Straps (grouped, children `24-WG085` $14, `24-WG086` $17, `24-WG087` $21), Bags category list.
+
+| Case | Result |
+|---|---|
+| Grouped product page, children 6 ft × 2 and 8 ft × 1, real *Add to Cart* click | 🟢 one `add_to_cart`, two items (`24-WG085` price 14 qty 2, `24-WG086` price 17 qty 1), `value` 45, child SKUs and names, delivered in the page without a reload; the zero-quantity child is not included. (`view_item` of the group still uses the group SKU `24-WG085_Group`, price 14 = cheapest child) |
+| Cart page after that | 🟢 `view_cart` with the same two child items, value 45; the `add_to_cart` is not replayed |
+| Bags category: two *Add to Cart* clicks 300 ms apart (Joust Duffle Bag, Strive Shoulder Pack) | 🟢 one `add_to_cart` with both items, `value` 66 (before: only the last one arrived) |
+| Minicart drawer: remove one item, wait 400 ms, remove a grouped child | 🟢 two separate `remove_from_cart` events (each was delivered before the next remove), the grouped child as `24-WG085` price 14 qty 2, value 28 |
+| Minicart drawer: remove two items in the same tick | 🟢 merged into one `remove_from_cart` with both items, value 51 |
+| Minicart opened with *view_cart When the Minicart Opens* = No (default) | 🟢 no `view_cart` |
+| Wishlist events merged | 🧪 not run (needs a logged-in customer) |
+
+Cleanup: cart emptied, tab closed, nothing else created.
+
+### Verified locally, run 17 (🟢, 2026-10-21): zero-value orders (group 4 of the 2026-10-21 changes)
+Environment: US store, one-page checkout, guest, temporary 100 % coupon `GTM100` with free shipping (rule deleted afterwards), hoodie (configurable), payment *No Payment Information Required* (`free`). No `exclude_zero_value` row existed in `core_config_data` before (default Yes), neither under the old nor the new path.
+
+| Case | Result |
+|---|---|
+| *Exclude Zero-value Orders* = default (Yes), order 000000041 | 🟢 server row `skipped`, "excluded: zero value order", no payload; success page has the page-context push (`page_type` `success`) but **no `purchase`** and no other event; `begin_checkout` before it carried value 52 and a per-item discount of 52 |
+| Setting = No (`googletagmanager/general/exclude_zero_value` 0), order 000000042 | 🟢 client `purchase` with value 0, tax 0, shipping 0, coupon `GTM100`, item price 52, discount 52; server row `sent` (`purchase_server`, same items, value 0) |
+| Setting saved under the old path (`server_side/exclude_zero_value`) is not migrated | not applicable here (no old row existed), behaviour documented only |
+| Setting visible in the admin *General* group | 🧪 not looked at in the admin form (set with `config:set`) |
+
+Trap: clicking *Place Order* less than about 3 s after choosing the payment method is ignored while Hyvä shows "Saving method"; no order is created. Click it again.
+
+Cleanup: rule `GTM100` deleted, `exclude_zero_value` row removed (default Yes), `var/tmp_gtm` deleted, tab closed. Left behind: orders 000000041 and 000000042 (grand total 0) and their rows.
+
+### Verified locally, run 18 (🟢, 2026-10-21): excluded status = hold, release and follow-ups (group 3 of the 2026-10-21 changes)
+Environment: US store, *Exclude Order Statuses* = `pending` (Check / Money order starts as `pending`), orders 000000043 (browser checkout, hoodie) and 000000044 to 000000046 (placed by script through `CartManagementInterface::placeOrder`, Strive Shoulder Pack, no cookies so anonymous client id). Real Stripe Checkout redirect **not** used (it needs a person on Stripe's page); `pending_payment` was simulated by setting the order state and status.
+
+| Case | Result |
+|---|---|
+| Order placed with its status excluded (43) | 🟢 purchase row `waiting` ("order status "pending" is excluded, sent once the order reaches another status"), payload already built with the visitor's `_ga` client id and session id, cron does not send it; the client `purchase` still fires on the success page (by design) |
+| Order moved to `processing` (43) | 🟢 same save: row `pending`, "released: order status changed to "processing"", `timestamp_micros` dropped; cron sent it (GA4 dates it at sending time) |
+| Waiting order cancelled (44) | 🟢 `cancel_server` row `skipped` ("server-side purchase was not sent (waiting)"); the purchase row stays `waiting` (never sent, never released) |
+| Waiting order invoiced while `processing` is also excluded (45), then a partial credit memo (shipping 5) | 🟢 purchase stays `waiting`, `refund_server` row `skipped` (reference id = credit memo) |
+| Same order after allowing `processing` (re-save with a real change) | 🟢 purchase released (`pending`, no timestamp) **and** the skipped refund re-queued as a new `pending` row (same reference id, old skipped row replaced); cron sent both |
+| Status not excluded but state `pending_payment` (46) | 🟢 stays `waiting` (state check); then `processing` releases it |
+| Real Stripe Checkout redirect (`stripe_payments_checkout`) with a person paying | 🧪 not run |
+| A waiting row of a cancelled order | 🟡 stays `waiting` forever: the cleanup cron only deletes `sent` / `skipped` rows, so such rows accumulate (decision: expire them with the other rows, or leave them as evidence) |
+
+Traps: `Order::addCommentToStatusHistory()` + `save()` does not fire `sales_order_save_after` (nothing changed on the order itself), change a field such as `customer_note` to trigger the release; an invoice created by script needs `$invoice->getOrder()->setIsInProcess(true)` before the transaction save, otherwise the order stays `new` / `pending` and nothing is released (the admin controller does this).
+
+Cleanup: `excluded_statuses` back to `NULL` (row kept as before), `var/tmp_gtm` deleted, tab closed. Left behind: orders 000000043 to 000000046 (44 cancelled, 45 with a shipping-only credit memo), a `waiting` row of order 000000044, and their GA4 events (`purchase_server`, `refund_server`).
+
+### Verified locally, run 19 (🟢, 2026-10-21): Google Consent Mode v2 (group 5 of the 2026-10-21 changes)
+Environment: US store, category page `/gear/bags.html` with the debug logger on (`?gtm_debug=1`), the container re-imported by the user (GA4 page_view carries the new fields). Browser requests read with the network tool (`gcs`, `npa`, `cid` of `g/collect`); GA4 answers 503 in this browser as before, the request itself is what counts. Server side: orders placed by script with `$_COOKIE` set, so the consent evaluation sees a consented visitor.
+
+| Case | Result |
+|---|---|
+| Consent Mode = Off (default) | 🟢 no `consent` commands; the page-context push is first; GTM after consent as before |
+| Basic, consent cookie present | 🟢 dataLayer order: `consent default` (all four denied, `wait_for_update` 500), page context, `consent update` (all four granted), `gtm.js`; `gtm.js` request and `g/collect` with `gcs=G111`, `npa=0`, real `_ga` client id; `ep.page_type=category`, `up.customer_group`, `up.logged_in` on the `page_view` (new container) |
+| Basic, no cookie | 🟢 only `consent default` and the page context, **no** `gtm.js`, no Google request |
+| Advanced, no cookie | 🟢 `gtm.js` loads at once after `consent default`; `g/collect` is a cookieless ping: `gcs=G100`, `npa=1`, `pscdl=denied`, a throw-away client id, `page_view` and `view_item_list` |
+| Advanced, then accept (cookie set + `user-allowed-save-cookie` event) | 🟢 `consent update` (all granted) pushed in the same page; next load `gcs=G111` with the stored client id |
+| Signals Granted = Analytics only | 🟢 update: `analytics_storage` granted, the other three denied; `g/collect` `gcs=G101`, `npa=1` |
+| Banner Sends Consent Mode Signals = Yes | 🟢 no `consent` commands from the module, `gtm.js` still after consent |
+| Server `purchase_server`, Basic + cookie + all signals (order 47) | 🟢 `consent {ad_user_data: GRANTED, ad_personalization: GRANTED}`, `client_id` and `session_id` from the `_ga` cookies |
+| Analytics only + cookie (48) | 🟢 both `DENIED` |
+| Analytics only, no cookie (49, anonymous send) | 🟢 both `DENIED`, anonymous client id, no session id |
+| Consent Mode Off + cookie (50) | 🟢 no `consent` object |
+| `refund_server` of orders 47 and 48 | 🟢 copies the purchase's consent object (GRANTED / DENIED) |
+| GA4 side (Consent Mode status in the property, modelled data) | 👤 not checked (needs a person and days of data) |
+
+### Verified locally, run 20 (🟢, 2026-10-21): select_item and list attribution, promotions, brand / affiliation, debug logger (group 6 of the 2026-10-21 changes)
+Environment: US store, Consent Mode Off, *Brand Attribute* = `material` (multiselect, 24-MB04 has four values), *Affiliation* = "Test store", temporary CMS page `/gtm-promo-test` with two promotion links (deleted afterwards), order 000000051 (Joust Duffle Bag + Strive Shoulder Pack).
+
+| Case | Result |
+|---|---|
+| Click on a product link in the Bags list | 🟢 `select_item` with `item_list_id` `category_4`, `item_list_name` "Bags", `index` 0 (event and item); the list is stored in `localStorage` (`mageos_gtm_item_lists`, per SKU) |
+| `add_to_cart` on the product page afterwards | 🟢 item carries `item_list_id`, `item_list_name`, `index` |
+| *Add to Cart* button in the list (group 2 run) | 🟢 no `select_item`, the list is remembered (carried into the order below) |
+| Client `purchase` (order 51) | 🟢 both items carry the list fields; `begin_checkout` and `view_cart` do not (by design) |
+| `purchase_server` (order 51) | 🟢 no list fields (browser-only knowledge, documented) |
+| `item_brand` / `affiliation` | 🟢 `affiliation` "Test store" on every item of every event (listing, `select_item`, cart, checkout, purchase, server); `item_brand` "Canvas, Cotton, Mesh, Polyester" (option labels joined with a comma) on `view_item`, `begin_checkout`, `purchase` and `purchase_server` of the product that has the attribute; not on list events (an attribute that is not *Used in Product Listing* is never loaded for lists, as documented) |
+| Promotions: `data-gtm-promotion-id` / `-name` / `data-gtm-creative-name` / `-slot` / `-items` | 🟢 `view_promotion` once per element when visible (not repeated after scrolling), `select_promotion` on click, with `creative_name`, `creative_slot` and `items` [{item_id}] |
+| Promotions: WeltPixel attributes (`data-track-promo-id`, `-name`, `-creative`, `-position`) | 🟢 same events |
+| Debug logger | 🟢 with the setting on, `?gtm_debug=1` logs every push to the console (consent commands labelled "consent default / update", "ecommerce reset"); `?gtm_debug=0` clears the flag; with the setting off the script is absent from the HTML (checked with `curl`) |
+| GTM Preview / GA4: new tags fire, promotions and item lists in the reports | 👤 not checked |
+
+Findings: client `purchase` without a coupon has `"coupon": null` (key present with null; the server payload leaves the key out), harmless for GA4 but not identical (🟡). `view_item_list` and other pushes also reach the dataLayer without consent (nothing reads them before GTM loads; the Basic mode intentionally keeps GTM unloaded).
+
+Cleanup: CMS page and its URL rewrite deleted, config rows for `consent_mode`, `granted_signals`, `cmp_managed`, `debug_logger`, `brand_attribute`, `affiliation` removed (defaults back), `var/tmp_gtm` deleted, tab closed; localStorage flag `mageos_gtm_debug` cleared. Left behind: orders 000000047 to 000000051 (47 and 48 with credit memos) and their events in GA4.
+
+### Verified locally, run 21 (🟢, 2026-10-21): page context, customer groups, limits, compare, minicart, categories, custom parameters, custom GTM URL (group 7 of the 2026-10-21 changes)
+Environment: US store, two temporary customers (General, Wholesale; deleted afterwards), the user's published container (GA4 page_view carries the context fields), orders 000000052 to 000000056. For the custom URL a temporary `pub/gtm.js` stand-in served by the other store's host (`ita.magento249.test`) that loads the real `gtm.js` (deleted afterwards).
+
+| Case | Result |
+|---|---|
+| Page context on every page type (guest, fetched HTML) | 🟢 `page_type` home, category, product, search, cart, account (login), cms, 404; checkout and success seen in the browser; first push before GTM |
+| Logged in (General, Wholesale) | 🟢 `customer_group` "General" / "Wholesale", `logged_in` "yes" |
+| FPC with groups | 🟢 category page: guest HIT with NOT LOGGED IN, General own entry (MISS then HIT), Wholesale own entry, then guest HIT again with the right group |
+| *Don't Track Customer Groups* = NOT LOGGED IN | 🟢 guest HTML (home, category, cart) has no GTM code and no page context; a Wholesale visitor is tracked; guest order 000000052 `skipped` "excluded: customer group" |
+| Same with Wholesale excluded | 🟢 the logged-in Wholesale page has no GTM / context, a guest page still does |
+| *Maximum Transaction Value* = 50 | 🟢 guest order of 79.28 (054) and a Wholesale browser order of 84 (055): server rows `skipped` "excluded: above the maximum transaction value", **no client `purchase`** on the success page; an order of 39.64 (053) is sent |
+| `add_to_compare` | 🟢 event with the item after *Add to Compare* (delivered after the page reload) |
+| *view_cart When the Minicart Opens* = Yes | 🟢 every opening of the drawer pushes `view_cart` with the cart; an empty cart pushes nothing; drawer *remove* delivers `remove_from_cart` |
+| Drawer quantity update | not applicable: Hyvä's drawer has no quantity control (edit pencil and remove only), so `update_cart` from the drawer cannot be triggered |
+| *Category Depth* = 2 | 🟢 only `item_category` and `item_category2` on view_item, cart and compare items |
+| *Excluded Categories* = 4 (Bags) | 🟢 Strive Shoulder Pack: `item_category` "Gear" only, the Bags level is gone |
+| *Custom Item Parameters* (`item_material:material`, `item_activity:activity`) | 🟢 on `view_item`, `view_cart`, and in `purchase_server` of order 056 (labels joined with commas); the configurable hoodie carries the parent's `item_material` "Wool" |
+| Custom parameter from a variant attribute (`item_color:color`) | 🔴 not sent for the hoodie (Open issue 17) |
+| *Custom GTM Script URL* = `https://ita.magento249.test` (store scope) | 🟢 `gtm.js` requested from that host first, then the stand-in loads Google's; container ready, events normal |
+| CSP of that URL | 🟢 host in `script-src`, `connect-src`, `img-src`, `frame-src` of the store that has the setting, not in the other store's headers; on the checkout (enforced CSP) the script loads without a violation, while an unlisted host is blocked (`script-src-elem` violation) |
+| Value handling | 🟢 `gtm.example.com` (no scheme) falls back to Google and adds nothing to the CSP; trailing slash and spaces are trimmed; 🟡 a path is kept and `http://…` falls back but still adds its host to the CSP (Open issue 18) |
+| Noscript iframe (*Require Consent* = No) | 🟢 `https://<custom host>/ns.html?id=GTM-…`; empty setting back to `https://www.googletagmanager.com/ns.html` |
+| A real first-party / server-side GTM container, GA4 data through it, ad-blocker bypass | 👤 not testable here |
+
+Cleanup: both test customers deleted (order 055 stays as a guest-order record), config rows removed (`gtm_script_url` store scope, `consent/required`, `view_cart_on_minicart`, `category_depth`, `custom_item_attributes`, `excluded_categories`, `max_transaction_value`, `excluded_customer_groups`), `pub/gtm.js` and `pub/ns.html` deleted, `var/tmp_gtm` deleted, tab closed. Left behind: orders 000000052 to 000000056 and their events in GA4.
+
+### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 21)
 **Tested locally on Magento 2.4.9 + Hyvä + Hyvä Checkout (guest orders unless noted):**
 - Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 139 PHPUnit + 30 JS tests
 - Admin config rendering, ID validation both ways, encrypted API secret, container export generated
@@ -409,13 +541,20 @@ Not run: any of the behaviour changes of the four commits (see "Needs local test
 - Multi-store environment: second website (Italy, EUR, 22 % VAT included, `it_IT`) selected by host, US tax rates, tax and currency math, one Italian order end to end (client and server events, consent per website); client-side item prices in USD, EUR-on-Italy (VAT included) and EUR-on-US (run 9, after the fix)
 - Run 12: exclusion rules (payment method, status, zero value, admin orders No and Yes), configurable product with coupon (server payload, *Item ID* modes, *Tax in Totals* excluding and *Currency basis* base through real orders), partial refund with discount, refund queued while the purchase is pending, logged-in order (`user_id`), `sign_up`, `login`, `logout`, wishlist add / remove, one `page_view` per page
 - Run 13: order without a consent cookie, bundle + grouped + downloadable products (orders, refund), multishipping through the multishipping model (one row per order), Stripe embedded card, 3D Secure (failed and completed) and Stripe Checkout redirect mode with the `pending_payment` exclusion
+- Run 15: the 2026-10-21 item description (Item ID Parent and Child, variant, category path, per-item discount, bundle SKU and refund quantity) across all client events, `purchase_server` and `refund_server` on the US and the Italian store, with a coupon
+- Run 16: grouped product add to cart (one item per child), two quick list adds merged, quick drawer removals merged, grouped child in `view_cart` and `remove_from_cart`
+- Run 17: zero-value orders with *Exclude Zero-value Orders* Yes (client `purchase` suppressed, server `skipped`) and No (both sent)
+- Run 18: held purchases (`waiting`), release on a status change, cancel and refund while waiting, `pending_payment` state guard (simulated)
+- Run 19: Consent Mode v2 Off / Basic / Advanced, analytics-only signals, banner-managed mode, `gcs` / `npa` on the GA4 requests, server `consent` object on purchases and refunds
+- Run 20: `select_item` and list attribution, promotions (ours and WeltPixel attributes), `item_brand` / `affiliation`, debug logger
+- Run 21: page context (all page types, logged in), customer groups with FPC, customer-group and maximum-value exclusions (client and server), compare, minicart `view_cart`, category depth / exclusions, custom item parameters, custom GTM URL with CSP (stand-in host)
 - Admin: order grid column, event log grid (filters, sort, order link), ACL for two roles, FPC (MISS/HIT, sort, pagination)
 
 **Still missing (🧪 unless marked 👤):**
 - Multi-currency / multi-tax (Italian store exists): the US store with EUR display and a real order (only the events were checked), per-website module settings, the settings *Currency basis* base / *Tax in Totals* excluding / *Item ID* child end to end in a real order (verified on existing orders through the snapshot factory only)
-- Orders: other redirect payment methods (Mollie, Braintree / PayPal are installed, not configured; Stripe's hosted page was not completed because card data is not typed on external pages), a configurable product on the Italian store (EUR), a downloadable refund, bundle with a non-default selection and fixed-price bundles, Stripe Checkout redirect completed by a person (does the order become paid and tracked once)
+- Orders: other redirect payment methods (Mollie, Braintree / PayPal are installed, not configured; Stripe's hosted page was not completed because card data is not typed on external pages), a downloadable refund, bundle with a non-default selection and fixed-price bundles, Stripe Checkout redirect completed by a person (does the order become paid and tracked once)
 - Follow-ups: a re-sent purchase combined with a partial memo, refunds of a configurable in the Italian store, a second partial memo on a discounted order
-- Client events not yet exercised: `update_cart` for a configurable, `remove_from_cart` for a configurable, events on mobile / Safari, `select_item`-style events (not implemented)
+- Client events not yet exercised: `update_cart` for a configurable, `remove_from_cart` for a configurable, events on mobile / Safari
 - Google side (👤 a person): `purchase_server`/`refund_server`/`cancel_server` and client events in GA4 Realtime/DebugView, GTM container import (Merge) acceptance, GTM Preview, whether server and client `transaction_id`s line up in an Exploration, the 503 seen on `collect` requests in the test browser
 - Platform: Varnish, logged-in customer group prices with FPC, multi-website / multi-store, real `MageOS_CookieConsent` (does not exist yet), user-agent based switch to the mobile checkout, upgrade from the earlier table version (item 16), production mode (`di:compile` + static content deploy)
 - Tooling: `dev/check.sh` inside the Warden container (`php -l` segfault), `dev/check-magento.sh` (PHPStan/XSD against the Magento sources)
@@ -439,9 +578,9 @@ Everything under "Magento layer" above, in particular the risky items:
 14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open 🟢 (run 2) mass re-send: confirmation text, 2 queued (anonymous client ids, no timestamp) and 1 not queued with the reason ("skipped on purpose"); the 2 queued orders were sent by cron
 15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check 🟢 (run 2) event log renders with intro, 7 rows, filters by Order # work, sorting by order date; order # links to the order (was plain text, fixed). Still open: date/status/event/error filters, ACL, cleanup cron (run 5) 🟢 ACL (menu, mass action denied, config section scoped) and cleanup cron (only old sent/skipped rows, retention 0 keeps all); direct URL / export download as a restricted user not exercised
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
-17. 2026-10-21 changes (`local-testing.md` sections 4 and 7b): grouped `add_to_cart` with one item per child; two quick AJAX adds from a category page before the next page load arrive as one `add_to_cart` with both items and the summed value; same `item_id` / `item_variant` / category path / per-item discount in every client event, `purchase_server` and `refund_server` (configurable in Parent and Child mode, bundle, coupon); bundle refund quantity; `pending_payment` excluded + Stripe Checkout (or an invoice on a held order) → `waiting` → released → sent, cancelled waiting order never sent, refund while waiting re-queued on release; zero-value order without client `purchase`; *Exclude Zero-value Orders* now in the General group (re-save it if it was changed before).
-18. Competitor-parity features (`local-testing.md` section 7c): Consent Mode Off / Basic / Advanced in the browser (debug logger shows the commands, GA4 `gcs` parameter) and in the server payload, granted signals, banner-managed mode; `select_item` and list fields on `add_to_cart` / `purchase`; promotions from a CMS block; `item_brand` / `affiliation`; re-imported container with the new tags and the fixed search term.
-19. Second competitor batch (`local-testing.md` section 7d): page context and GA4 user properties, custom GTM URL with CSP, customer-group exclusion with FPC, maximum value, add_to_compare, minicart view_cart and drawer remove/update delivery, category depth / exclusions, custom item parameters.
+17. 2026-10-21 changes (`local-testing.md` sections 4 and 7b): grouped `add_to_cart` with one item per child; two quick AJAX adds from a category page before the next page load arrive as one `add_to_cart` with both items and the summed value; same `item_id` / `item_variant` / category path / per-item discount in every client event, `purchase_server` and `refund_server` (configurable in Parent and Child mode, bundle, coupon); bundle refund quantity; `pending_payment` excluded + Stripe Checkout (or an invoice on a held order) → `waiting` → released → sent, cancelled waiting order never sent, refund while waiting re-queued on release; zero-value order without client `purchase`; *Exclude Zero-value Orders* now in the General group (re-save it if it was changed before). 🟢 (run 15) same item description in every event, configurable Parent and Child, bundle, coupon, refund quantity, Italian store; 🟢 (run 16) grouped add_to_cart per child, two quick adds merged, quick removals merged; 🟢 (run 17) zero-value order, both setting values; 🟢 (run 18) waiting purchases: hold, release, cancel, refund while waiting, `pending_payment` guard (simulated); still open: real Stripe Checkout redirect, wishlist merge. 🟡 `waiting` rows of cancelled orders are never cleaned up. 🔴 Open issues 15 (bundle price gross vs net) and 16 (bundle discount)
+18. Competitor-parity features (`local-testing.md` section 7c): Consent Mode Off / Basic / Advanced in the browser (debug logger shows the commands, GA4 `gcs` parameter) and in the server payload, granted signals, banner-managed mode; `select_item` and list fields on `add_to_cart` / `purchase`; promotions from a CMS block; `item_brand` / `affiliation`; re-imported container with the new tags and the fixed search term. 🟢 (runs 19 and 20) all browser and server cases; still open: GTM Preview of the new tags, GA4 side (a person), `view_item_list` list fields in GA4 reports
+19. Second competitor batch (`local-testing.md` section 7d): page context and GA4 user properties, custom GTM URL with CSP, customer-group exclusion with FPC, maximum value, add_to_compare, minicart view_cart and drawer remove/update delivery, category depth / exclusions, custom item parameters. 🟢 (run 21) all cases except the variant-level custom parameter (Open issue 17) and the quantity update in the drawer (no such control in Hyvä); still open: GTM Preview, a real first-party / server-side GTM container (👤), a customer-group order through the logged-in checkout of the excluded group
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
