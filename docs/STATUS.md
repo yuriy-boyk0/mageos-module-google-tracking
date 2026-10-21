@@ -1,6 +1,6 @@
 # Implementation status
 
-Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (eight local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
+Single source of truth for progress. **Update this file in every session.** Last updated: 2026-10-20 (eleven local runs on Magento 2.4.9, see "Verified locally" and "Local test coverage").
 
 Legend: ✅ done and verified in cloud (lint/XML/JSON/unit tests) · 🧪 needs local test (Magento 2.4.9 + Hyvä + Hyvä Checkout, see `local-testing.md`) · 👤 needs user (human) testing/decision · ⏳ not started · ❓ blocked on an answer · 🟢 verified locally on a real install (date and environment in "Verified locally")
 
@@ -194,7 +194,7 @@ First observations on the Italian store (not yet analysed in the code; 🧪 to c
 1. **`view_item`, `view_item_list`, `add_to_cart` use the base-currency price with the store currency code**: `add_to_cart` and `view_item` show `currency` EUR, `value` 32 (the USD base price) while the shop shows €29.44 (net €24.13).
 2. **`view_cart` and `begin_checkout` are wrong in another way**: `currency` EUR, `value` and item `price` 26.23, which is the tax-exclusive EUR price 24.13 multiplied by the EUR→USD rate 1.087 (conversion applied in the wrong direction).
 3. `purchase` (client) and `purchase_server` both carry the correct order currency EUR and value 34.04, tax 6.14, but represent the lines differently: client item 24.13 + shipping 3.77 (net) + tax 6.14; server item 29.44 + shipping 4.60 (incl. VAT) with the same tax, following *Tax in Totals = including*.
-So events within one visit disagree with each other (and with the shop) for any store whose display currency differs from the base currency or whose prices include tax. Not fixed yet.
+So events within one visit disagree with each other (and with the shop) for any store whose display currency differs from the base currency or whose prices include tax. Fixed in run 9 (items 1 and 2).
 
 ### Verified locally, run 8 (🟢/🔴, 2026-10-20): multi-store, multi-currency, multi-tax smoke test
 Environment prepared in this run (see "Test environment" above and the project `CLAUDE.md`): Italy website `ita` (EUR, 22 % VAT included, `it_IT`) next to the US store (USD, state taxes, prices excluding tax), selected by host name through an nginx `MAGE_RUN_CODE` map. Smoke test with real storefront and one Italian guest order on the one-page checkout.
@@ -214,27 +214,75 @@ Not exercised in run 8: *Currency basis* = base currency, *Tax in Totals* = excl
 ### Open issues (found locally, not fixed yet)
 | # | Issue | Evidence | Status |
 |---|---|---|---|
-| 1 | `view_item`, `view_item_list`, `add_to_cart` send the **base-currency price labelled with the store currency** | Italian store: `view_item` and `add_to_cart` `value` 32 with `currency` EUR; shop shows €29.44 (net €24.13) | 🔴 open |
-| 2 | `view_cart`, `begin_checkout` send **tax-exclusive price × wrong-direction rate** | Italian store: `value`/`price` 26.23 EUR = 24.13 × 1.087 (EUR→USD) | 🔴 open |
-| 3 | Client `purchase` and `purchase_server` represent lines differently (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟡 to decide (consistency across client / server) |
-| 4 | A refund or cancel skipped because the purchase had not been sent is not re-queued when the purchase is re-sent | run 7 | 🟡 to decide (design) |
+| 1 | `view_item`, `view_item_list`, `add_to_cart` sent the **base-currency price labelled with the store currency** | Italian store: `view_item` and `add_to_cart` `value` 32 with `currency` EUR; shop shows €29.44 (net €24.13) | 🟢 fixed and verified in run 9 |
+| 2 | `view_cart`, `begin_checkout` sent the **base-currency, tax-exclusive quote item price** labelled with the store currency | Italian store: `value`/`price` 26.23 EUR = 32 / 1.22 (not a rate effect, see run 9) | 🟢 fixed and verified in run 9 |
+| 3 | Client `purchase` and `purchase_server` represented lines differently (client = Google's net convention, server = *Tax in Totals* setting) (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟢 resolved in run 11: server lines now the same as the client's |
+| 4 | A refund or cancel skipped because the purchase had not been sent was not re-queued when the purchase was re-sent | run 7 | 🟢 fixed and verified in run 10 |
 
-### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-20 after run 8)
+### Verified locally, run 9 (🟢, 2026-10-21): client-side prices in multi-currency / tax-inclusive stores (Open issues 1 and 2 fixed)
+**Root cause (one bug, two symptoms).** The browsing and cart events took Magento's *base-currency* amounts but labelled them with the store's *current* currency:
+- `view_item`, `view_item_list`, `add_to_cart`, `remove_from_cart` used `Product::getFinalPrice()`: base currency, and with the tax *included* when "Catalog Prices" include tax. Italy: $32 (incl. VAT) shown as `EUR 32`.
+- `view_cart`, `begin_checkout`, `update_cart` used the quote item `price`, which Magento keeps in the **base currency**, net of tax (set by the tax collector from the base tax details): $32 / 1.22 = 26.23, labelled `EUR`. (My first explanation, "EUR→USD rate applied backwards", was a coincidence: 24.13 × 1.087 equals 32 / 1.22 because the two rates are reciprocal.)
+
+**Fix** (`Service/AbstractGtmService.php`, `Service/CartService.php`, commit "Fix client-side item prices in multi-currency and tax-inclusive stores"): catalog events use the price info's tax-excluding amount (Magento's price info is already in the current currency; only the fallback to the raw catalog price is converted); cart items use the quote item's `converted_price` (display currency, excluding tax), with row total / qty as fallback; `remove_from_cart` uses the cart row. Item prices of all events are now tax-excluding amounts in the display currency, the same basis as the order items of `purchase`. No unit test possible (Magento price APIs); covered by the checks below.
+
+| Store / case | Shop shows | `view_item` | `add_to_cart` | `view_cart` | `begin_checkout` | `remove_from_cart` |
+|---|---|---|---|---|---|---|
+| Italy, EUR, 22 % VAT included (product $32) | €29.44 (net 24.13) | 24.13 EUR 🟢 | 24.13 EUR 🟢 | 24.13 EUR 🟢 | 24.13 EUR 🟢 | not run |
+| US, USD, tax added at checkout | $32.00 | 32 USD 🟢 | 32 USD 🟢 | not run | 32 USD 🟢 | not run |
+| US store switched to EUR | €29.44 | 29.44 EUR 🟢 | 29.44 EUR 🟢 | 2 × 29.44 = 58.88 EUR 🟢 (shop: subtotal €58.88) | not run | 58.88 EUR for 2 × 29.44 🟢 |
+
+`view_item_list` on the Italian bags category: net prices in EUR (Strive 24.13, Crown Summit 28.66); one product shows 31.28 = its shop price because its tax class in the sample data is "None" (no VAT to remove). `update_cart` and `view_item_list` on the US store were re-run in run 10 (fine); not re-run: FPC with the Italian store.
+
+**Open issue 3 explained (not a bug, a representation difference).** Client `purchase` follows Google's item convention (item price and shipping without tax, tax separate); `purchase_server` follows the admin setting *Tax in Totals* (default "including": item and shipping with tax). Both give the same `value`. Decision for the owner: keep the two representations, or add a setting to the client event.
+
+### Verified locally, run 10 (🟢, 2026-10-21): `update_cart` / `view_item_list` after the price fix; follow-ups after a re-send (Open issue 4 fixed)
+**1. Client events re-run after the run 9 fix**
+
+| Store | Case | Result |
+|---|---|---|
+| US (USD) | `view_item_list` on Gear > Bags | 🟢 `currency` USD, 12 items; first four 34, 32, 38, 45 = the shop prices; sorted by price descending: 74, 59, 45 with `index` 0, 1, 2 |
+| US (USD) | `update_cart`, quantity 1 → 3 | 🟢 USD, value 96, item 32 × 3 (shop subtotal $96.00) |
+| Italy (EUR, VAT included) | `update_cart`, quantity → 3 | 🟢 EUR, value 72.39, item 24.13 × 3 (shop subtotal 88,32 € incl. VAT, 72.39 net) |
+
+**2. Follow-ups skipped because the purchase had not been sent are now queued again when it is re-sent.**
+Cause (found by reading the code): the skipped refund / cancel row carries no payload (it was never built) and its unique key (`order_id`, `event_type`, `reference_id`) blocked any new attempt, while the re-send only reset the *purchase* row. Fix: `PurchaseResender` deletes those skipped rows and rebuilds the events from the order's credit memos and its canceled state. The rule that picks the rows is pure and unit-tested (`FollowUpPolicy::rowsToRequeue`: only rows skipped with the reasons "purchase was not sent (…)" or "no server-side purchase recorded"; rows skipped for consent or an exclusion are left alone). The mass action reports "N refund / cancellation event(s) that had been skipped because the purchase was not sent were queued again". 140 PHPUnit tests pass.
+
+| Case | Result |
+|---|---|
+| Order 19 (full credit memo, refund skipped) and order 20 (canceled, cancel skipped) with their purchases set back to `failed`; mass re-send | 🟢 purchases `pending` again **and** the refund (value 47, `full`) and cancel rows `pending` with payloads; both messages shown; the next cron run sent all four (Debug Mode on, so nothing was recorded in GA4; switched off again) |
+| A purchase that is already `sent` / `pending` | not touched by the re-send, so its follow-ups are not touched either (logic only, not run) |
+| Follow-ups skipped for consent / exclusion | not re-queued (unit test; not run in the browser) |
+
+Remaining order of events: the re-queued follow-up can reach Google before the purchase (each row has its own retry timing); harmless for a comparison signal, noted in the risks.
+
+### Verified locally, run 11 (🟢, 2026-10-21): client and server events use the same lines (Open issue 3 resolved)
+**Decision:** the server-side `purchase_server` (and `refund_server`) must describe the order with the same lines as the client-side `purchase`: item prices and shipping **without tax**, `tax` separately, `value` the grand total. Before, the server lines followed *Tax in Totals* (default "including": tax-inclusive item prices and shipping), so one order was 24.13 + 3.77 + 6.14 on the client and 29.44 + 4.60 on the server.
+
+**Change:** item prices (order item price, credit memo item price) and shipping are always without tax; *Tax in Totals* now only decides whether `value` is the grand total (default, as on the client) or the grand total minus tax. The tax-inclusive price lookup (`TotalsResolver::resolveItemPrice`) is removed, which also removes the string-price code path behind the earlier refund bug. Labels, the admin comment and the README were updated; `TotalsResolverTest` rewritten (139 PHPUnit tests pass).
+
+| Check | Result |
+|---|---|
+| Italian order `2000000002` (3 × `24-MB04`, EUR, VAT 22 % included, flat rate shipping per item) | 🟢 client `purchase`: value 102.12, tax 18.42, shipping 11.31, item 24.13 × 3; `purchase_server` payload: identical (EUR, 102.12, 18.42, 11.31, `24-MB04` 24.13 × 3) |
+| Full credit memo of that order | 🟢 `refund_server` EUR, value 102.12, item 24.13 × 3, `refund_type` `full`; both events sent (Debug Mode on, then off) |
+| *Tax in Totals* = Excluding | logic only (unit tests: `value` = grand total minus tax, shipping and tax unchanged); not run in the browser |
+
+### Local test coverage: tested vs still missing (kept up to date, last: 2026-10-21 after run 11)
 **Tested locally on Magento 2.4.9 + Hyvä + Hyvä Checkout (guest orders unless noted):**
-- Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 138 PHPUnit + 30 JS tests
+- Install / update / uninstall of the consent stub, `setup:upgrade`, `setup:di:compile`, DB table + FK, 139 PHPUnit + 30 JS tests
 - Admin config rendering, ID validation both ways, encrypted API secret, container export generated
 - Consent: console cookie (accept / decline / none), fallback event, Hyvä built-in banner, *Require Consent* = No, event-only (Send and Skip), custom cookie name, Cookiebot-style accepted value, server side for each
 - Client events: `view_item_list`, `view_item`, `search`, `add_to_cart` (no replay), `remove_from_cart`, `view_cart`, `begin_checkout`, `add_shipping_info`, `add_payment_info`, `purchase`; default, mobile, one-page and virtual-only checkouts; CSP console check on checkout (enforced CSP, Alpine CSP build)
 - Server side: purchase queue, cron send, `_ga` client/session ids, consent skip, anonymous send, full and two partial refunds, re-saving a memo (dedupe and recovery of a lost row), refund / cancel after an expired, a skipped and a failed purchase, cancellation of a sent purchase, the full default retry schedule (8 attempts), expiry (> 71 h) and mass re-send of an expired order, Debug Mode, retries / failed with blocked network, wrong secret, cleanup cron
 - Hyvä one-page checkout (also used for the run 6 orders), default, mobile and virtual-only checkouts
-- Multi-store environment: second website (Italy, EUR, 22 % VAT included, `it_IT`) selected by host, US tax rates, tax and currency math, one Italian order end to end (client and server events, consent per website) with the first multi-currency findings (Open issues 1 to 3)
+- Multi-store environment: second website (Italy, EUR, 22 % VAT included, `it_IT`) selected by host, US tax rates, tax and currency math, one Italian order end to end (client and server events, consent per website); client-side item prices in USD, EUR-on-Italy (VAT included) and EUR-on-US (run 9, after the fix)
 - Admin: order grid column, event log grid (filters, sort, order link), ACL for two roles, FPC (MISS/HIT, sort, pagination)
 
 **Still missing (🧪 unless marked 👤):**
-- Multi-currency / multi-tax (an Italian store now exists, see "Test environment"): one smoke order done; findings 1 to 3 above must be analysed and re-tested; still to test there: *Currency basis* base vs order currency, *Tax in Totals* both ways, *Item ID* modes, refunds in EUR, the US store with a currency switch to EUR, consent cookie per website, server-side purchase for each website
-- Orders: logged-in customer (`user_id`), admin-created order (*Track Admin-created Orders* No/Yes), multishipping, redirect-based payment methods (Mollie, Braintree are installed), configurable products (`item_variant`), coupons / discounts, multi-currency (*Currency basis*), tax and SKU options (*Tax in Totals*, *Item ID*), excluded statuses / payment methods / zero-value orders, a real order with no consent cookie at all while consent is required
-- Follow-ups: refunds with coupons / discounts / multi-currency / tax options, a refund whose purchase is still `pending` (can reach Google first), a skipped refund / cancel is not re-queued after the purchase is re-sent (known, see risks)
-- Client events not yet exercised: `update_cart`, `login`, `logout`, `sign_up`, `add_to_wishlist`/`remove_from_wishlist`, single `page_view`, `select_item`-style events (not implemented)
+- Multi-currency / multi-tax (Italian store exists): *Currency basis* = base currency (the default order currency is tested), *Tax in Totals* = Excluding in the browser (including is tested, excluding only by unit tests), *Item ID* parent / child with a configurable product, the US store with EUR display and a real order (only the events were checked), per-website module settings
+- Orders: logged-in customer (`user_id`), admin-created order (*Track Admin-created Orders* No/Yes), multishipping, redirect-based payment methods (Mollie, Braintree are installed), configurable products (`item_variant`), coupons / discounts, excluded statuses / payment methods / zero-value orders, a real order with no consent cookie at all while consent is required
+- Follow-ups: refunds with coupons / discounts / multi-currency / tax options, a refund whose purchase is still `pending` (can reach Google first), refund / cancel after a re-sent purchase with a coupon / partial memo (only full memo and cancel tried)
+- Client events not yet exercised: `login`, `logout`, `sign_up`, `add_to_wishlist`/`remove_from_wishlist`, single `page_view`, `select_item`-style events (not implemented)
 - Google side (👤 a person): `purchase_server`/`refund_server`/`cancel_server` and client events in GA4 Realtime/DebugView, GTM container import (Merge) acceptance, GTM Preview, whether server and client `transaction_id`s line up in an Exploration, the 503 seen on `collect` requests in the test browser
 - Platform: Varnish, logged-in customer group prices with FPC, multi-website / multi-store, real `MageOS_CookieConsent` (does not exist yet), user-agent based switch to the mobile checkout, upgrade from the earlier table version (item 16), production mode (`di:compile` + static content deploy)
 - Tooling: `dev/check.sh` inside the Warden container (`php -l` segfault), `dev/check-magento.sh` (PHPStan/XSD against the Magento sources)
@@ -291,7 +339,7 @@ Everything under "Magento layer" above, in particular the risky items:
 ## Known risks / notes
 - GA4 rejects Measurement Protocol events whose `timestamp_micros` is older than ~72 h. Such rows are closed as `expired` (never sent automatically). With the defaults (8 attempts, delays 1, 2, 4 … 64 min, about 2 h total) this only happens after cron was down for ~3 days. The re-send action sends them again without the old timestamp (dated at re-send).
 - `QueueProcessor` in debug mode closes rows as `sent` although Google records nothing; do not leave debug on.
-- A refund or cancellation that was **skipped** because the purchase had not been sent (`failed`, `expired`) is not re-queued when the purchase is re-sent later from the order grid: GA4 then has `purchase_server` without `refund_server` / `cancel_server` for that order. Re-saving the credit memo (or re-triggering the cancellation) does not help either, because the unique key keeps the skipped row. Not a bug in the current design, but worth a decision.
+- A refund or cancellation skipped because the purchase had not been sent (`failed`, `expired`, never recorded) is queued again when the purchase is re-sent from the order grid (run 10): the skipped row is deleted and the event rebuilt from the credit memos / canceled state. Follow-ups skipped for consent or an exclusion are not touched. A re-queued refund can reach Google before its purchase.
 - Follow-ups for an order whose purchase is still `pending` can reach Google before the purchase (each row has its own retry timing). Harmless for comparison, noted.
 - Payment-gateway flows that cancel an order right after placement produce both `purchase_server` and `cancel_server`. Expected.
 - `view_item_list` on category pages reads the list block's collection; a theme that renames `category.products.list` / `search_result_list` gets no list event (🧪 Hyvä default theme uses these names, checked in the source).
