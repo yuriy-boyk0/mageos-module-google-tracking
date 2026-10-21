@@ -37,7 +37,6 @@ class FollowUpEnqueuer
             'grand_total' => (float) ($useBase ? $creditmemo->getBaseGrandTotal() : $creditmemo->getGrandTotal()),
             'tax' => (float) ($useBase ? $creditmemo->getBaseTaxAmount() : $creditmemo->getTaxAmount()),
             'shipping' => (float) ($useBase ? $creditmemo->getBaseShippingAmount() : $creditmemo->getShippingAmount()),
-            'shipping_incl_tax' => $useBase ? $creditmemo->getBaseShippingInclTax() : $creditmemo->getShippingInclTax(),
         ], $taxBasis);
 
         $items = [];
@@ -50,11 +49,8 @@ class FollowUpEnqueuer
                 'item_id' => (string) $item->getSku(),
                 'item_name' => (string) $item->getName(),
                 'quantity' => $qty,
-                'price' => $this->totalsResolver->resolveItemPrice(
-                    (float) ($useBase ? $item->getBasePrice() : $item->getPrice()),
-                    $useBase ? $item->getBasePriceInclTax() : $item->getPriceInclTax(),
-                    $taxBasis
-                ),
+                // Without tax, like the items of the purchase event.
+                'price' => round((float) ($useBase ? $item->getBasePrice() : $item->getPrice()), 2),
             ];
         }
 
@@ -89,7 +85,6 @@ class FollowUpEnqueuer
             'grand_total' => (float) ($useBase ? $order->getBaseGrandTotal() : $order->getGrandTotal()),
             'tax' => (float) ($useBase ? $order->getBaseTaxAmount() : $order->getTaxAmount()),
             'shipping' => 0.0,
-            'shipping_incl_tax' => 0.0,
         ], $this->config->getTaxBasis($storeId));
 
         $this->enqueue(

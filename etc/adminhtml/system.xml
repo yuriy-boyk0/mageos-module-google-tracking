@@ -102,7 +102,7 @@
                 </field>
                 <field id="totals_tax" translate="label comment" type="select" sortOrder="55" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Tax in Totals</label>
-                    <comment><![CDATA[Including: <code>value</code> is the order grand total, like the client-side purchase event. Excluding: grand total minus tax. Item prices and shipping follow the same choice; <code>tax</code> is always sent separately.]]></comment>
+                    <comment><![CDATA[Only affects <code>value</code>. Including: the order grand total, like the client-side purchase event. Excluding: grand total minus tax. Item prices and shipping are always without tax and <code>tax</code> is always sent separately, exactly like the client-side purchase event.]]></comment>
                     <source_model>MageOS\GoogleTagManager\Model\Config\Source\TaxBasis</source_model>
                     <depends>
                         <field id="enabled">1</field>

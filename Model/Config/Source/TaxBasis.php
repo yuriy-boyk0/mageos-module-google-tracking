@@ -11,8 +11,8 @@ class TaxBasis implements OptionSourceInterface
     public function toOptionArray(): array
     {
         return [
-            ['value' => TotalsResolver::INCLUDING_TAX, 'label' => __('Including tax (order grand total, prices and shipping with tax)')],
-            ['value' => TotalsResolver::EXCLUDING_TAX, 'label' => __('Excluding tax (grand total minus tax, prices and shipping without tax)')],
+            ['value' => TotalsResolver::INCLUDING_TAX, 'label' => __('Including tax (value = order grand total, like the client-side purchase event)')],
+            ['value' => TotalsResolver::EXCLUDING_TAX, 'label' => __('Excluding tax (value = order grand total minus tax)')],
         ];
     }
 }

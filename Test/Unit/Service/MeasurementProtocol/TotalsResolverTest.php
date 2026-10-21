@@ -9,22 +9,23 @@ use PHPUnit\Framework\TestCase;
 class TotalsResolverTest extends TestCase
 {
     private TotalsResolver $resolver;
-    private array $amounts = ['grand_total' => 123.0, 'tax' => 23.0, 'shipping' => 5.0, 'shipping_incl_tax' => 6.15];
+    /** shipping is the amount WITHOUT tax, like the client-side purchase event */
+    private array $amounts = ['grand_total' => 123.0, 'tax' => 23.0, 'shipping' => 5.0];
 
     protected function setUp(): void
     {
         $this->resolver = new TotalsResolver();
     }
 
-    public function testIncludingTaxKeepsTheGrandTotalAndShippingWithTax(): void
+    public function testIncludingTaxKeepsTheGrandTotalAndSendsShippingWithoutTax(): void
     {
         $this->assertSame(
-            ['value' => 123.0, 'tax' => 23.0, 'shipping' => 6.15],
+            ['value' => 123.0, 'tax' => 23.0, 'shipping' => 5.0],
             $this->resolver->resolveOrder($this->amounts, TotalsResolver::INCLUDING_TAX)
         );
     }
 
-    public function testExcludingTaxSubtractsTaxAndUsesShippingWithoutTax(): void
+    public function testExcludingTaxOnlySubtractsTaxFromTheValue(): void
     {
         $this->assertSame(
             ['value' => 100.0, 'tax' => 23.0, 'shipping' => 5.0],
@@ -32,19 +33,22 @@ class TotalsResolverTest extends TestCase
         );
     }
 
+    public function testShippingAndTaxAreTheSameWhateverTheBasis(): void
+    {
+        $including = $this->resolver->resolveOrder($this->amounts, TotalsResolver::INCLUDING_TAX);
+        $excluding = $this->resolver->resolveOrder($this->amounts, TotalsResolver::EXCLUDING_TAX);
+
+        $this->assertSame($including['shipping'], $excluding['shipping']);
+        $this->assertSame($including['tax'], $excluding['tax']);
+    }
+
     public function testExcludingTaxNeverGoesNegative(): void
     {
         $result = $this->resolver->resolveOrder(
-            ['grand_total' => 0.0, 'tax' => 4.0, 'shipping' => 0.0, 'shipping_incl_tax' => 0.0],
+            ['grand_total' => 0.0, 'tax' => 4.0, 'shipping' => 0.0],
             TotalsResolver::EXCLUDING_TAX
         );
         $this->assertSame(0.0, $result['value']);
-    }
-
-    public function testMissingShippingInclTaxFallsBackToShipping(): void
-    {
-        $amounts = ['grand_total' => 50.0, 'tax' => 0.0, 'shipping' => 5.0, 'shipping_incl_tax' => null];
-        $this->assertSame(5.0, $this->resolver->resolveOrder($amounts, TotalsResolver::INCLUDING_TAX)['shipping']);
     }
 
     public function testUnknownBasisBehavesLikeIncludingTax(): void
@@ -52,24 +56,24 @@ class TotalsResolverTest extends TestCase
         $this->assertSame(123.0, $this->resolver->resolveOrder($this->amounts, 'something')['value']);
     }
 
-    public function testItemPrice(): void
+    public function testNumericStringsFromTheDatabaseAreAccepted(): void
     {
-        $this->assertSame(12.3, $this->resolver->resolveItemPrice(10.0, 12.3, TotalsResolver::INCLUDING_TAX));
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, 12.3, TotalsResolver::EXCLUDING_TAX));
+        // Orders and credit memos loaded from the DB return decimals as strings ("123.0000").
+        $result = $this->resolver->resolveOrder(
+            ['grand_total' => '123.0000', 'tax' => '23.0000', 'shipping' => '5.0000'],
+            TotalsResolver::INCLUDING_TAX
+        );
+        $this->assertSame(['value' => 123.0, 'tax' => 23.0, 'shipping' => 5.0], $result);
     }
 
-    public function testItemPriceFallsBackWhenTaxInclusivePriceIsMissing(): void
+    public function testLinesPlusTaxEqualTheValueWhenIncludingTax(): void
     {
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, null, TotalsResolver::INCLUDING_TAX));
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, 0.0, TotalsResolver::INCLUDING_TAX));
-    }
-
-    public function testItemPriceAcceptsNumericStringsFromTheDatabase(): void
-    {
-        // Credit memo items and orders loaded from the DB return decimals as strings ("12.3000").
-        $this->assertSame(12.3, $this->resolver->resolveItemPrice(10.0, '12.3000', TotalsResolver::INCLUDING_TAX));
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '12.3000', TotalsResolver::EXCLUDING_TAX));
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '0.0000', TotalsResolver::INCLUDING_TAX));
-        $this->assertSame(10.0, $this->resolver->resolveItemPrice(10.0, '', TotalsResolver::INCLUDING_TAX));
+        // Italian example: item 24.13 + shipping 3.77 + tax 6.14 = 34.04, as in the client-side purchase event.
+        $result = $this->resolver->resolveOrder(
+            ['grand_total' => 34.04, 'tax' => 6.14, 'shipping' => 3.77],
+            TotalsResolver::INCLUDING_TAX
+        );
+        $this->assertEqualsWithDelta(34.04, 24.13 + $result['shipping'] + $result['tax'], 0.001);
+        $this->assertSame(34.04, $result['value']);
     }
 }

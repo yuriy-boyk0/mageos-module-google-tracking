@@ -57,14 +57,13 @@ class OrderSnapshotFactory
                 continue;
             }
             $children = $childrenByParent[(int) $item->getItemId()] ?? [];
-            $items[] = $this->buildItem($item, $children[0] ?? null, $useBase, $taxBasis, $itemIdMode, $storeId);
+            $items[] = $this->buildItem($item, $children[0] ?? null, $useBase, $itemIdMode, $storeId);
         }
 
         $totals = $this->totalsResolver->resolveOrder([
             'grand_total' => (float) ($useBase ? $order->getBaseGrandTotal() : $order->getGrandTotal()),
             'tax' => (float) ($useBase ? $order->getBaseTaxAmount() : $order->getTaxAmount()),
             'shipping' => (float) ($useBase ? $order->getBaseShippingAmount() : $order->getShippingAmount()),
-            'shipping_incl_tax' => $useBase ? $order->getBaseShippingInclTax() : $order->getShippingInclTax(),
         ], $taxBasis);
 
         $customerId = $order->getCustomerId();
@@ -102,7 +101,6 @@ class OrderSnapshotFactory
         OrderItemInterface $item,
         ?OrderItemInterface $child,
         bool $useBase,
-        string $taxBasis,
         string $itemIdMode,
         int $storeId
     ): array {
@@ -119,11 +117,8 @@ class OrderSnapshotFactory
                 $product ? (string) $product->getSku() : null
             ),
             'item_name' => (string) $item->getName(),
-            'price' => $this->totalsResolver->resolveItemPrice(
-                (float) ($useBase ? $item->getBasePrice() : $item->getPrice()),
-                $useBase ? $item->getBasePriceInclTax() : $item->getPriceInclTax(),
-                $taxBasis
-            ),
+            // Without tax, like the order item prices of the client-side purchase event.
+            'price' => round((float) ($useBase ? $item->getBasePrice() : $item->getPrice()), 2),
             'quantity' => $qty,
             'discount' => $discount > 0 ? round($discount / $qty, 2) : 0,
             'item_variant' => $this->resolveVariant($item),
