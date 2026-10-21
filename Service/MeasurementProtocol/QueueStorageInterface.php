@@ -61,6 +61,18 @@ interface QueueStorageInterface
     public function findByOrder(int $orderId, string $eventType, string $referenceId = ''): ?array;
 
     /**
+     * All follow-up rows (refund and cancel events) of an order, whatever their status.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function findFollowUpsByOrder(int $orderId): array;
+
+    /**
+     * Deletes one row (used to queue a skipped follow-up again, the unique key would otherwise block it).
+     */
+    public function deleteRow(int $entityId): void;
+
+    /**
      * Queues a failed/expired row again with a (refreshed) payload: status pending, attempts 0, age limit restarted.
      */
     public function resetForResend(int $entityId, string $payload, int $now): void;

@@ -101,6 +101,17 @@ class InMemoryQueueStorage implements QueueStorageInterface
         return null;
     }
 
+    public function findFollowUpsByOrder(int $orderId): array
+    {
+        return array_values(array_filter($this->rows, static fn(array $r) =>
+            $r['order_id'] === $orderId && in_array($r['event_type'], [self::EVENT_REFUND, self::EVENT_CANCEL], true)));
+    }
+
+    public function deleteRow(int $entityId): void
+    {
+        unset($this->rows[$entityId]);
+    }
+
     public function resetForResend(int $entityId, string $payload, int $now): void
     {
         $this->rows[$entityId] = [

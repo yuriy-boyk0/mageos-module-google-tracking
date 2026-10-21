@@ -35,6 +35,11 @@ class MassResend extends Action implements HttpPostActionInterface
                     __('%1 order(s) queued for the GA4 server-side purchase event. Cron sends them within a minute.', $result['queued'])
                 );
             }
+            if (($result['followups'] ?? 0) > 0) {
+                $this->messageManager->addSuccessMessage(
+                    __('%1 refund / cancellation event(s) that had been skipped because the purchase was not sent were queued again.', $result['followups'])
+                );
+            }
             foreach ($result['ignored'] as $reason => $count) {
                 $this->messageManager->addNoticeMessage(__('%1 order(s) not queued: %2', $count, $reason));
             }

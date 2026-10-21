@@ -27,4 +27,27 @@ class FollowUpPolicy
 
         return in_array($status, $ok, true) ? null : sprintf(self::REASON_PURCHASE_NOT_SENT, $status);
     }
+
+    /**
+     * From the follow-up rows (refunds, cancellation) of one order, the ones that were skipped only because the
+     * purchase had not been sent (failed, expired, never recorded). When that purchase is sent again they must be
+     * queued again, otherwise GA4 would have the purchase but not its refund / cancellation. Rows skipped for any other
+     * reason (consent, exclusion) are left alone.
+     *
+     * @param array<int, array<string, mixed>> $followUpRows
+     * @return array<int, array<string, mixed>>
+     */
+    public function rowsToRequeue(array $followUpRows): array
+    {
+        $prefixNotSent = substr(self::REASON_PURCHASE_NOT_SENT, 0, (int) strpos(self::REASON_PURCHASE_NOT_SENT, '%s'));
+
+        return array_values(array_filter($followUpRows, static function (array $row) use ($prefixNotSent): bool {
+            if (($row['status'] ?? '') !== QueueStorageInterface::STATUS_SKIPPED) {
+                return false;
+            }
+            $reason = (string) ($row['last_error'] ?? '');
+
+            return $reason === self::REASON_NO_PURCHASE || str_starts_with($reason, $prefixNotSent);
+        }));
+    }
 }

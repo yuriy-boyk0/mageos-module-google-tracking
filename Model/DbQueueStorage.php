@@ -145,6 +145,23 @@ class DbQueueStorage implements QueueStorageInterface
         return $row ?: null;
     }
 
+    public function findFollowUpsByOrder(int $orderId): array
+    {
+        $connection = $this->connection();
+
+        return $connection->fetchAll(
+            $connection->select()
+                ->from($this->table())
+                ->where('order_id = ?', $orderId)
+                ->where('event_type IN (?)', [self::EVENT_REFUND, self::EVENT_CANCEL])
+        );
+    }
+
+    public function deleteRow(int $entityId): void
+    {
+        $this->connection()->delete($this->table(), ['entity_id = ?' => $entityId]);
+    }
+
     public function resetForResend(int $entityId, string $payload, int $now): void
     {
         $this->connection()->update(
