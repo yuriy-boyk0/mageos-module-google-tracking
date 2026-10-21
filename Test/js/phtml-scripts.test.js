@@ -59,6 +59,12 @@ test('nothing is pushed when there is no order', () => {
     assert.strictEqual(win.dataLayer, undefined);
 });
 
+test('excluded zero-value order: the block renders null and nothing is pushed', () => {
+    const js = scriptOf('checkout-purchase.phtml', {[PURCHASE_TAG]: 'null'});
+    const win = run(js);
+    assert.strictEqual(win.dataLayer, undefined);
+});
+
 test('unavailable storage still pushes the purchase', () => {
     const win = run(purchaseJs(order('000000003')), new Map(), {brokenStorage: true});
     assert.strictEqual(win.dataLayer.length, 2);

@@ -151,7 +151,8 @@ class Config implements SendSettingsProviderInterface
     public function getExclusionRules(int $storeId): array
     {
         return [
-            'exclude_zero_value' => $this->flag('exclude_zero_value', $storeId),
+            // General setting: also applies to the client-side purchase event (Block\CheckoutTagManager).
+            'exclude_zero_value' => $this->scopeConfig->isSetFlag('googletagmanager/general/exclude_zero_value', ScopeInterface::SCOPE_STORE, $storeId),
             'excluded_statuses' => $this->list('excluded_statuses', $storeId),
             'excluded_payment_methods' => $this->list('excluded_payment_methods', $storeId),
             'include_admin_orders' => $this->flag('include_admin_orders', $storeId),

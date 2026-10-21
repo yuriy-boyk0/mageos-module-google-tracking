@@ -34,4 +34,7 @@
     <event name="order_cancel_after">
         <observer name="gtm_server_side_cancellation" instance="MageOS\GoogleTagManager\Observer\EnqueueServerSideCancellation"/>
     </event>
+    <event name="sales_order_save_after">
+        <observer name="gtm_server_side_release_waiting_purchase" instance="MageOS\GoogleTagManager\Observer\ReleaseWaitingPurchase"/>
+    </event>
 </config>

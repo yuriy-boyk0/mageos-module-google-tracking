@@ -65,6 +65,7 @@ class PurchaseResender
         if ($action === ResendPolicy::CREATE) {
             return match ($this->enqueuer->enqueue($order, false, $now)) {
                 PurchaseEnqueuer::RESULT_QUEUED => null,
+                PurchaseEnqueuer::RESULT_WAITING => 'order status is excluded: waiting, sent once the order reaches another status',
                 PurchaseEnqueuer::RESULT_DISABLED => 'server-side tracking disabled for the store',
                 PurchaseEnqueuer::RESULT_SKIPPED => 'skipped by the exclusion or consent settings',
                 default => 'already queued',
@@ -79,7 +80,7 @@ class PurchaseResender
      * built again from the credit memos and the order state (the skipped rows carry no payload, and their unique key
      * would block a new attempt, so they are deleted first). Returns how many follow-up events were queued.
      */
-    private function requeueSkippedFollowUps(OrderInterface $order, int $now): int
+    public function requeueSkippedFollowUps(OrderInterface $order, int $now): int
     {
         $orderId = (int) $order->getEntityId();
         $rows = $this->followUpPolicy->rowsToRequeue($this->storage->findFollowUpsByOrder($orderId));

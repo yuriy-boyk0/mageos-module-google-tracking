@@ -13,9 +13,10 @@ class CartService extends AbstractGtmService
     public function __construct(
         StoreManagerInterface $storeManager,
         CategoryRepositoryInterface $categoryRepository,
+        ItemDataResolver $itemData,
         private readonly EventQueue $eventQueue
     ) {
-        parent::__construct($storeManager, $categoryRepository);
+        parent::__construct($storeManager, $categoryRepository, $itemData);
     }
 
     public function addToCart(Product $product, float $qty): void
@@ -117,7 +118,8 @@ class CartService extends AbstractGtmService
                 'tax' => (float) $order->getTaxAmount(),
                 'shipping' => (float) $order->getShippingAmount(),
                 'value' => (float) $order->getGrandTotal(),
-                'discount' => (float) $order->getDiscountAmount(),
+                // Discounts are sent per item (positive, per unit), like the server-side purchase; GA4 has no
+                // event-level discount.
                 'coupon' => $order->getCouponCode(),
                 'items' => $orderItems,
             ],
@@ -127,6 +129,8 @@ class CartService extends AbstractGtmService
     /**
      * GA4 expects `items` to be a flat list of item objects. One entry per visible cart/order row: child rows
      * (the simple product behind a configurable, bundle options) are skipped, their parent row carries the price.
+     * Items are described exactly like the server-side purchase: item_id, item_variant, category path, and a
+     * positive per-unit discount.
      *
      * @param iterable<\Magento\Quote\Model\Quote\Item|\Magento\Sales\Model\Order\Item> $items
      */
@@ -142,11 +146,24 @@ class CartService extends AbstractGtmService
                 continue;
             }
             $qty = (float) ($isOrder ? $item->getQtyOrdered() : $item->getQty());
-            $data = $this->buildProductData($product, $qty > 0 ? $qty : 1.0);
+            $qty = $qty > 0 ? $qty : 1.0;
+            // Same item_id / item_variant / categories as the server-side purchase (ItemDataResolver).
+            $data = ($isOrder
+                    ? $this->itemData->forOrderItem($item, (int) $item->getStoreId())
+                    : $this->itemData->forQuoteItem($item, $this->currentStoreId()))
+                + [
+                    'item_name' => (string) $item->getName(),
+                    'price' => $this->unitPrice($product),
+                    'quantity' => $qty,
+                ];
             // The row price is what the customer actually pays (configurable/custom options), not the catalog price.
             $price = $isOrder ? $this->orderItemPrice($item) : $this->quoteItemPrice($item, $qty);
             if ($price > 0) {
                 $data['price'] = $price;
+            }
+            $discount = (float) $item->getDiscountAmount();
+            if ($discount > 0) {
+                $data['discount'] = round($discount / $qty, 2);
             }
             $list[] = $data;
         }

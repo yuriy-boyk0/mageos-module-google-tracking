@@ -41,10 +41,19 @@ class ItemIdResolverTest extends TestCase
 
     public function testOtherProductTypesAlwaysUseTheirOwnSku(): void
     {
-        foreach (['simple', 'bundle', 'virtual', 'downloadable', 'grouped'] as $type) {
+        foreach (['simple', 'virtual', 'downloadable', 'grouped'] as $type) {
             foreach ([ItemIdResolver::PARENT, ItemIdResolver::CHILD] as $mode) {
                 $this->assertSame('OWN', $this->resolver->resolve($mode, $type, 'OWN', 'CHILD', 'PARENT'), "$type/$mode");
             }
         }
+    }
+
+    public function testBundleAlwaysUsesItsCatalogSkuNotTheComposedRowSku(): void
+    {
+        $composed = '24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088';
+        foreach ([ItemIdResolver::PARENT, ItemIdResolver::CHILD] as $mode) {
+            $this->assertSame('24-WG080', $this->resolver->resolve($mode, 'bundle', $composed, '24-WG081-blue', '24-WG080'), $mode);
+        }
+        $this->assertSame($composed, $this->resolver->resolve(ItemIdResolver::PARENT, 'bundle', $composed, null, null), 'fallback');
     }
 }

@@ -23,6 +23,7 @@ class ResendPolicyTest extends TestCase
         $this->assertSame([ResendPolicy::IGNORE, 'already sent'], $this->policy->decide(['status' => 'sent']));
         $this->assertSame([ResendPolicy::IGNORE, 'already queued'], $this->policy->decide(['status' => 'pending']));
         $this->assertSame([ResendPolicy::IGNORE, 'already queued'], $this->policy->decide(['status' => 'processing']));
+        $this->assertSame(ResendPolicy::IGNORE, $this->policy->decide(['status' => 'waiting'])[0]);
     }
 
     public function testSkippedRowsAreNotOverriddenAndTheReasonIsShown(): void

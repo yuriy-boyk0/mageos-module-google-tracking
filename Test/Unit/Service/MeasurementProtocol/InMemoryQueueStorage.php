@@ -112,11 +112,11 @@ class InMemoryQueueStorage implements QueueStorageInterface
         unset($this->rows[$entityId]);
     }
 
-    public function resetForResend(int $entityId, string $payload, int $now): void
+    public function resetForResend(int $entityId, string $payload, int $now, string $note = 'manual re-send'): void
     {
         $this->rows[$entityId] = [
             'status' => self::STATUS_PENDING, 'attempts' => 0, 'next_attempt_at' => $now, 'payload' => $payload,
-            'last_error' => 'manual re-send', 'created_at' => $now, 'updated_at' => $now, 'sent_at' => null,
+            'last_error' => $note, 'created_at' => $now, 'updated_at' => $now, 'sent_at' => null,
         ] + $this->rows[$entityId];
     }
 

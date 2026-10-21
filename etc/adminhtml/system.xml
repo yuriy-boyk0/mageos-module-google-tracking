@@ -32,6 +32,14 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
+                <field id="exclude_zero_value" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Exclude Zero-value Orders</label>
+                    <comment><![CDATA[Orders with a grand total of 0 (100 % coupons, free samples) are not tracked as purchases: no client-side <code>purchase</code> event on the success page and no server-side <code>purchase_server</code>.]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
             </group>
             <group id="consent" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Cookie Consent</label>
@@ -110,7 +118,7 @@
                 </field>
                 <field id="item_id_mode" translate="label comment" type="select" sortOrder="56" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Item ID for Configurable Products</label>
-                    <comment><![CDATA[Which SKU is sent as <code>item_id</code> for configurable products. Other product types always send their own SKU. The variant options are sent as <code>item_variant</code> either way.]]></comment>
+                    <comment><![CDATA[Which SKU is sent as <code>item_id</code> for configurable products. Applies to all events (client-side cart, checkout and purchase events and the server-side purchase and refunds), so one product is one GA4 item everywhere. Bundles always send the bundle's own SKU; other product types their own SKU. The variant options are sent as <code>item_variant</code> either way.]]></comment>
                     <source_model>MageOS\GoogleTagManager\Model\Config\Source\ItemIdMode</source_model>
                     <depends>
                         <field id="enabled">1</field>
@@ -126,13 +134,6 @@
                 </field>
                 <field id="include_admin_orders" translate="label" type="select" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Track Admin-created Orders</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
-                </field>
-                <field id="exclude_zero_value" translate="label" type="select" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
-                    <label>Exclude Zero-value Orders</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <depends>
                         <field id="enabled">1</field>

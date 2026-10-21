@@ -25,6 +25,7 @@ class ResendPolicy
             QueueStorageInterface::STATUS_FAILED, QueueStorageInterface::STATUS_EXPIRED => [self::RESET, ''],
             QueueStorageInterface::STATUS_SENT => [self::IGNORE, 'already sent'],
             QueueStorageInterface::STATUS_PENDING, QueueStorageInterface::STATUS_PROCESSING => [self::IGNORE, 'already queued'],
+            QueueStorageInterface::STATUS_WAITING => [self::IGNORE, 'waiting for an order status that is not excluded (sent automatically then)'],
             // Skipped for consent or an exclusion rule: re-sending would override that decision.
             QueueStorageInterface::STATUS_SKIPPED => [self::IGNORE, 'skipped on purpose: ' . (string) ($purchaseRow['last_error'] ?? '')],
             default => [self::IGNORE, 'unknown status'],

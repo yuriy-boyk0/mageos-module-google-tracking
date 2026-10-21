@@ -87,7 +87,9 @@ Scenarios (place each, run cron, query the table):
 | Event-only setup (*Consent Cookie Name* empty) | GTM loads after the event; purchase row uses the *When Consent Cannot Be Determined* action (default: sent anonymously) |
 | Admin-created order | `skipped` while "Track Admin-created Orders" = No; with Yes → sent anonymously (default "send anonymously") |
 | Configurable product with options and coupon | one item with `item_variant` (e.g. "Black, XS"), `discount`, `coupon` |
-| Zero-value order / excluded status / excluded payment method | `skipped` with the matching reason |
+| Zero-value order (*Exclude Zero-value Orders* = Yes, General group) | server row `skipped` ("excluded: zero value order") **and no client `purchase`** on the success page |
+| Excluded payment method | `skipped` with the matching reason |
+| Excluded status, e.g. *Exclude Order Statuses* = `pending_payment` + a redirect payment (Stripe Checkout) or an order set to an excluded status | row `waiting` ("waiting: order status … is excluded"), payload already contains the visitor's `_ga` client id; after the payment is confirmed / an invoice moves the order to `processing` the row becomes `pending` ("released: order status changed to …") without `timestamp_micros`, and cron sends it. Cancel a waiting order instead: it stays `waiting` forever. A refund created while waiting is `skipped` and re-queued on release |
 | Network blocked (e.g. block `www.google-analytics.com` in hosts/firewall) | checkout still completes at normal speed; row `pending` with growing `next_attempt_at`; after max attempts `failed` |
 | Wrong API secret | the normal endpoint answers 2xx and the row becomes `sent`; Debug Mode does **not** catch it either (Google's validation endpoint does not check the secret). The only check is that the event shows up in GA4 Realtime / DebugView |
 | Debug Mode on | `var/log/system.log` shows `[MageOS_GoogleTagManager]` validation result; nothing in GA4; turn off afterwards |
@@ -98,7 +100,7 @@ Also verify:
 - The payload's `client_id` equals the browser's `_ga` cookie value (`GA1.1.<this part>`) and `session_id` the `_ga_<ID>` session, so the event lands in the visitor's session. Both cookie formats `GS1` and `GS2`.
 - Browser gate and server agree: the same console cookie that loads GTM makes the purchase row use the visitor's `_ga` client id, and a declining cookie skips it. The session cookie name is assumed to be `PHPSESSID` (`Model/RequestContextProvider`).
 - Values in the payload equal the client-side `purchase` for the same order (multi-currency store: switch display currency, compare).
-- Order placed through a redirect payment method, and multishipping (the observer receives `orders` there).
+- Order placed through a redirect payment method. Multishipping is **not supported or tested** (no Hyvä UI); do not spend test time on it.
 - `bin/magento cron:run` logs one line per run with sent/retried/failed counts; a crash mid-run is recovered after 10 minutes (row stuck in `processing`).
 
 ## 5. Hyvä Checkout shipping/payment events
@@ -138,6 +140,13 @@ Implemented in `view/frontend/templates/gtm/checkout-steps.phtml` from the Hyvä
 | Reports > Marketing > GA4 Server-side Events | intro text with clear spacing above a standard admin grid; one row per event (order date, order # linking to the order, event, status, error/reason), newest first; filters (date range, status, event, order #, error text), sorting and paging work without SQL errors |
 | *Show in GA4 DebugView* = Yes | server events visible in DebugView (and recorded) |
 | Cleanup cron (`bin/magento cron:run`, or call `MageOS\GoogleTagManager\Cron\Cleanup`) | deletes only sent/skipped rows older than the retention; failed/expired kept |
+
+## 7b. Same item description everywhere (2026-10-21)
+For a configurable (e.g. Chaz Kangeroo Hoodie Black / XS) and a bundle (Sprite Yoga Companion Kit), check `item_id`, `item_variant`, `item_category…` and `discount` in `view_item`, `add_to_cart`, `view_cart`, `begin_checkout`, client `purchase`, `purchase_server` and `refund_server`:
+- *Item ID* = Parent: `MH01` everywhere; = Child: `MH01-XS-Black` everywhere (also `add_to_cart` and the refund). `item_variant` "Black, XS" in cart, checkout and purchase events.
+- Bundle: `24-WG080` everywhere (not the composed SKU); refund of one bundle: `quantity` 1.
+- Category path (`item_category` = top level, `item_category2` …) identical on client and server.
+- Coupon: client `purchase` has a positive per-item `discount`, no event-level `discount`.
 
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).

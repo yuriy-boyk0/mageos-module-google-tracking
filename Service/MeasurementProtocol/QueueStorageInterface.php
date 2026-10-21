@@ -18,6 +18,8 @@ interface QueueStorageInterface
     public const STATUS_SENT = 'sent';
     public const STATUS_FAILED = 'failed';
     public const STATUS_SKIPPED = 'skipped';
+    /** Purchase built but held: the order status was excluded at placement; released when it changes (HoldPolicy). */
+    public const STATUS_WAITING = 'waiting';
     /** Too old for Google to accept; kept for admin review, never sent. */
     public const STATUS_EXPIRED = 'expired';
 
@@ -73,9 +75,10 @@ interface QueueStorageInterface
     public function deleteRow(int $entityId): void;
 
     /**
-     * Queues a failed/expired row again with a (refreshed) payload: status pending, attempts 0, age limit restarted.
+     * Queues a failed/expired/waiting row again with a (refreshed) payload: status pending, attempts 0, age limit
+     * restarted; $note is kept in last_error so the event log shows why it was queued again.
      */
-    public function resetForResend(int $entityId, string $payload, int $now): void;
+    public function resetForResend(int $entityId, string $payload, int $now, string $note = 'manual re-send'): void;
 
     /**
      * Deletes rows with one of the statuses whose last update is older than $before. Returns the number deleted.

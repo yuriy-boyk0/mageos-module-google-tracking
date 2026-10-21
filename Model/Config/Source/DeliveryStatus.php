@@ -16,6 +16,7 @@ class DeliveryStatus implements OptionSourceInterface
             ['value' => QueueStorageInterface::STATUS_PROCESSING, 'label' => __('Processing')],
             ['value' => QueueStorageInterface::STATUS_FAILED, 'label' => __('Error')],
             ['value' => QueueStorageInterface::STATUS_EXPIRED, 'label' => __('Error: too old to send')],
+            ['value' => QueueStorageInterface::STATUS_WAITING, 'label' => __('Waiting (order status)')],
             ['value' => QueueStorageInterface::STATUS_SKIPPED, 'label' => __('Skipped')],
         ];
     }

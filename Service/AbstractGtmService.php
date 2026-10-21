@@ -12,18 +12,30 @@ abstract class AbstractGtmService
 {
     public function __construct(
         protected readonly StoreManagerInterface $storeManager,
-        protected readonly CategoryRepositoryInterface $categoryRepository
+        protected readonly CategoryRepositoryInterface $categoryRepository,
+        protected readonly ItemDataResolver $itemData
     ) {}
 
+    /**
+     * Item of a catalog product. item_id / item_variant / item_category.. come from ItemDataResolver, the same rules
+     * as the server-side purchase, so one product is one GA4 item in every event.
+     */
     protected function buildProductData(Product $product, float $quantity = 1.0): array
     {
-        return [
-            'item_id' => $product->getSku(),
+        return $this->itemData->forProduct($product, $this->currentStoreId()) + [
             'item_name' => $product->getName(),
             'price' => $this->unitPrice($product),
             'quantity' => $quantity,
-            'item_category' => $this->resolveTopCategoryName($product),
         ];
+    }
+
+    protected function currentStoreId(): int
+    {
+        try {
+            return (int) $this->storeManager->getStore()->getId();
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     /**
@@ -55,22 +67,6 @@ abstract class AbstractGtmService
         }
 
         return round($baseAmount, 2);
-    }
-
-    private function resolveTopCategoryName(Product $product): string
-    {
-        $storeId = (int) $this->storeManager->getStore()->getId();
-        foreach ($product->getCategoryIds() as $categoryId) {
-            try {
-                $category = $this->categoryRepository->get((int) $categoryId, $storeId);
-                if ($category->getLevel() > 1) {
-                    return (string) $category->getName();
-                }
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-        return '';
     }
 
     protected function getCurrencyCode(): string

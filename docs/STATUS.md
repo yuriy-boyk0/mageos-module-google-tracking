@@ -10,14 +10,15 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 
 | Phase | State |
 |---|---|
-| 1 Client-side purchase fix | ✅ code + tests · 🧪 verify on real success page |
-| 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ implemented from Hyvä Checkout 1.3.15 source + JS tests · 🟢 default checkout, guest · 🧪 mobile / one-page / virtual |
-| 0 Measurement Protocol foundation | ✅ core + tests + checked against Magento 2.4.9 source · 🧪 Magento wiring |
-| 2 Server-side purchase event | ✅ core + tests · 🟢 guest order end to end (after the `curl_close()` fix) · 🧪 other order types, consent, retries · reporting-currency option is a future improvement ⏳ |
-| 3 Refunds / cancellations / mass re-send | ✅ core + tests + static checks · 🧪 Magento wiring |
-| 4 Admin visibility (grid column, event log, DebugView flag, retention) | ✅ core + tests + static checks · 🟢 order grid column · 🧪 new event log grid (replaced the summary report), filters, ACL, cleanup, DebugView |
-| Client-side fixes (former "known issues") | ✅ code + XSD/PHPStan · 🧪 GTM Preview / DebugView; containers must be re-imported |
-| 5 Documentation | ✅ README, `google-setup.md`, `local-testing.md`, this file · 👤 docs acceptance (see below) |
+| 1 Client-side purchase fix | ✅ code + tests · 🟢 one `purchase` per order, no replay on reload (runs 1 to 13) |
+| 1b Hyvä Checkout `add_shipping_info` / `add_payment_info` | ✅ · 🟢 default, mobile, one-page, virtual-only, logged in, Stripe (runs 1 to 13) · 🧪 user-agent switch to the mobile checkout |
+| 0 Measurement Protocol foundation | ✅ · 🟢 queue, cron, retries, expiry, wrong secret, debug mode (runs 1 to 7) |
+| 2 Server-side purchase event | ✅ · 🟢 guest / logged-in / admin / Stripe orders, consent variants, exclusions, product types (runs 1 to 13) · 🆕 2026-10-21: excluded status = hold + release, zero-value setting moved to General (🧪) · reporting currency ⏳ future |
+| 3 Refunds / cancellations / mass re-send | ✅ · 🟢 full / partial / discounted / bundle refunds, cancel, re-send, follow-up re-queue (runs 2 to 13) · 🆕 2026-10-21: refund item ids and bundle quantity (🧪) |
+| 4 Admin visibility (grid column, event log, DebugView flag, retention) | ✅ · 🟢 grid column, event log, ACL, cleanup (runs 2, 5) · 🧪 DebugView flag in GA4 (needs a person) |
+| Client-side fixes | ✅ · 🟢 prices in multi-currency / tax-inclusive stores (run 9), single `page_view`, FPC · 🆕 2026-10-21: client items described like the server (🧪) · 🧪 GTM Preview, Varnish |
+| Multishipping | ⛔ not supported or tested (user decision 2026-10-21), documented |
+| 5 Documentation | ✅ · 👤 docs acceptance |
 
 ## Done
 
@@ -223,23 +224,23 @@ Environment prepared in this run (see "Test environment" above and the project `
 
 Not exercised in run 8: *Currency basis* = base currency, *Tax in Totals* = excluding, *Item ID* modes, refunds / cancellations in EUR, switching the US store to EUR, per-website module settings, FPC with two websites.
 
-### Open issues (found locally, not fixed yet)
+### Open issues found locally (only #12 still open; the 2026-10-21 fixes need a local run)
 | # | Issue | Evidence | Status |
 |---|---|---|---|
 | 1 | `view_item`, `view_item_list`, `add_to_cart` sent the **base-currency price labelled with the store currency** | Italian store: `view_item` and `add_to_cart` `value` 32 with `currency` EUR; shop shows €29.44 (net €24.13) | 🟢 fixed and verified in run 9 |
 | 2 | `view_cart`, `begin_checkout` sent the **base-currency, tax-exclusive quote item price** labelled with the store currency | Italian store: `value`/`price` 26.23 EUR = 32 / 1.22 (not a rate effect, see run 9) | 🟢 fixed and verified in run 9 |
 | 3 | Client `purchase` and `purchase_server` represented lines differently (client = Google's net convention, server = *Tax in Totals* setting) (client: net item and shipping + tax; server: tax-inclusive item and shipping, setting *Tax in Totals*) | same order: client 24.13 + 3.77 + 6.14, server 29.44 + 4.60, both = 34.04 | 🟢 resolved in run 11: server lines now the same as the client's |
 | 4 | A refund or cancel skipped because the purchase had not been sent was not re-queued when the purchase was re-sent | run 7 | 🟢 fixed and verified in run 10 |
-| 5 | Client `item_id` of a configurable switches from child SKU (`add_to_cart`, `view_cart`, `begin_checkout`) to parent (`purchase`) inside one visit | run 12, order 21 | 🔴 open |
-| 6 | Client `purchase` `discount` is negative (−5.2) and event-level; GA4 expects positive item-level discounts | run 12 | 🔴 open |
-| 7 | `refund_server` item_id is the child SKU of a configurable, the purchase uses the parent (or child per *Item ID*) | run 12, credit memo of order 21 | 🔴 open |
-| 8 | Client items lack `item_variant`; client `item_category` is the first category found, the server sends the category path | run 12 | 🟡 to decide |
-| 9 | Client sends `purchase` for zero-value orders, the server excludes them | run 12, order 24 | 🟡 to decide |
-| 10 | **Bundle `item_id`** is the composed cart SKU (`24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088`) in the client cart events and in `purchase_server`, but `24-WG080` in the client `purchase`; the composed SKU changes with the selected options, so one product shows up as many items in GA4 | run 13, order 31 | 🔴 open |
-| 11 | **`refund_server` of a bundle**: `quantity` 4 (the credit memo's bundle row counts its children), purchase 1, and the composed `item_id` | run 13, credit memo of order 31 | 🔴 open |
+| 5 | Client `item_id` of a configurable switches from child SKU (`add_to_cart`, `view_cart`, `begin_checkout`) to parent (`purchase`) inside one visit | run 12, order 21 | ✅ fixed 2026-10-21 (`Service/ItemDataResolver`: every event follows *Item ID*), 🧪 verify |
+| 6 | Client `purchase` `discount` is negative (−5.2) and event-level; GA4 expects positive item-level discounts | run 12 | ✅ fixed 2026-10-21: positive per-unit `discount` on each client item (cart, checkout, purchase), event-level field removed, 🧪 verify |
+| 7 | `refund_server` item_id is the child SKU of a configurable, the purchase uses the parent (or child per *Item ID*) | run 12, credit memo of order 21 | ✅ fixed 2026-10-21 (refund items described from the order item, same rule), 🧪 verify |
+| 8 | Client items lack `item_variant`; client `item_category` is the first category found, the server sends the category path | run 12 | ✅ user decision "client matches server", implemented 2026-10-21, 🧪 verify |
+| 9 | Client sends `purchase` for zero-value orders, the server excludes them | run 12, order 24 | ✅ user decision: *Exclude Zero-value Orders* moved to the General group and applies to the client `purchase` too (2026-10-21), 🧪 verify |
+| 10 | **Bundle `item_id`** is the composed cart SKU (`24-WG080-24-WG081-blue-24-WG084-24-WG085-24-WG088`) in the client cart events and in `purchase_server`, but `24-WG080` in the client `purchase`; the composed SKU changes with the selected options, so one product shows up as many items in GA4 | run 13, order 31 | ✅ fixed 2026-10-21: bundles always use the bundle's catalog SKU (`ItemIdResolver`), 🧪 verify |
+| 11 | **`refund_server` of a bundle**: `quantity` 4 (the credit memo's bundle row counts its children), purchase 1, and the composed `item_id` | run 13, credit memo of order 31 | ✅ fixed 2026-10-21: bundle quantity derived from the children (`RefundQuantity`), catalog SKU, 🧪 verify |
 | 12 | Client `add_to_cart` for a **grouped** product describes the group parent (14 × 1) instead of the child lines added; only one `add_to_cart` is delivered when several adds happen before the next customer-data load (single session slot) | run 13 | 🟡 to decide |
-| 13 | **Orders that are not paid yet** (redirect-based methods, `pending_payment`) are tracked at placement; the client `purchase` cannot be excluded; a server row skipped by *Excluded Order Statuses* is never re-queued when the order is paid later (no status-change observer, re-send ignores skipped rows) | run 13, orders 37, 38 | 🟡 to decide (e.g. track on payment / invoice, or allow re-queue of status-excluded rows) |
-| 14 | No client `purchase` / events on the **multishipping** success page (not wired); multishipping has no UI on Hyvä anyway | run 13 | 🟡 to decide |
+| 13 | **Orders that are not paid yet** (redirect-based methods, `pending_payment`) are tracked at placement; the client `purchase` cannot be excluded; a server row skipped by *Excluded Order Statuses* is never re-queued when the order is paid later (no status-change observer, re-send ignores skipped rows) | run 13, orders 37, 38 | ✅ user decision "re-queue when an allowed status is reached", implemented 2026-10-21: status-excluded purchases are stored as `waiting` (payload with consent and GA ids) and released on `sales_order_save_after`; client `purchase` still at placement (documented). 🧪 verify with Stripe Checkout + `pending_payment` excluded |
+| 14 | No client `purchase` / events on the **multishipping** success page (not wired); multishipping has no UI on Hyvä anyway | run 13 | ⛔ won't do: multishipping is not supported or tested (user decision 2026-10-21, documented in README and plan) |
 
 ### Verified locally, run 9 (🟢, 2026-10-21): client-side prices in multi-currency / tax-inclusive stores (Open issues 1 and 2 fixed)
 **Root cause (one bug, two symptoms).** The browsing and cart events took Magento's *base-currency* amounts but labelled them with the store's *current* currency:
@@ -288,6 +289,14 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 | Italian order `2000000002` (3 × `24-MB04`, EUR, VAT 22 % included, flat rate shipping per item) | 🟢 client `purchase`: value 102.12, tax 18.42, shipping 11.31, item 24.13 × 3; `purchase_server` payload: identical (EUR, 102.12, 18.42, 11.31, `24-MB04` 24.13 × 3) |
 | Full credit memo of that order | 🟢 `refund_server` EUR, value 102.12, item 24.13 × 3, `refund_type` `full`; both events sent (Debug Mode on, then off) |
 | *Tax in Totals* = Excluding | logic only (unit tests: `value` = grand total minus tax, shipping and tax unchanged); not run in the browser |
+
+### Changes of 2026-10-21 (cloud; ✅ unit/JS tests + PHPStan/XSD, 🧪 not run locally yet)
+- **Client items match the server** (Open issues 5 to 8, 10): new `Service/ItemDataResolver` describes every item for all events: `item_id` via `ItemIdResolver` and the *Item ID for Configurable Products* setting (now applies to client and server; `add_to_cart` reads the selected variant from the product's `simple_product` option), `item_variant` (configurable options), category path `item_category` … `item_category5`. Client cart / checkout / purchase items carry a positive per-unit `discount`; the client `purchase` has no event-level `discount` any more. Bundles always use their catalog SKU.
+- **Refunds** (Open issues 7, 11): items are described from their order item with the same rule; a bundle's refunded quantity is derived from its children (`Service/MeasurementProtocol/RefundQuantity`, 4 tests).
+- **Excluded status = hold** (Open issue 13): `Model/PurchaseEnqueuer` stores such a purchase as `waiting` (new status) with its payload; `Observer/ReleaseWaitingPurchase` on `sales_order_save_after` → `Model/PurchaseReleaser` → `HoldPolicy` (11 tests) queues it once the status is no longer excluded and the state is not canceled / closed / pending_payment / payment_review; the timestamp is dropped (dated at release), follow-ups skipped meanwhile are re-queued. Re-send ignores waiting rows; grid label "Waiting (order status)". Rows skipped by the old rule (before this change) are not converted.
+- **Zero-value orders** (Open issue 9): *Exclude Zero-value Orders* moved from the server-side group to General (`googletagmanager/general/exclude_zero_value`, default Yes) and suppresses the client `purchase` too (`Block/CheckoutTagManager` renders `null`; JS test). A value saved under the old path is not migrated.
+- **Multishipping** (Open issue 14): not supported or tested, documented (README, plan, local-testing).
+- Tests: 155 PHPUnit, 31 JS.
 
 ### Verified locally, run 12 (🟢/🔴, 2026-10-21): follow-ups, client events, exclusion rules, configurable product, coupons / discounts
 Environment for this run: US store, Hyvä one-page checkout, two temporary sales rules (`GTM10` 10 % off, `GTM100` 100 % off with free shipping), a temporary customer account; all removed afterwards.
@@ -394,6 +403,7 @@ Everything under "Magento layer" above, in particular the risky items:
 14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open 🟢 (run 2) mass re-send: confirmation text, 2 queued (anonymous client ids, no timestamp) and 1 not queued with the reason ("skipped on purpose"); the 2 queued orders were sent by cron
 15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check 🟢 (run 2) event log renders with intro, 7 rows, filters by Order # work, sorting by order date; order # links to the order (was plain text, fixed). Still open: date/status/event/error filters, ACL, cleanup cron (run 5) 🟢 ACL (menu, mass action denied, config section scoped) and cleanup cron (only old sent/skipped rows, retention 0 keeps all); direct URL / export download as a restricted user not exercised
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
+17. 2026-10-21 changes (`local-testing.md` sections 4 and 7b): same `item_id` / `item_variant` / category path / per-item discount in every client event, `purchase_server` and `refund_server` (configurable in Parent and Child mode, bundle, coupon); bundle refund quantity; `pending_payment` excluded + Stripe Checkout (or an invoice on a held order) → `waiting` → released → sent, cancelled waiting order never sent, refund while waiting re-queued on release; zero-value order without client `purchase`; *Exclude Zero-value Orders* now in the General group (re-save it if it was changed before).
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
@@ -422,6 +432,10 @@ Everything under "Magento layer" above, in particular the risky items:
 | Tax in totals / item ID | Admin config: including or excluding tax; parent or child SKU for configurables | 2026-10-20 |
 | Consent unknown | Confirmed again: send anonymously (default) | 2026-10-20 |
 | Consent | No consent-module dependency; configurable cookie name, accepted value, fallback events, require consent | 2026-10-20 |
+| Multishipping | Not supported or tested; documented, no work planned | 2026-10-21 |
+| Excluded order status | Hold the purchase (`waiting`) and send it once the order reaches an allowed status | 2026-10-21 |
+| Zero-value orders | *Exclude Zero-value Orders* applies to the client `purchase` too | 2026-10-21 |
+| Client item data | Client items match the server (item_id rule, variant, category path, per-item discount) | 2026-10-21 |
 | Admin report | Simple event log grid (order date, order #, event, status, error) instead of the per-day summary; intro text spaced from the grid | 2026-10-20 |
 
 ## Known risks / notes
@@ -432,8 +446,8 @@ Everything under "Magento layer" above, in particular the risky items:
 - Payment-gateway flows that cancel an order right after placement produce both `purchase_server` and `cancel_server`. Expected.
 - `view_item_list` on category pages reads the list block's collection; a theme that renames `category.products.list` / `search_result_list` gets no list event (🧪 Hyvä default theme uses these names, checked in the source).
 - The client-side events for `add_shipping_info` / `add_payment_info` fire on Hyvä's validation success, before the server confirms a step change (rare false positive, see `hyva-checkout-notes.md`).
-- **Unpaid orders are tracked.** Tracking happens at order placement (`checkout_submit_all_after`). A redirect-based payment method that places the order as `pending_payment` (Stripe Checkout) is tracked at once, on the client (`purchase` on the success page) and on the server. *Excluded Order Statuses* = `pending_payment` skips the server row, but such a row is never re-queued when the order is paid later, and the client event cannot be excluded (Open issue 13).
-- **Several client `item_id` forms for one product** (configurable child / parent, bundle composed SKU, refund of a configurable or bundle): GA4 item reports can split one product into several items (Open issues 5, 7, 10, 11).
+- **Unpaid orders on the client.** A redirect-based payment method that places the order as `pending_payment` (Stripe Checkout) gets the client `purchase` on the success page at once; this cannot wait for the payment. Server side: add `pending_payment` to *Exclude Order Statuses* and the purchase waits until the payment is confirmed (2026-10-21).
+- One `item_id` per product across all events since 2026-10-21 (Open issues 5, 7, 10, 11), pending local verification.
 - The customer-data event slot is single: two `add_to_cart` events before the next section load deliver only the last one; harmless in normal browsing (Open issue 12).
-- Multishipping: the server tracks every order of the checkout separately (one `transaction_id` each, no link between them); the client has no event on the multishipping success page (Open issue 14).
-- Zero-value orders: excluded on the server by default, still sent by the client `purchase` (Open issue 9).
+- Multishipping is not supported or tested (no Hyvä UI). If enabled anyway, the server tracks each resulting order separately; there are no client events.
+- Zero-value orders: excluded on both sides by default (*Exclude Zero-value Orders*, General group).

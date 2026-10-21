@@ -12,9 +12,10 @@ class WishlistService extends AbstractGtmService
     public function __construct(
         StoreManagerInterface $storeManager,
         CategoryRepositoryInterface $categoryRepository,
+        ItemDataResolver $itemData,
         private readonly EventQueue $eventQueue
     ) {
-        parent::__construct($storeManager, $categoryRepository);
+        parent::__construct($storeManager, $categoryRepository, $itemData);
     }
 
     public function addToWishlist(WishlistItem $wishlistItem): void

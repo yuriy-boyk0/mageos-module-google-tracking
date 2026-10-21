@@ -20,7 +20,10 @@ class PurchaseEnqueuer
     public const SKIP_NO_CONSENT = 'skipped: tracking consent not given';
     public const SKIP_UNKNOWN_CONSENT = 'skipped: consent unknown (configured to skip)';
 
+    public const WAITING_REASON = 'waiting: order status "%s" is excluded, sent once the order reaches another status';
+
     public const RESULT_QUEUED = 'queued';
+    public const RESULT_WAITING = 'waiting';
     public const RESULT_SKIPPED = 'skipped';
     public const RESULT_EXISTS = 'exists';
     public const RESULT_DISABLED = 'disabled';
@@ -54,10 +57,13 @@ class PurchaseEnqueuer
         ];
 
         $isAdmin = $fromVisitorRequest && $this->requestContext->isAdminArea();
-        $reason = $this->exclusionPolicy->skipReason(
-            $this->snapshotFactory->describeForPolicy($order, $isAdmin),
-            $this->config->getExclusionRules($storeId)
-        );
+        $facts = $this->snapshotFactory->describeForPolicy($order, $isAdmin);
+        $rules = $this->config->getExclusionRules($storeId);
+        // An excluded *status* is not final (e.g. pending_payment until a redirect payment is confirmed): the purchase
+        // is built now, with this request's consent and GA ids, and waits for the status to change (HoldPolicy).
+        $holdForStatus = in_array($facts['status'], $rules['excluded_statuses'], true);
+        $rules['excluded_statuses'] = [];
+        $reason = $this->exclusionPolicy->skipReason($facts, $rules);
         if ($reason !== null) {
             return $this->skip($base, $reason, $now);
         }
@@ -109,13 +115,17 @@ class PurchaseEnqueuer
         $queued = $this->storage->enqueue(
             $base + [
                 'payload' => json_encode($payload, JSON_UNESCAPED_SLASHES),
-                'status' => QueueStorageInterface::STATUS_PENDING,
+                'status' => $holdForStatus ? QueueStorageInterface::STATUS_WAITING : QueueStorageInterface::STATUS_PENDING,
+                'last_error' => $holdForStatus ? sprintf(self::WAITING_REASON, $facts['status']) : null,
                 'created_at' => $createdAt,
             ],
             $now
         );
+        if (!$queued) {
+            return self::RESULT_EXISTS;
+        }
 
-        return $queued ? self::RESULT_QUEUED : self::RESULT_EXISTS;
+        return $holdForStatus ? self::RESULT_WAITING : self::RESULT_QUEUED;
     }
 
     private function skip(array $base, string $reason, int $now): string

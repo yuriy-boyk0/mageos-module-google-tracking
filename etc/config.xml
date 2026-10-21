@@ -5,6 +5,7 @@
         <googletagmanager>
             <general>
                 <enabled>0</enabled>
+                <exclude_zero_value>1</exclude_zero_value>
             </general>
             <consent>
                 <required>1</required>
@@ -20,7 +21,6 @@
                 <item_id_mode>parent</item_id_mode>
                 <unknown_consent>send</unknown_consent>
                 <include_admin_orders>0</include_admin_orders>
-                <exclude_zero_value>1</exclude_zero_value>
                 <max_attempts>8</max_attempts>
                 <debug>0</debug>
                 <debug_view>0</debug_view>

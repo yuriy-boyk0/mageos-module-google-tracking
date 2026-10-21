@@ -162,7 +162,7 @@ class DbQueueStorage implements QueueStorageInterface
         $this->connection()->delete($this->table(), ['entity_id = ?' => $entityId]);
     }
 
-    public function resetForResend(int $entityId, string $payload, int $now): void
+    public function resetForResend(int $entityId, string $payload, int $now, string $note = 'manual re-send'): void
     {
         $this->connection()->update(
             $this->table(),
@@ -171,7 +171,7 @@ class DbQueueStorage implements QueueStorageInterface
                 'payload' => $payload,
                 'attempts' => 0,
                 'next_attempt_at' => $now,
-                'last_error' => 'manual re-send',
+                'last_error' => $note,
                 'created_at' => $now,
                 'updated_at' => $now,
                 'sent_at' => null,

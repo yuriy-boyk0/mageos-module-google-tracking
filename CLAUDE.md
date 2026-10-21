@@ -33,9 +33,11 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - **GTM export**: `etc/tags.json`, `triggers.json`, `variables.json`, `build_in_var.json` are Liquid-templated and rendered by `Service/Export`. The `\{\{ \}\}` escapes are intentional (undone in the export controller). Event triggers are *Custom Event* triggers on `{{_event}}` (the dataLayer `event` name); GA4 Configuration fires on *All Pages*. Changing them means users must re-import the container: say so in the docs.
 - **Server-side purchase (Measurement Protocol)**, purchase only, by design:
   `checkout_submit_all_after` → `Observer/EnqueueServerSidePurchase` (consent, exclusions, builds payload, inserts a row) → table `mageos_gtm_server_event` → cron `Cron/SendPurchases` every minute → `Service/MeasurementProtocol/QueueProcessor` → `Client` → `Model/CurlTransport`. The observer must **never** call Google or throw; all failures are swallowed and logged so checkout cannot break.
-  - Pure, unit-tested core: `Service/MeasurementProtocol/*` (PayloadBuilder, Client, QueueProcessor, ConsentEvaluator, GaCookieParser, ExclusionPolicy, RetryPolicy, ConfigIdValidator, TotalsResolver, ItemIdResolver, FollowUpPayloadBuilder, FollowUpPolicy, ResendPolicy).
+  - Pure, unit-tested core: `Service/MeasurementProtocol/*` (PayloadBuilder, Client, QueueProcessor, ConsentEvaluator, GaCookieParser, ExclusionPolicy, RetryPolicy, ConfigIdValidator, TotalsResolver, ItemIdResolver, FollowUpPayloadBuilder, FollowUpPolicy, ResendPolicy, HoldPolicy, RefundQuantity).
   - Magento adapters, **not testable in cloud**: `Model/Config`, `Model/DbQueueStorage`, `Model/PurchaseEnqueuer` (shared by the observer and the re-send backfill), `Model/FollowUpEnqueuer`, `Model/PurchaseResender`, `Model/OrderSnapshotFactory`, `Model/RequestContextProvider`, `Model/ResourceModel/ServerEvent/Grid/Collection` (event log grid), `Ui/Component/Listing/Column/OrderLink`, `Model/CurlTransport`, `Model/Log`, observers, crons (`SendPurchases`, `Cleanup`), `Plugin/OrderGridDeliveryStatus`, admin controllers, `etc/db_schema*.xml`, `etc/adminhtml/*`, `view/adminhtml/*`.
   - Phase 3: refunds (`sales_order_creditmemo_save_after`, one row per credit memo via `reference_id`) and cancellations (`order_cancel_after`) as `refund_server` / `cancel_server`, only when the purchase was sent; order grid mass action re-send. Phase 4: order grid column, Reports > Marketing event log grid (UI listing `mageos_gtm_server_event_listing`), DebugView flag, retention cron.
+- **Item description** (`Service/ItemDataResolver`): one place for `item_id` (ItemIdResolver + *Item ID* setting, bundles = own catalog SKU), `item_variant`, category path; used by every client event, the server purchase (`OrderSnapshotFactory`) and refunds (`FollowUpEnqueuer`, bundle quantity via `RefundQuantity`). Keep client and server identical.
+- **Excluded order status = hold**: the purchase row is stored as `waiting` with its payload and released by `Observer/ReleaseWaitingPurchase` (`sales_order_save_after`) → `Model/PurchaseReleaser` (`HoldPolicy`) when the status is no longer excluded.
 - **Catalog events** `view_item`, `view_item_list`, `search`: `Block/CatalogTagManager` + `Service/CatalogService`, rendered into FPC-cached HTML (catalog data only) and placed `after="-"` so the list block has loaded its collection first.
   - `purchase_server` is a deliberately different event name from the client-side `purchase`: a comparison signal, not revenue. Do not "fix" this by deduplicating or renaming.
 - Only `purchase` goes server-side. Do not move other events server-side (see plan, non-goals).
@@ -57,6 +59,11 @@ PHPUnit tests live in `Test/Unit/` and only cover `Service/MeasurementProtocol/`
 - `purchase_server` stays comparison-only and is documented as such.
 
 - No dependency on `mage-os/module-cookie-consent` (it does not exist yet): consent cookie name, "accepted" value and fallback window events are configurable; defaults match Magento's/Hyvä's built-in banner.
+
+- Multishipping is not supported or tested (no Hyvä UI); documented, no work planned.
+- *Exclude Zero-value Orders* is a General setting and also suppresses the client-side `purchase`.
+- Client items match the server items (variant, category path, item_id, per-item discount).
+- Excluded order statuses hold the purchase (`waiting`) until the order reaches an allowed status.
 
 ## Open questions
 Listed in `docs/STATUS.md`. Ask the user when blocked by one; do not guess Hyvä Checkout event names.
