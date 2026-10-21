@@ -199,6 +199,7 @@ Found while reviewing the existing module; fixed because they distort the data t
 | `item_brand`, `affiliation` | General settings, applied by `Service/ItemDataResolver` to every item, client and server |
 | Debugging | `?gtm_debug=1` console logger (`gtm/debug.phtml`), FPC-safe |
 | GTM export | Tags/triggers/variables for the new events; search-term variable fixed |
+| Second batch (2026-10-21) | Custom GTM script URL (+ CSP collector), `page_type` / `customer_group` / `logged_in` before GTM (GA4 Configuration fields and user properties), don't track customer groups (client + server), maximum transaction value (client + server), `add_to_compare`, `view_cart` on minicart open, category depth, excluded categories, up to five custom item parameters (client + server) |
 
 ## Explicit non-goals of this plan
 

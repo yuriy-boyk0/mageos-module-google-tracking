@@ -18,6 +18,63 @@
         "type": "TEMPLATE",
         "key": "measurementId",
         "value": "{{config.ga4.measurementId}}"
+      },
+      {
+        "type": "LIST",
+        "key": "fieldsToSet",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "fieldName",
+                "value": "page_type"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-PageType\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "LIST",
+        "key": "userProperties",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "customer_group"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-CustomerGroup\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "logged_in"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-LoggedIn\}\}"
+              }
+            ]
+          }
+        ]
       }
     ],
     "fingerprint": "1656036759163",
@@ -1239,6 +1296,85 @@
     "fingerprint": "1761004800000",
     "firingTriggerId": [
       "297"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT",
+    "monitoringMetadata": {
+      "type": "MAP"
+    },
+    "consentSettings": {
+      "consentStatus": "NOT_SET"
+    }
+  },
+  {
+    "tagId": "293",
+    "name": "GA4 Addtocompare",
+    "type": "gaawe",
+    "parameter": [
+      {
+        "type": "TEMPLATE",
+        "key": "eventName",
+        "value": "add_to_compare"
+      },
+      {
+        "type": "LIST",
+        "key": "eventParameters",
+        "list": [
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "items"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-Ecommerce-Items\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "currency"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-Ecommerce-Currency\}\}"
+              }
+            ]
+          },
+          {
+            "type": "MAP",
+            "map": [
+              {
+                "type": "TEMPLATE",
+                "key": "name",
+                "value": "value"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "value",
+                "value": "\{\{GA4-Ecommerce-Value\}\}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TAG_REFERENCE",
+        "key": "measurementId",
+        "value": "GA4 Configuration"
+      }
+    ],
+    "fingerprint": "1761091200000",
+    "firingTriggerId": [
+      "298"
     ],
     "tagFiringOption": "ONCE_PER_EVENT",
     "monitoringMetadata": {

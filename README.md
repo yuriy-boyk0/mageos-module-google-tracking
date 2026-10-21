@@ -121,11 +121,12 @@ Related settings:
 | `add_to_cart` | Product added to cart. A **grouped** product sends one item per child added (child SKU, price, quantity), not the group. Several adds before the next page load are combined into one event with all items and the total `value` |
 | `remove_from_cart` | Product removed from cart |
 | `update_cart` | Cart item quantities updated |
-| `view_cart` | Cart page viewed |
+| `view_cart` | Cart page viewed; optionally also every time the cart drawer (minicart) opens, see *More settings* |
 | `begin_checkout` | Hyvä Checkout opened |
 | `add_shipping_info` / `add_payment_info` | Hyvä Checkout: the customer submits the step / places the order with a shipping or payment method selected (`shipping_tier`, `payment_type` = method codes) |
 | `purchase` | Checkout success page, **once per order** (a reload or back navigation does not push it again) |
 | `add_to_wishlist` / `remove_from_wishlist` | Wishlist changes |
+| `add_to_compare` | Product added to the compare list (sent to GA4 as a custom event by the exported container) |
 | `login` / `logout` / `sign_up` | Customer account events |
 
 `page_view` is sent by the GA4 configuration tag of the exported GTM container (on *All Pages*), not by the module.
@@ -155,10 +156,32 @@ Mark banners or links in CMS content with data attributes; nothing else is neede
 
 `view_promotion` is pushed once per element when at least half of it is visible, `select_promotion` on click. Only `data-gtm-promotion-id` or `data-gtm-promotion-name` is required; `data-gtm-promotion-items` (comma-separated SKUs) is optional. WeltPixel's attributes `data-track-promo-id`, `-name`, `-creative`, `-position` are understood as well, so existing content keeps working after a switch. Elements are collected once when the page has loaded; content inserted later (e.g. by a slider after load) is not observed.
 
+## Page and visitor context
+
+On every page, before GTM loads, the module pushes:
+
+```js
+{page_type: 'category', customer_group: 'General', logged_in: 'yes'}
+```
+
+`page_type` is one of `home`, `cms`, `category`, `product`, `search`, `cart`, `checkout`, `success`, `account`, `wishlist`, `compare`, `404`, `other` (from Magento's action name). The exported GA4 Configuration tag sends `page_type` as a parameter of every event and `customer_group` / `logged_in` as GA4 **user properties**. To see them in GA4 reports, register them: Admin > Custom definitions > *page_type* (event scope), *customer_group* and *logged_in* (user scope). These values are safe with the full page cache: Magento caches a separate copy per customer group and login state.
+
 ## Brand and affiliation
 
 - **Brand Attribute** (General): product attribute code sent as `item_brand` on every item, client and server side (e.g. `manufacturer`). For listings, set the attribute's *Used in Product Listing* = Yes; listings never load products one by one, so without it they send no brand.
 - **Affiliation** (General): text sent as `affiliation` on every item, e.g. your store name, to tell stores apart in one GA4 property.
+
+## More settings (General group)
+
+| Setting | What it does |
+|---|---|
+| **Custom GTM Script URL** | Loads `gtm.js` (and the no-JS `ns.html`) from your own domain, e.g. a first-party or server-side GTM setup (`https://gtm.example.com`), instead of `https://www.googletagmanager.com`. Helps against ad blockers. The host is added to the Content Security Policy automatically. Your server-side GTM / proxy must serve `gtm.js` at that address |
+| **Don't Track Customer Groups** | Visitors in the selected groups (e.g. staff, wholesale, *NOT LOGGED IN* if wanted) get no GTM and no dataLayer events; orders placed in these groups are recorded as `skipped` ("excluded: customer group") on the server side |
+| **Maximum Transaction Value** | Orders with a grand total above this amount (base currency) are not tracked as purchases, neither the client `purchase` nor `purchase_server` ("excluded: above the maximum transaction value"). Protects reports from test or fraudulent orders. 0 = off |
+| **view_cart When the Minicart Opens** | Also sends `view_cart` each time Hyvä's cart drawer opens, with the current cart (refreshed with every cart change) |
+| **Category Depth** | How many category levels are sent as `item_category` … `item_category5` (1 to 5, default 5), counted from the top |
+| **Excluded Categories** | Comma-separated category IDs never used as item categories (e.g. "Sale", "New in"): they are removed from the path and the next level moves up; a product only in excluded categories gets its other categories |
+| **Custom Item Parameters** | Up to five `parameter_name:attribute_code` pairs, one per line, e.g. `item_color:color` and `item_material:material`. Each becomes a parameter on every item of every event, client and server side, with the attribute's label as value. Names follow GA4 rules (letters, digits, `_`, start with a letter, max 40); names GA4 or the module already use (`price`, `item_brand`, ...) are ignored. Register them in GA4 as **item-scoped custom dimensions**. Like the brand, listings only send them when the attribute is *Used in Product Listing* |
 
 ## Debugging
 

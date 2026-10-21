@@ -54,6 +54,60 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
+                <field id="gtm_script_url" translate="label comment" type="text" sortOrder="21" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Custom GTM Script URL</label>
+                    <comment><![CDATA[Optional. Load <code>gtm.js</code> from a first-party or server-side GTM domain instead of <code>https://www.googletagmanager.com</code>, e.g. <code>https://gtm.example.com</code> (HTTPS, no path). The host is added to the Content Security Policy automatically. See README, "Custom GTM script URL".]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="excluded_customer_groups" translate="label comment" type="multiselect" sortOrder="39" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Don't Track Customer Groups</label>
+                    <comment><![CDATA[Visitors in these groups (e.g. staff, wholesale) get no GTM and no events, and their orders are not sent server-side. Ctrl/Cmd-click to deselect.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\CustomerGroups</source_model>
+                    <can_be_empty>1</can_be_empty>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="max_transaction_value" translate="label comment" type="text" sortOrder="41" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Maximum Transaction Value</label>
+                    <comment><![CDATA[Orders with a grand total above this amount (base currency) are not tracked as purchases, client or server side, e.g. test orders. Empty or 0 = no maximum.]]></comment>
+                    <validate>validate-zero-or-greater validate-number</validate>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="view_cart_on_minicart" translate="label comment" type="select" sortOrder="42" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>view_cart When the Minicart Opens</label>
+                    <comment><![CDATA[Also push <code>view_cart</code> every time the visitor opens Hyvä's cart drawer (the cart page always sends it).]]></comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="category_depth" translate="label comment" type="select" sortOrder="43" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Category Depth</label>
+                    <comment><![CDATA[How many category levels are sent (<code>item_category</code> … <code>item_category5</code>), from the top level down.]]></comment>
+                    <source_model>MageOS\GoogleTagManager\Model\Config\Source\CategoryDepth</source_model>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="excluded_categories" translate="label comment" type="text" sortOrder="44" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Excluded Categories</label>
+                    <comment><![CDATA[Comma-separated category IDs never sent as item categories, e.g. "Sale" or "New" (the next level moves up). See Catalog > Categories for the IDs.]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="custom_item_attributes" translate="label comment" type="textarea" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Custom Item Parameters</label>
+                    <comment><![CDATA[Up to five <code>parameter_name:attribute_code</code> pairs, one per line, e.g. <code>item_color:color</code>. Sent on every item, client and server side. Register them in GA4 as item-scoped custom dimensions. See README, "Custom item parameters".]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
                 <field id="exclude_zero_value" translate="label comment" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Exclude Zero-value Orders</label>
                     <comment><![CDATA[Orders with a grand total of 0 (100 % coupons, free samples) are not tracked as purchases: no client-side <code>purchase</code> event on the success page and no server-side <code>purchase_server</code>.]]></comment>

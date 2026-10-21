@@ -166,6 +166,13 @@ class Config implements SendSettingsProviderInterface
             'excluded_statuses' => $this->list('excluded_statuses', $storeId),
             'excluded_payment_methods' => $this->list('excluded_payment_methods', $storeId),
             'include_admin_orders' => $this->flag('include_admin_orders', $storeId),
+            // General settings, also applied on the client side (Block\TagManager / Block\CheckoutTagManager).
+            'excluded_customer_groups' => array_map('intval', array_filter(explode(',', (string) $this->scopeConfig->getValue(
+                'googletagmanager/general/excluded_customer_groups', ScopeInterface::SCOPE_STORE, $storeId
+            )), 'strlen')),
+            'max_transaction_value' => (float) $this->scopeConfig->getValue(
+                'googletagmanager/general/max_transaction_value', ScopeInterface::SCOPE_STORE, $storeId
+            ),
         ];
     }
 

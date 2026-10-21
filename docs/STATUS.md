@@ -18,6 +18,7 @@ How "verified" is used: cloud verification means PHP syntax, XML well-formedness
 | 4 Admin visibility (grid column, event log, DebugView flag, retention) | ✅ · 🟢 grid column, event log, ACL, cleanup (runs 2, 5) · 🧪 DebugView flag in GA4 (needs a person) |
 | Client-side fixes | ✅ · 🟢 prices in multi-currency / tax-inclusive stores (run 9), single `page_view`, FPC · 🆕 2026-10-21: client items described like the server (🧪) · 🧪 GTM Preview, Varnish |
 | Competitor parity (Consent Mode v2, select_item + list attribution, promotions, brand/affiliation, debug logger) | ✅ code + 6 PHP / 16 JS tests + static checks (2026-10-21) · 🧪 local (`local-testing.md` 7c) |
+| Second competitor batch (custom GTM URL, page/visitor context, customer-group exclusion, max transaction value, add_to_compare, minicart view_cart, category depth / exclusions, custom item parameters) | ✅ code + 19 PHP / 6 JS tests + static checks (2026-10-21) · 🧪 local (`local-testing.md` 7d) |
 | Multishipping | ⛔ not supported or tested (user decision 2026-10-21), documented |
 | 5 Documentation | ✅ · 👤 docs acceptance |
 
@@ -300,6 +301,17 @@ Remaining order of events: the re-queued follow-up can reach Google before the p
 - Tests: 155 PHPUnit, 31 JS.
 - **Grouped products / several adds** (Open issue 12): `CartService::addGroupedToCart()` builds one item per child with a quantity from `super_group`; `EventQueue::appendSessionEvent()` + `Service/DataLayer/EcommerceEventMerger` (5 tests) combine pending add_to_cart / remove_from_cart / wishlist events. Compared with Yireo GoogleTagManager2 (sends the group parent with quantity 1, single slot) and WeltPixel GA4 Pro 1.17.5 (one item per child, merges only some cases, keeps the first value). Tests now 160 PHPUnit.
 
+### Second competitor batch (2026-10-21, cloud; ✅ tests + PHPStan/XSD, 🧪 not run locally)
+- **Custom GTM Script URL** (General): `gtm.js` / `ns.html` from a first-party or server-side GTM host; `Model/Csp/GtmScriptHostCollector` adds the host to script-src, connect-src, img-src, frame-src.
+- **Page and visitor context**: `{page_type, customer_group, logged_in}` pushed before GTM on every page (`PageTypeResolver`, 13 tests; `PageContext` from the HTTP context, FPC-safe). Exported GA4 Configuration tag: `fieldsToSet` page_type, `userProperties` customer_group / logged_in.
+- **Don't Track Customer Groups** (General multiselect incl. NOT LOGGED IN): `TagManager::isEnabled()` false (no GTM, no events), server exclusion "excluded: customer group".
+- **Maximum Transaction Value** (General, base currency): no client `purchase`, server "excluded: above the maximum transaction value".
+- **`add_to_compare`**: observer on `catalog_product_compare_add_product`, `CompareService`, GTM tag *GA4 Addtocompare*.
+- **`view_cart` when the minicart opens** (General Yes/No): the `gtm` customer-data section carries a ready `view_cart`; `body.phtml` pushes it on Hyvä's `toggle-cart` (isOpen). Also added `checkout/sidebar/removeItem` and `updateItemQty` to `sections.xml`, so `remove_from_cart` / `update_cart` from the drawer are now delivered (they were not before). 2 JS tests.
+- **Category Depth** and **Excluded Categories** (`CategoryPathPicker`, 3 tests) for client and server items.
+- **Custom Item Parameters** (up to five `name:attribute` pairs, `CustomItemAttributes`, tests): on every item, client and server (`PayloadBuilder` passes valid extra item keys through, test).
+- Tests now 185 PHPUnit, 51 JS. GTM container must be re-imported.
+
 ### Competitor parity (2026-10-21, cloud; ✅ tests + PHPStan/XSD, 🧪 not run locally)
 After comparing Yireo GoogleTagManager2 and WeltPixel GA4 Pro 1.17.5 the user chose items 1, 2, 3, 4 and 6:
 - **Google Consent Mode v2**: *Cookie Consent > Google Consent Mode v2* = Off (default) / Basic / Advanced, *Signals Granted on Consent* = all / analytics only, *Banner Sends Consent Mode Signals*. `head.phtml` pushes `consent default` (all denied, `wait_for_update` 500) and `consent update` before GTM loads; Advanced loads GTM at once. Server side: Measurement Protocol `consent` object (`ConsentModeSignals`, 4 tests) on purchases, copied to refunds/cancellations. 7 JS tests. Options documented in the README with the legal note on Advanced.
@@ -415,8 +427,9 @@ Everything under "Magento layer" above, in particular the risky items:
 14. Order grid column renders, filters and sorts without SQL errors (ambiguous columns), also combined with the grid's own status/date filters; mass action counts and messages; re-sent expired orders arrive in GA4 dated at re-send time. 🟢 column renders and shows "Sent"; filter/sort combinations and mass action still open 🟢 (run 2) mass re-send: confirmation text, 2 queued (anonymous client ids, no timestamp) and 1 not queued with the reason ("skipped on purpose"); the 2 queued orders were sent by cron
 15. Event log page (Reports > Marketing > GA4 Server-side Events): grid renders with spacing below the intro text, one row per event, order # links to the order, filters by date/status/event and sorting work without "ambiguous column" errors, ACL; cleanup cron deletes only old sent/skipped rows; *Show in GA4 DebugView* makes server events appear in DebugView. The earlier summary report was verified 🟢 but has been replaced (2026-10-20), so the new grid needs a fresh check 🟢 (run 2) event log renders with intro, 7 rows, filters by Order # work, sorting by order date; order # links to the order (was plain text, fixed). Still open: date/status/event/error filters, ACL, cleanup cron (run 5) 🟢 ACL (menu, mass action denied, config section scoped) and cleanup cron (only old sent/skipped rows, retention 0 keeps all); direct URL / export download as a restricted user not exercised
 16. `setup:upgrade` on an install that already had the earlier table (unique key change, new column) as well as on a clean one.
-18. Competitor-parity features (`local-testing.md` section 7c): Consent Mode Off / Basic / Advanced in the browser (debug logger shows the commands, GA4 `gcs` parameter) and in the server payload, granted signals, banner-managed mode; `select_item` and list fields on `add_to_cart` / `purchase`; promotions from a CMS block; `item_brand` / `affiliation`; re-imported container with the new tags and the fixed search term.
 17. 2026-10-21 changes (`local-testing.md` sections 4 and 7b): grouped `add_to_cart` with one item per child; two quick AJAX adds from a category page before the next page load arrive as one `add_to_cart` with both items and the summed value; same `item_id` / `item_variant` / category path / per-item discount in every client event, `purchase_server` and `refund_server` (configurable in Parent and Child mode, bundle, coupon); bundle refund quantity; `pending_payment` excluded + Stripe Checkout (or an invoice on a held order) → `waiting` → released → sent, cancelled waiting order never sent, refund while waiting re-queued on release; zero-value order without client `purchase`; *Exclude Zero-value Orders* now in the General group (re-save it if it was changed before).
+18. Competitor-parity features (`local-testing.md` section 7c): Consent Mode Off / Basic / Advanced in the browser (debug logger shows the commands, GA4 `gcs` parameter) and in the server payload, granted signals, banner-managed mode; `select_item` and list fields on `add_to_cart` / `purchase`; promotions from a CMS block; `item_brand` / `affiliation`; re-imported container with the new tags and the fixed search term.
+19. Second competitor batch (`local-testing.md` section 7d): page context and GA4 user properties, custom GTM URL with CSP, customer-group exclusion with FPC, maximum value, add_to_compare, minicart view_cart and drawer remove/update delivery, category depth / exclusions, custom item parameters.
 
 ## Needs user testing (👤)
 - Docs acceptance: someone who never used GA4/GTM follows only `docs/google-setup.md` on the clean install and reaches a working state.
@@ -426,7 +439,6 @@ Everything under "Magento layer" above, in particular the risky items:
 ## Not started (⏳)
 - **Future improvement, noted by the user:** an admin-configured *reporting currency* for purchase events (e.g. an EU+US store that wants everything tracked in EUR instead of EUR + USD). Today the order's currency (or the store base currency) is used. Needs a conversion step (Magento currency rates or a fixed rate) for value/tax/shipping/item prices/discounts, and a decision whether the client-side events follow the same rule. Replaces the earlier "fixed conversion rate" idea.
 - Event log: CSV export, store-view filter, per-row detail view of the payload.
-- `add_to_compare` client-side event (tag not in the export yet).
 
 ## Blocked / questions (❓)
 1. ~~Hyvä Checkout events~~ resolved: the user provided the Hyvä zip; events documented in `docs/hyva-checkout-notes.md` and wired in `checkout-steps.phtml`. Remaining: local verification (🧪 item 11).
@@ -450,6 +462,7 @@ Everything under "Magento layer" above, in particular the risky items:
 | Zero-value orders | *Exclude Zero-value Orders* applies to the client `purchase` too | 2026-10-21 |
 | Client item data | Client items match the server (item_id rule, variant, category path, per-item discount) | 2026-10-21 |
 | Competitor parity | Implement Consent Mode v2 (Off/Basic/Advanced), select_item + list attribution, promotions, brand/affiliation, debug logger | 2026-10-21 |
+| Second competitor batch | Custom GTM URL, page/visitor context, customer-group exclusion, max transaction value, add_to_compare, minicart view_cart, category depth / exclusions, custom item parameters | 2026-10-21 |
 | Admin report | Simple event log grid (order date, order #, event, status, error) instead of the per-day summary; intro text spaced from the grid | 2026-10-20 |
 
 ## Known risks / notes

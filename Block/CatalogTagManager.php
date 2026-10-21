@@ -11,6 +11,7 @@ use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Search\Model\QueryFactory;
 use MageOS\GoogleTagManager\Service\CatalogService;
+use MageOS\GoogleTagManager\Service\DataLayer\PageContext;
 
 /**
  * Product page, category listing and search result events.
@@ -31,9 +32,10 @@ class CatalogTagManager extends TagManager
         private readonly CatalogHelper $catalogHelper,
         private readonly QueryFactory $queryFactory,
         private readonly Json $serializer,
+        PageContext $pageContext,
         array $data = []
     ) {
-        parent::__construct($context, $scopeConfig, $data);
+        parent::__construct($context, $scopeConfig, $pageContext, $data);
     }
 
     /**

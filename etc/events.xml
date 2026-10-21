@@ -37,4 +37,7 @@
     <event name="sales_order_save_after">
         <observer name="gtm_server_side_release_waiting_purchase" instance="MageOS\GoogleTagManager\Observer\ReleaseWaitingPurchase"/>
     </event>
+    <event name="catalog_product_compare_add_product">
+        <observer name="gtm_compare_add" instance="MageOS\GoogleTagManager\Observer\AddToCompare"/>
+    </event>
 </config>

@@ -7,9 +7,12 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\DataLayer\PageContext;
 
 class TagManager extends Template
 {
+    public const XML_PATH_GTM_SCRIPT_URL = 'googletagmanager/general/gtm_script_url';
+    public const DEFAULT_GTM_URL = 'https://www.googletagmanager.com';
     private const XML_PATH_ENABLED = 'googletagmanager/general/enabled';
     private const XML_PATH_TAG_ID = 'googletagmanager/general/tag_id';
     private const XML_PATH_GA4_MEASUREMENT = 'googletagmanager/general/ga4_measurement_id';
@@ -25,16 +28,40 @@ class TagManager extends Template
     public function __construct(
         Context $context,
         private readonly ScopeConfigInterface $scopeConfig,
+        private readonly PageContext $pageContext,
         array $data = []
     ) {
         parent::__construct($context, $data);
     }
 
+    /**
+     * Also false for customer groups listed in "Don't Track Customer Groups" (safe with the full page cache: the
+     * customer group is part of Magento's cache key).
+     */
     public function isEnabled(): bool
     {
-        return $this->scopeConfig->isSetFlag(
-            self::XML_PATH_ENABLED,
-            ScopeInterface::SCOPE_STORE
+        return $this->scopeConfig->isSetFlag(self::XML_PATH_ENABLED, ScopeInterface::SCOPE_STORE)
+            && !$this->pageContext->isCurrentGroupExcluded();
+    }
+
+    /**
+     * Base URL GTM is loaded from: Google's, or a first-party / server-side GTM domain ("Custom GTM Script URL").
+     */
+    public function getGtmBaseUrl(): string
+    {
+        $url = rtrim(trim((string) $this->scopeConfig->getValue(self::XML_PATH_GTM_SCRIPT_URL, ScopeInterface::SCOPE_STORE)), '/');
+
+        return preg_match('#^https://[^/\s]+#', $url) === 1 ? $url : self::DEFAULT_GTM_URL;
+    }
+
+    /**
+     * {page_type, customer_group, logged_in}, pushed before GTM loads.
+     */
+    public function getJsonPageContext(): string
+    {
+        return (string) json_encode(
+            $this->pageContext->dataLayerContext($this->fullActionName()),
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
     }
 
@@ -79,6 +106,7 @@ class TagManager extends Template
             'grantedSignals' => (string) $this->scopeConfig->getValue(self::XML_PATH_CONSENT_SIGNALS, ScopeInterface::SCOPE_STORE) ?: 'all',
             'websiteId' => (int) $this->_storeManager->getStore()->getWebsiteId(),
             'containerId' => $this->getTagId(),
+            'gtmBaseUrl' => $this->getGtmBaseUrl(),
         ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     }
 
@@ -88,5 +116,12 @@ class TagManager extends Template
     public function isDebugLoggerAllowed(): bool
     {
         return $this->scopeConfig->isSetFlag(self::XML_PATH_DEBUG_LOGGER, ScopeInterface::SCOPE_STORE);
+    }
+
+    private function fullActionName(): string
+    {
+        $request = $this->getRequest();
+
+        return $request instanceof \Magento\Framework\App\Request\Http ? (string) $request->getFullActionName() : '';
     }
 }

@@ -65,6 +65,8 @@ The module generates a container configuration with the GA4 tags, triggers and v
 
 If you change the Measurement ID in Magento later, export again and re-import it (or edit the `GA4 Configuration` tag in GTM).
 
+**Custom dimensions (optional):** the module sends `page_type` with every event and the user properties `customer_group` and `logged_in`, plus any *Custom Item Parameters* you configure. GA4 only shows them in reports after you register them: Analytics > Admin > Custom definitions > Create custom dimension (*page_type*: scope Event; *customer_group*, *logged_in*: scope User; custom item parameters: scope Item).
+
 **Upgrading the module?** Containers imported from older versions used page-load triggers that miss events pushed later (add to cart, checkout steps). Export the container again and import it with *Merge* and *Overwrite conflicting tags, triggers and variables*, then publish. Since 2026-10-20 all exported tag and variable names use the uppercase **GA4** prefix (`GA4-Event`, `GA4-Ecommerce-Items`, `GA4 Viewcart`, ...); older imports had some `Ga4` names. If the import leaves both spellings in the container, delete the old `Ga4…` items (or import with *Overwrite* into a fresh workspace) before publishing.
 
 ## 5. Verify that it works
@@ -87,6 +89,7 @@ If you change the Measurement ID in Magento later, export again and re-import it
    | Complete an order | `purchase` (with `transaction_id`, value, currency, items) |
    | Log in / out, register | `login` / `logout` / `sign_up` |
    | Add to wishlist | `add_to_wishlist` |
+   | Add to compare | `add_to_compare` |
    | Continue from shipping / place order | `add_shipping_info`, `add_payment_info` |
 
    `add_shipping_info` and `add_payment_info` are sent when you continue from the shipping step and when you place the order, once each (not when the checkout page loads).
@@ -119,6 +122,9 @@ Standard GA4 reports (Monetization) can take up to 24 to 48 hours to show data; 
 | Events visible in Preview but not in GA4 | Ad blocker or browser privacy feature blocking Google. Test with a clean browser profile |
 | `purchase_server` stays `pending` | Cron is not running, or Google is unreachable (see `last_error`; retries use growing delays) |
 | Order grid shows no *GA4 Server-side Purchase* value | No row for that order: placed before the feature was enabled or while it was disabled. Use the *Re-send* mass action |
+| No events at all for one visitor | Their customer group is in *Don't Track Customer Groups* |
+| No `purchase` for a large order | Above *Maximum Transaction Value* |
+| GTM does not load with a *Custom GTM Script URL* | The URL must serve `gtm.js` (first-party / server-side GTM); check the browser console for a 404 or a CSP error |
 | `purchase_server` is `expired` | Cron was not running for about 3 days; Google rejects events older than 72 hours, so it is kept for review but never sent |
 | `purchase_server` stays `waiting` | The order still has an excluded status (*Exclude Order Statuses*, e.g. `pending_payment`). It is sent automatically when the order moves on (e.g. payment confirmed, invoice); cancelled orders are never sent |
 | No client `purchase` for an order with total 0 | Expected with *Exclude Zero-value Orders* = Yes (General group) |

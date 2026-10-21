@@ -184,7 +184,7 @@ function bodyComponent(storage = new Map(), cookie = '') {
     vm.runInNewContext(js, {window, localStorage, JSON, document, Alpine, console});
     (listeners['alpine:init'] || []).forEach(({fn}) => fn());
     const component = registered.initGtmDatalayer ? registered.initGtmDatalayer() : undefined;
-    return {window, document, listeners, registered, component, handler: component?.eventListeners['@private-content-loaded.window']};
+    return {window, document, listeners, registered, component, handler: component?.eventListeners['@private-content-loaded.window'], toggle: component?.eventListeners['@toggle-cart.window']};
 }
 
 const ADD_TO_CART = {event: 'add_to_cart', ecommerce: {currency: 'USD', value: 34, items: [{item_id: 'A'}]}};
@@ -217,6 +217,7 @@ test('body: an empty section pushes nothing', () => {
 
 // head.phtml: consent gate that loads GTM (same cookie rules as ConsentEvaluator on the server).
 const HEAD_TAG = '<?= /* @noEscape */ $block->getJsonConsentConfig() ?>';
+const PAGE_CONTEXT = {page_type: 'category', customer_group: 'NOT LOGGED IN', logged_in: 'no'};
 function head(configOverrides = {}, cookie = '') {
     const config = Object.assign({
         required: true,
@@ -227,7 +228,8 @@ function head(configOverrides = {}, cookie = '') {
         containerId: 'GTM-ABC123',
     }, configOverrides);
     const src = fs.readFileSync(path.join(__dirname, '../../view/frontend/templates/head.phtml'), 'utf8');
-    const js = /<script>([\s\S]*?)<\/script>/.exec(src)[1].replace(HEAD_TAG, JSON.stringify(config));
+    const js = /<script>([\s\S]*?)<\/script>/.exec(src)[1].replace(HEAD_TAG, JSON.stringify(config))
+        .replace('<?= /* @noEscape */ $block->getJsonPageContext() ?>', JSON.stringify(PAGE_CONTEXT));
     const inserted = [];
     const document = {
         cookie,
@@ -244,7 +246,7 @@ const magentoCookie = (map) => 'user_allowed_save_cookie=' + encodeURIComponent(
 test('head: no consent cookie, no event: GTM is not loaded', () => {
     const h = head();
     assert.deepStrictEqual(h.inserted, []);
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(h.window.dataLayer)), []);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(h.window.dataLayer)), [PAGE_CONTEXT], 'only the page context');
 });
 
 test('head: Magento consent cookie accepted for this website loads GTM once', () => {
@@ -573,4 +575,41 @@ test('debug logger: ?gtm_debug=1 logs existing and later pushes, and remembers t
     assert.ok(debugPage('', storage).logs.length > 0, 'still on without the parameter');
     assert.deepStrictEqual(debugPage('?a=1&gtm_debug=0', storage).logs, [], 'switched off');
     assert.deepStrictEqual(debugPage('', storage).logs, []);
+});
+
+test('head: page context is pushed before gtm.js, and a custom GTM URL is used', () => {
+    const h = head({gtmBaseUrl: 'https://gtm.example.com'}, magentoCookie({1: 1}));
+    const layer = JSON.parse(JSON.stringify(h.window.dataLayer));
+    assert.deepStrictEqual(layer[0], PAGE_CONTEXT);
+    assert.strictEqual(layer[1].event, 'gtm.js');
+    assert.deepStrictEqual(h.inserted, ['https://gtm.example.com/gtm.js?id=GTM-ABC123']);
+});
+
+test('head: consent default comes before the page context', () => {
+    const h = head({consentMode: 'basic'});
+    const layer = JSON.parse(JSON.stringify(h.window.dataLayer));
+    assert.strictEqual(layer[0]['0'], 'consent');
+    assert.deepStrictEqual(layer[1], PAGE_CONTEXT);
+});
+
+test('body: view_cart is pushed when the minicart opens, with the latest cart snapshot', () => {
+    const {window, handler, toggle} = bodyComponent();
+    const cartView = {event: 'view_cart', ecommerce: {currency: 'USD', value: 64, items: [{item_id: 'MH01', quantity: 2}]}};
+    handler({detail: {data: {gtm: {datalayer: '[]', cart_view: JSON.stringify(cartView)}}}});
+    toggle({detail: {isOpen: false}});
+    assert.strictEqual(window.dataLayer.length, 0, 'closing pushes nothing');
+    toggle({detail: {isOpen: true}});
+    toggle({detail: {isOpen: true}});
+    assert.strictEqual(window.dataLayer.filter((e) => e.event === 'view_cart').length, 2, 'every opening is a view');
+});
+
+test('body: no view_cart on minicart open when the option is off or the cart is empty', () => {
+    const off = bodyComponent();
+    off.handler({detail: {data: {gtm: {datalayer: '[]'}}}});
+    off.toggle({detail: {isOpen: true}});
+    assert.strictEqual(off.window.dataLayer.length, 0);
+    const empty = bodyComponent();
+    empty.handler({detail: {data: {gtm: {datalayer: '[]', cart_view: ''}}}});
+    empty.toggle({detail: {isOpen: true}});
+    assert.strictEqual(empty.window.dataLayer.length, 0);
 });

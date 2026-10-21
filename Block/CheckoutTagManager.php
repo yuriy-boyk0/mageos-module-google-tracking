@@ -9,10 +9,12 @@ use MageOS\GoogleTagManager\Service\CartService;
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\DataLayer\PageContext;
 
 class CheckoutTagManager extends TagManager
 {
     private const XML_PATH_EXCLUDE_ZERO_VALUE = 'googletagmanager/general/exclude_zero_value';
+    private const XML_PATH_MAX_TRANSACTION_VALUE = 'googletagmanager/general/max_transaction_value';
 
     public function __construct(
         private readonly CartService $cartService,
@@ -20,9 +22,10 @@ class CheckoutTagManager extends TagManager
         private readonly CheckoutSession $checkoutSession,
         private readonly Json $serializer,
         Context $context,
+        PageContext $pageContext,
         array $data = []
     ) {
-        parent::__construct($context, $scopeConfig, $data);
+        parent::__construct($context, $scopeConfig, $pageContext, $data);
     }
 
     public function getJsonCartViewEvent(): string
@@ -61,6 +64,11 @@ class CheckoutTagManager extends TagManager
             && (float) $order->getBaseGrandTotal() <= 0.0
             && $this->scopeConfig->isSetFlag(self::XML_PATH_EXCLUDE_ZERO_VALUE, ScopeInterface::SCOPE_STORE)
         ) {
+            return 'null';
+        }
+        // "Maximum Transaction Value" (base currency) applies to the client-side purchase too.
+        $max = (float) $this->scopeConfig->getValue(self::XML_PATH_MAX_TRANSACTION_VALUE, ScopeInterface::SCOPE_STORE);
+        if ($order->getId() && $max > 0 && (float) $order->getBaseGrandTotal() > $max) {
             return 'null';
         }
 

@@ -163,4 +163,19 @@ class PayloadBuilderTest extends TestCase
         $this->assertSame('Luma Store', $item['affiliation']);
         $this->assertSame('category_12', $item['item_list_id']);
     }
+
+    public function testCustomItemParametersArePassedThroughAsText(): void
+    {
+        $snapshot = $this->snapshot(['items' => [[
+            'item_id' => 'A', 'price' => 1, 'quantity' => 1, 'item_color' => 'Black', 'item_size' => 42,
+            'Bad-Key' => 'x', 'empty_one' => '', 'nested' => ['x'],
+        ]]]);
+        $item = $this->builder->build($snapshot, 'purchase_server', '1.2')['events'][0]['params']['items'][0];
+        $this->assertSame('Black', $item['item_color']);
+        $this->assertSame('42', $item['item_size']);
+        $this->assertArrayNotHasKey('Bad-Key', $item);
+        $this->assertArrayNotHasKey('empty_one', $item);
+        $this->assertArrayNotHasKey('nested', $item);
+        $this->assertSame(1.0, $item['price']);
+    }
 }

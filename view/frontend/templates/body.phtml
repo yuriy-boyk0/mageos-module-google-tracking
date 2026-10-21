@@ -13,7 +13,7 @@ use Magento\Framework\Escaper;
 <?php if (!$block->isConsentRequired()): ?>
 <!-- Google Tag Manager (noscript): only without a consent requirement, a no-JS visitor cannot give consent -->
 <noscript>
-    <iframe src="https://www.googletagmanager.com/ns.html?id=<?= $escaper->escapeHtml($block->getTagId()) ?>"
+    <iframe src="<?= $escaper->escapeUrl($block->getGtmBaseUrl()) ?>/ns.html?id=<?= $escaper->escapeHtml($block->getTagId()) ?>"
             height="0" width="0" style="display:none;visibility:hidden"></iframe>
 </noscript>
 <!-- End Google Tag Manager (noscript) -->
@@ -22,6 +22,7 @@ use Magento\Framework\Escaper;
 
 <script>
     function initGtmDatalayer() {
+        let cartView = '';
         let ECOMMERCE_EVENTS = [
             'add_to_cart',
             'remove_from_cart',
@@ -129,6 +130,10 @@ use Magento\Framework\Escaper;
             },
             eventListeners: {
                 ['@private-content-loaded.window'](event) {
+                    // Cart snapshot for view_cart when the minicart opens (only sent when that option is on).
+                    if (event?.detail?.data?.gtm && 'cart_view' in event.detail.data.gtm) {
+                        cartView = event.detail.data.gtm.cart_view || '';
+                    }
                     let datalayer = event?.detail?.data?.gtm?.datalayer;
                     if (!datalayer) {
                         return;
@@ -137,6 +142,20 @@ use Magento\Framework\Escaper;
                     // Hyvä persists this very object to localStorage right after dispatching the event, which
                     // would undo clearDatalayerSection() and replay the events on the next page load.
                     event.detail.data.gtm.datalayer = JSON.stringify([]);
+                },
+                // Hyvä's header dispatches toggle-cart when the cart drawer opens or closes.
+                ['@toggle-cart.window'](event) {
+                    if (!cartView || !(event?.detail?.isOpen)) {
+                        return;
+                    }
+                    try {
+                        let eventData = JSON.parse(cartView);
+                        window.dataLayer = window.dataLayer || [];
+                        window.dataLayer.push({ecommerce: null});
+                        window.dataLayer.push(eventData);
+                    } catch (e) {
+                        console.error('GTM: failed to parse cart view', e);
+                    }
                 }
             }
         };

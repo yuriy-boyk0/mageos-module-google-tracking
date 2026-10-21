@@ -74,4 +74,21 @@ class ExclusionPolicyTest extends TestCase
         $rules = $this->rules(['excluded_statuses' => ['pending_payment']]);
         $this->assertNull($this->policy->skipReason($this->order(['status' => 'pending']), $rules));
     }
+
+    public function testExcludedCustomerGroup(): void
+    {
+        $rules = $this->rules(['excluded_customer_groups' => ['2', 4]]);
+        $this->assertSame(ExclusionPolicy::REASON_CUSTOMER_GROUP, $this->policy->skipReason($this->order(['customer_group_id' => 2]), $rules));
+        $this->assertSame(ExclusionPolicy::REASON_CUSTOMER_GROUP, $this->policy->skipReason($this->order(['customer_group_id' => 4]), $rules));
+        $this->assertNull($this->policy->skipReason($this->order(['customer_group_id' => 1]), $rules));
+        $this->assertNull($this->policy->skipReason($this->order(['customer_group_id' => 0]), $this->rules()), 'no rule');
+    }
+
+    public function testMaximumTransactionValue(): void
+    {
+        $rules = $this->rules(['max_transaction_value' => 1000.0]);
+        $this->assertNull($this->policy->skipReason($this->order(['grand_total' => 1000.0]), $rules), 'equal is allowed');
+        $this->assertSame(ExclusionPolicy::REASON_MAX_VALUE, $this->policy->skipReason($this->order(['grand_total' => 1000.01]), $rules));
+        $this->assertNull($this->policy->skipReason($this->order(['grand_total' => 99999.0]), $this->rules(['max_transaction_value' => 0.0])), '0 = off');
+    }
 }

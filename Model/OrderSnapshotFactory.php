@@ -74,6 +74,7 @@ class OrderSnapshotFactory
             'status' => (string) $order->getStatus(),
             'payment_method' => $payment ? (string) $payment->getMethod() : '',
             'is_admin_order' => $isAdminOrder,
+            'customer_group_id' => (int) $order->getCustomerGroupId(),
         ];
     }
 

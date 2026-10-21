@@ -102,6 +102,16 @@ class PayloadBuilder
                     $row[$key] = $value;
                 }
             }
+            // Custom item parameters (General > Custom Item Parameters): any other valid GA4 parameter name.
+            foreach ($item as $key => $value) {
+                if (isset($row[$key]) || in_array($key, ['price', 'quantity', 'discount'], true)
+                    || !is_string($key) || preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) !== 1
+                    || !is_scalar($value) || (string) $value === ''
+                ) {
+                    continue;
+                }
+                $row[$key] = (string) $value;
+            }
             $result[] = $row;
         }
 

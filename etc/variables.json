@@ -454,5 +454,77 @@
     ],
     "fingerprint": "1761004800000",
     "formatValue": {}
+  },
+  {
+    "variableId": "288",
+    "name": "GA4-PageType",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "page_type"
+      }
+    ],
+    "fingerprint": "1761091200000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "289",
+    "name": "GA4-CustomerGroup",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "customer_group"
+      }
+    ],
+    "fingerprint": "1761091200000",
+    "formatValue": {}
+  },
+  {
+    "variableId": "290",
+    "name": "GA4-LoggedIn",
+    "type": "v",
+    "parameter": [
+      {
+        "type": "INTEGER",
+        "key": "dataLayerVersion",
+        "value": "2"
+      },
+      {
+        "type": "BOOLEAN",
+        "key": "setDefaultValue",
+        "value": "false"
+      },
+      {
+        "type": "TEMPLATE",
+        "key": "name",
+        "value": "logged_in"
+      }
+    ],
+    "fingerprint": "1761091200000",
+    "formatValue": {}
   }
 ]

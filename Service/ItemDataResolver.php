@@ -12,6 +12,8 @@ use Magento\Quote\Model\Quote\Item as QuoteItem;
 use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order\Item as OrderItem;
 use Magento\Store\Model\ScopeInterface;
+use MageOS\GoogleTagManager\Service\DataLayer\CategoryPathPicker;
+use MageOS\GoogleTagManager\Service\DataLayer\CustomItemAttributes;
 use MageOS\GoogleTagManager\Service\MeasurementProtocol\ItemIdResolver;
 
 /**
@@ -24,6 +26,9 @@ class ItemDataResolver
     public const XML_PATH_ITEM_ID_MODE = 'googletagmanager/server_side/item_id_mode';
     public const XML_PATH_BRAND_ATTRIBUTE = 'googletagmanager/general/brand_attribute';
     public const XML_PATH_AFFILIATION = 'googletagmanager/general/affiliation';
+    public const XML_PATH_CATEGORY_DEPTH = 'googletagmanager/general/category_depth';
+    public const XML_PATH_EXCLUDED_CATEGORIES = 'googletagmanager/general/excluded_categories';
+    public const XML_PATH_CUSTOM_ATTRIBUTES = 'googletagmanager/general/custom_item_attributes';
     private const MAX_CATEGORY_LEVELS = 5;
 
     /** @var array<string, string> */
@@ -35,7 +40,9 @@ class ItemDataResolver
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly CategoryRepositoryInterface $categoryRepository,
         private readonly ProductRepositoryInterface $productRepository,
-        private readonly ItemIdResolver $itemIdResolver
+        private readonly ItemIdResolver $itemIdResolver,
+        private readonly CategoryPathPicker $categoryPathPicker,
+        private readonly CustomItemAttributes $customItemAttributes
     ) {}
 
     public function itemIdMode(?int $storeId = null): string
@@ -139,17 +146,19 @@ class ItemDataResolver
             return $this->categoryPaths[$cacheKey];
         }
         try {
-            $bestPath = [];
+            $paths = [];
             foreach ($product->getCategoryIds() as $categoryId) {
                 $category = $this->categoryRepository->get((int) $categoryId, $storeId);
                 // Path is "1/2/10/15": drop the tree root and the store root category.
-                $pathIds = array_slice(array_map('intval', explode('/', (string) $category->getPath())), 2);
-                if (count($pathIds) > count($bestPath)) {
-                    $bestPath = $pathIds;
-                }
+                $paths[] = array_slice(array_map('intval', explode('/', (string) $category->getPath())), 2);
             }
+            // Excluded categories removed, longest path, cut to the configured depth (General settings).
+            $depth = (int) ($this->scopeConfig->getValue(self::XML_PATH_CATEGORY_DEPTH, ScopeInterface::SCOPE_STORE, $storeId) ?: self::MAX_CATEGORY_LEVELS);
+            $excluded = $this->categoryPathPicker->parseIds(
+                (string) $this->scopeConfig->getValue(self::XML_PATH_EXCLUDED_CATEGORIES, ScopeInterface::SCOPE_STORE, $storeId)
+            );
             $result = [];
-            foreach (array_slice($bestPath, 0, self::MAX_CATEGORY_LEVELS) as $index => $id) {
+            foreach ($this->categoryPathPicker->pick($paths, $excluded, $depth) as $index => $id) {
                 $key = $index === 0 ? 'item_category' : 'item_category' . ($index + 1);
                 $result[$key] = $this->categoryName($id, $storeId);
             }
@@ -216,6 +225,16 @@ class ItemDataResolver
         if ($brand !== '') {
             $result['item_brand'] = $brand;
         }
+        // Up to five custom item parameters (General > Custom Item Parameters), same loading rule as the brand.
+        $custom = $this->customItemAttributes->parse(
+            (string) $this->scopeConfig->getValue(self::XML_PATH_CUSTOM_ATTRIBUTES, ScopeInterface::SCOPE_STORE, $storeId)
+        );
+        foreach ($custom as $param => $code) {
+            $value = $this->attributeOf($product, $code, $storeId, $allowLoad);
+            if ($value !== '') {
+                $result[$param] = $value;
+            }
+        }
 
         return $result;
     }
@@ -223,17 +242,26 @@ class ItemDataResolver
     private function brand(?ProductInterface $product, int $storeId, bool $allowLoad): string
     {
         $code = trim((string) $this->scopeConfig->getValue(self::XML_PATH_BRAND_ATTRIBUTE, ScopeInterface::SCOPE_STORE, $storeId));
-        if ($code === '' || !$product instanceof Product) {
+
+        return $code === '' ? '' : $this->attributeOf($product, $code, $storeId, $allowLoad);
+    }
+
+    /**
+     * Attribute value as text. Cart rows and some listings carry a product without the attribute loaded: then it is
+     * read from the full product, unless $allowLoad is false (listings never load products one by one).
+     */
+    private function attributeOf(?ProductInterface $product, string $code, int $storeId, bool $allowLoad): string
+    {
+        if (!$product instanceof Product) {
             return '';
         }
-        $brand = $this->attributeValue($product, $code);
-        // Cart rows and some listings carry a product without the attribute loaded: read it from the full product.
-        if ($brand === '' && $allowLoad && !$product->hasData($code) && $product->getId()) {
+        $value = $this->attributeValue($product, $code);
+        if ($value === '' && $allowLoad && !$product->hasData($code) && $product->getId()) {
             $full = $this->loadProduct((int) $product->getId(), $storeId);
-            $brand = $full instanceof Product ? $this->attributeValue($full, $code) : '';
+            $value = $full instanceof Product ? $this->attributeValue($full, $code) : '';
         }
 
-        return $brand;
+        return $value;
     }
 
     private function attributeValue(Product $product, string $code): string

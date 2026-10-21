@@ -13,6 +13,13 @@
     <action name="checkout/cart/configure">
         <section name="gtm"/>
     </action>
+    <!-- Hyvä's cart drawer changes the cart through the sidebar controllers -->
+    <action name="checkout/sidebar/removeItem">
+        <section name="gtm"/>
+    </action>
+    <action name="checkout/sidebar/updateItemQty">
+        <section name="gtm"/>
+    </action>
     <action name="wishlist/index/add">
         <section name="gtm"/>
     </action>

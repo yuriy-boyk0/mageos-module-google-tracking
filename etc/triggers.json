@@ -441,5 +441,28 @@
         ]
       }
     ]
+  },
+  {
+    "triggerId": "298",
+    "name": "Add To Compare",
+    "type": "CUSTOM_EVENT",
+    "fingerprint": "1761091200000",
+    "customEventFilter": [
+      {
+        "type": "EQUALS",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "arg0",
+            "value": "\{\{_event\}\}"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "arg1",
+            "value": "add_to_compare"
+          }
+        ]
+      }
+    ]
   }
 ]

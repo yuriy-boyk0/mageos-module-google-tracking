@@ -10,6 +10,7 @@ use Hyva\Theme\ViewModel\HyvaCsp;
     <script>
         (function () {
             var config = <?= /* @noEscape */ $block->getJsonConsentConfig() ?>;
+            var pageContext = <?= /* @noEscape */ $block->getJsonPageContext() ?>;
             // Same cookie rules as Service\MeasurementProtocol\ConsentEvaluator (server side).
             var TRUTHY = ['1', 'true', 'yes', 'y', 'on', 'granted', 'accepted', 'allow', 'allowed'];
             var loaded = false;
@@ -46,6 +47,8 @@ use Hyva\Theme\ViewModel\HyvaCsp;
                 defaults.wait_for_update = 500;
                 gtag('consent', 'default', defaults);
             }
+            // page_type, customer_group, logged_in: read by the GA4 Configuration tag of the exported container.
+            window.dataLayer.push(pageContext);
 
             function readCookie(name) {
                 var parts = document.cookie ? document.cookie.split(';') : [];
@@ -92,7 +95,7 @@ use Hyva\Theme\ViewModel\HyvaCsp;
                 var first = document.getElementsByTagName('script')[0];
                 var script = document.createElement('script');
                 script.async = true;
-                script.src = 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(config.containerId);
+                script.src = (config.gtmBaseUrl || 'https://www.googletagmanager.com') + '/gtm.js?id=' + encodeURIComponent(config.containerId);
                 first.parentNode.insertBefore(script, first);
             }
 

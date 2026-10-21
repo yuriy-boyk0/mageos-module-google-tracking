@@ -170,6 +170,21 @@ Turn on *Allow dataLayer Debug Logging* and open the shop with `?gtm_debug=1`: t
 | Brand Attribute = `manufacturer` (set a value on a product; *Used in Product Listing* = Yes for listings), Affiliation = "Test store" | `item_brand` and `affiliation` on items of all events and in `purchase_server` |
 | Re-imported container | new tags *GA4 Selectitem*, *GA4 Viewpromotion*, *GA4 Selectpromotion* fire in GTM Preview; *GA4 Search* now sends `search_term` |
 
+## 7d. Page context, groups, limits, compare, minicart, categories, custom parameters (2026-10-21)
+| Scenario | Expected |
+|---|---|
+| Any page (debug logger on) | first push (after a `consent default` if Consent Mode is on) is `{page_type, customer_group, logged_in}`; `page_type` matches the page (home, category, product, search, cart, checkout, success, account, cms, 404, other); logged in → `logged_in: 'yes'` and the group name |
+| FPC: same category page as guest and as a logged-in customer of another group | each gets its own `customer_group` (separate cache entries) |
+| Re-imported container, GTM Preview | GA4 Configuration tag sends `page_type` and user properties `customer_group`, `logged_in` (GA4 request: `ep.page_type`, `up.customer_group`) |
+| *Custom GTM Script URL* = an address that serves gtm.js (e.g. a server-side GTM or a simple proxy) | `gtm.js` requested from that host; no CSP violation in the console (host added to script-src, connect-src, img-src, frame-src); empty = Google again |
+| *Don't Track Customer Groups* = NOT LOGGED IN | guest pages have no GTM script, no head/body dataLayer code; a guest order is `skipped` ("excluded: customer group"); a logged-in General customer is tracked |
+| *Maximum Transaction Value* = 50, order of 100 | no client `purchase` on the success page, server row `skipped` ("excluded: above the maximum transaction value") |
+| Add to compare (product page / listing) | `add_to_compare` with the item; GTM tag *GA4 Addtocompare* fires |
+| *view_cart When the Minicart Opens* = Yes | opening the cart drawer pushes `view_cart` with the current cart; after changing a quantity / removing in the drawer the next opening shows the new cart (also: `remove_from_cart` from the drawer now arrives, the sidebar controllers refresh the `gtm` section) |
+| *Category Depth* = 2 | items have only `item_category` and `item_category2` |
+| *Excluded Categories* = id of a category the product is in (e.g. a "Sale" category) | that category never appears, the next level moves up |
+| *Custom Item Parameters* = `item_color:color` | configurable / product with a color: `item_color` with the label on view_item, cart, purchase items and in `purchase_server` |
+
 ## 8. After testing
 Update `docs/STATUS.md`: move verified items to Done, list failures with the fix or the open question. Commit fixes with the tests that would have caught them (pure-logic bugs get a unit test in `Test/Unit/`).
 

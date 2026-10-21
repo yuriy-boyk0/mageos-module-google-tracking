@@ -18,4 +18,11 @@
             <argument name="identifierName" xsi:type="string">entity_id</argument>
         </arguments>
     </type>
+    <type name="Magento\Csp\Model\CompositePolicyCollector">
+        <arguments>
+            <argument name="collectors" xsi:type="array">
+                <item name="mageos_gtm_script_host" xsi:type="object" sortOrder="50">MageOS\GoogleTagManager\Model\Csp\GtmScriptHostCollector\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
 </config>

@@ -16,6 +16,7 @@ class EventQueue
     public const SESSION_KEY_ADD_TO_WISHLIST = 'gtm_add_to_wishlist_event';
     public const SESSION_KEY_REMOVE_WISHLIST = 'gtm_remove_from_wishlist_event';
     public const SESSION_KEY_UPDATE_CART = 'gtm_update_cart_event';
+    public const SESSION_KEY_ADD_TO_COMPARE = 'gtm_add_to_compare_event';
     public const SESSION_KEY_CUSTOMER_LOGIN = 'gtm_customer_login_event';
 
     public const SESSION_KEY_CUSTOMER_SIGN_UP = 'gtm_customer_sign_up_event';
